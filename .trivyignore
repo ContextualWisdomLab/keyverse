@@ -1,0 +1,22 @@
+# Trivy ignore file — misconfiguration policy checks that do not apply to this
+# reusable Helm chart. Only LOW/MEDIUM registry/namespace *policy* checks are
+# suppressed here; every runtime hardening finding (UID/GID, capabilities,
+# readOnlyRootFilesystem, seccomp, privilege escalation) is fixed in the
+# templates, not ignored. The central trivy-fs gate targets CRITICAL,HIGH and
+# there are zero CRITICAL/HIGH findings.
+
+# KSV-0110: "Workloads in the default namespace".
+# This is a reusable chart — the namespace is chosen by the operator at
+# `helm install -n <ns>` time and is intentionally not hardcoded in the
+# templates. Trivy renders with the default release namespace, so this check
+# always fires for a namespace-agnostic chart. Not a defect of the chart.
+KSV-0110
+
+# KSV-0125: "Restrict container images to trusted registries".
+# The trusted-registry allow-list is deployment policy, not a chart defect.
+# Third-party images are pinned by immutable sha256 digest
+# (quay.io/keycloak/keycloak, docker.io/library/postgres), which is a stronger
+# guarantee than registry trust, and the first-party account-unification image
+# repository is an operator-overridable value. Enforce registry trust via
+# admission control at deploy time, not against the packaged chart defaults.
+KSV-0125

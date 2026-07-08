@@ -21,9 +21,13 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+        # High UID/GID (>10000) avoids collisions with the host user table
+        # (KSV-0020/KSV-0021). Keycloak supports running as an arbitrary
+        # non-root user; fsGroup makes the writable data/tmp emptyDirs
+        # group-owned for this UID.
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
       containers:

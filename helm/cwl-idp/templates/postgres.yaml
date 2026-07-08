@@ -21,9 +21,13 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 999
-        runAsGroup: 999
-        fsGroup: 999
+        # High UID/GID (>10000) avoids collisions with the host user table
+        # (KSV-0020/KSV-0021). fsGroup makes the data PVC + scratch dirs
+        # group-owned and writable so the postgres process can initdb/run as
+        # this arbitrary non-root user.
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
       containers:
