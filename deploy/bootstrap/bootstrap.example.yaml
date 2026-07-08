@@ -1,0 +1,25 @@
+# Bootstrap pointer for the account-unification service.
+#
+# This is the ONE file the service is allowed to read directly from the
+# filesystem (its path is passed via the single CWL_IDP_BOOTSTRAP env var).
+# Its sole job is to tell the service WHERE the real config/secret store is.
+# No application secrets live here — only enough to reach the KV/DB store.
+#
+# Copy to bootstrap.yaml and mount read-only at /bootstrap/bootstrap.yaml.
+
+config_store:
+  # Backends: "sqlite" (dev/standalone), "postgres" (prod), "env-kv" (12-factor
+  # shim that reads a KV-injected blob). All real config is fetched from here.
+  backend: sqlite
+
+  # For backend: sqlite  — path to the KV database file.
+  sqlite:
+    path: /bootstrap/idp_config_store.db
+
+  # For backend: postgres — DSN is itself fetched from the platform secret
+  # manager and injected here at deploy time (bootstrap transport only).
+  postgres:
+    dsn_secret_ref: secret/idp/config-store-dsn
+
+  # Namespace/prefix under which this service's keys live in the store.
+  namespace: account_unification

@@ -1,0 +1,32 @@
+# Values for the cwl-idp chart.
+
+# The account-unification admin service (this repo).
+accountUnification:
+  image:
+    repository: cwl-idp/account-unification
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    port: 8099
+  # Bootstrap transport ONLY: a pointer to the KV/DB config store. Real config
+  # + secrets are read from that store at runtime. Mount the bootstrap file via
+  # a secret and set the path here.
+  bootstrap:
+    secretName: cwl-idp-bootstrap
+    mountPath: /bootstrap
+    fileName: bootstrap.yaml
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# ZITADEL subchart. Set enabled=false to federate an externally-managed ZITADEL.
+# Passwordless-first policy is applied via the setup steps (see the chart's
+# configmap / ZITADEL machine config); mirror deploy/zitadel/init-steps.yaml.
+zitadel:
+  enabled: true
+  # zitadel.* values pass through to the official ZITADEL subchart.

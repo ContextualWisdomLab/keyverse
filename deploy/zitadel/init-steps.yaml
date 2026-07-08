@@ -1,0 +1,65 @@
+# ZITADEL first-run setup steps (as-code) for cwl-idp.
+#
+# Applied once by `start-from-init --steps /config/init-steps.yaml`.
+# This is where the PASSWORDLESS-FIRST policy is enforced for every
+# ecosystem-local account: passkeys/FIDO2 are the default factor and
+# username+password login is turned OFF.
+#
+# Docs: https://zitadel.com/docs/self-hosting/manage/configure#defaultinstance
+
+FirstInstance:
+  # Human bootstrap admin. Created ONCE, then this account itself registers a
+  # passkey and the password is retired. Credentials sourced from KV via env.
+  Org:
+    Name: ContextualWisdomLab
+    Human:
+      UserName: ${ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME:-idp-admin}
+      Password: ${ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD}
+      PasswordChangeRequired: true
+
+  # ---------------------------------------------------------------------- #
+  # Login policy — the passwordless-first switch.
+  # ---------------------------------------------------------------------- #
+  LoginPolicy:
+    # Passwords OFF for ecosystem-local accounts. Federated (ADFS/LDAP)
+    # sign-in and passkeys remain available. This is the core requirement:
+    # "password providers disabled to eliminate passwords".
+    AllowUsernamePassword: false
+    AllowRegister: false
+    # Federation + local passkeys are the sanctioned paths in.
+    AllowExternalIDP: true
+    ForceMFA: false
+    # PASSWORDLESS_TYPE_ALLOWED enables passkey (WebAuthn/FIDO2) registration
+    # and login as a first-class, primary authentication method.
+    PasswordlessType: PASSWORDLESS_TYPE_ALLOWED
+    HidePasswordReset: true
+    IgnoreUnknownUsernames: true
+    DefaultRedirectURI: ""
+    PasswordCheckLifetime: 240h
+    ExternalLoginCheckLifetime: 240h
+    MFAInitSkipLifetime: 0h
+    SecondFactorCheckLifetime: 18h
+    MultiFactorCheckLifetime: 12h
+    # Offer passkeys (device-bound + syncable) as available second/primary.
+    SecondFactors:
+      - SECOND_FACTOR_TYPE_WEBAUTHN
+      - SECOND_FACTOR_TYPE_TOTP
+    MultiFactors:
+      - MULTI_FACTOR_TYPE_WEBAUTHN
+
+  # ---------------------------------------------------------------------- #
+  # Password complexity is set high as defense-in-depth for the single
+  # bootstrap credential; ecosystem-local users never see a password.
+  # ---------------------------------------------------------------------- #
+  PasswordComplexityPolicy:
+    MinLength: 16
+    HasLowercase: true
+    HasUppercase: true
+    HasNumber: true
+    HasSymbol: true
+
+  # Branding / privacy for the hosted login shown to federated users.
+  PrivacyPolicy:
+    TOSLink: ""
+    PrivacyLink: ""
+    SupportEmail: idp-support@contextualwisdom.example

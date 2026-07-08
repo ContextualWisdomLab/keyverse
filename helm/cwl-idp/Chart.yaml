@@ -1,0 +1,17 @@
+apiVersion: v2
+name: cwl-idp
+description: >-
+  Ecosystem central IdP (ZITADEL): passwordless OIDC/SCIM + inbound ADFS/LDAP
+  federation + the account-unification admin service.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+# ZITADEL itself is deployed via its official chart as a dependency. Pin the
+# subchart version in your umbrella and let it manage Postgres, or point it at
+# an external managed Postgres. This chart adds the account-unification service.
+dependencies:
+  - name: zitadel
+    version: "8.13.2"
+    repository: "https://charts.zitadel.com"
+    condition: zitadel.enabled

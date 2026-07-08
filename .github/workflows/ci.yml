@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  account-unification-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/account_unification
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Lint
+        run: python -m ruff check app tests
+      - name: Test
+        run: python -m pytest -q
+
+  compose-config-validates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose
+        run: docker compose -f docker-compose.yml config >/dev/null
+        env:
+          IDP_DB_SUPERUSER_PASSWORD: ci-placeholder
+          IDP_DB_APP_PASSWORD: ci-placeholder
+          IDP_MASTERKEY: ci-placeholder-masterkey-32bytes-xx
+          ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ci-placeholder

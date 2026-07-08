@@ -1,0 +1,60 @@
+{
+  "$comment": [
+    "SAML IdP registration template — EMPLOYER ADFS (sts.hssmartdev.com).",
+    "This registers the employer's proprietary ADFS as an INBOUND federation",
+    "source on cwl-idp. cwl-idp is the SP; ADFS is the external IdP. Feed this",
+    "body to the ZITADEL Management API: POST /management/v1/idps/saml",
+    "(org-scoped) with an Authorization: Bearer <mgmt PAT from KV> header.",
+    "The employer ADFS is a COMPATIBILITY TARGET, never the hub.",
+    "",
+    "Placeholders {{like_this}} are resolved by tooling from the KV config",
+    "store at apply time — do not hardcode metadata URLs or secrets here."
+  ],
+
+  "name": "Employer ADFS (hssmartdev)",
+
+  "$binding_notes": "ADFS commonly uses HTTP-POST for SP-initiated SSO.",
+  "binding": "SAML_BINDING_POST",
+  "withSignedRequest": true,
+  "nameIdFormat": "SAML_NAME_ID_FORMAT_EMAIL_ADDRESS",
+
+  "$metadata_notes": [
+    "Prefer metadataUrl so ADFS cert rollover is picked up automatically.",
+    "ADFS federation metadata is typically at:",
+    "https://sts.hssmartdev.com/FederationMetadata/2007-06/FederationMetadata.xml"
+  ],
+  "metadataUrl": "{{employer_adfs_metadata_url}}",
+  "metadataXml": null,
+
+  "$attribute_mapping": {
+    "$comment": [
+      "ADFS emits WS-* / SAML claim URIs. Map UPN and email so that:",
+      "  - the SAML nameID (EmailAddress format) is the stable subject, and",
+      "  - verified email drives AUTO-LINK-BY-VERIFIED-EMAIL on first login.",
+      "In ZITADEL these map onto the SAML provider's attribute options; the",
+      "orchestrator (account-unification service) reads emailVerified before",
+      "it will auto-link — never link on an unverified assertion."
+    ],
+    "subjectClaim": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+    "emailClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+    "upnClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
+    "displayNameClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+    "givenNameClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname",
+    "surnameClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname"
+  },
+
+  "providerOptions": {
+    "$comment": [
+      "isCreationAllowed  -> JIT provisioning on first federated login.",
+      "isLinkingAllowed   -> allow tying this ADFS identity to an existing user.",
+      "autoLinking EMAIL  -> auto-link when the asserted email matches an",
+      "                      existing verified-email account (see policy doc).",
+      "isAutoUpdate       -> keep name/email fresh from each assertion."
+    ],
+    "isLinkingAllowed": true,
+    "isCreationAllowed": true,
+    "isAutoCreation": true,
+    "isAutoUpdate": true,
+    "autoLinking": "AUTO_LINKING_OPTION_EMAIL"
+  }
+}

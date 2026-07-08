@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cwl-idp.fullname" . }}-account-unification
+  labels:
+    {{- include "cwl-idp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-unification
+spec:
+  replicas: {{ .Values.accountUnification.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
+      app.kubernetes.io/component: account-unification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
+        app.kubernetes.io/component: account-unification
+    spec:
+      containers:
+        - name: account-unification
+          image: "{{ .Values.accountUnification.image.repository }}:{{ .Values.accountUnification.image.tag }}"
+          imagePullPolicy: {{ .Values.accountUnification.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8099
+          env:
+            # ONLY bootstrap transport; real config comes from the KV store.
+            - name: CWL_IDP_BOOTSTRAP
+              value: "{{ .Values.accountUnification.bootstrap.mountPath }}/{{ .Values.accountUnification.bootstrap.fileName }}"
+          volumeMounts:
+            - name: bootstrap
+              mountPath: {{ .Values.accountUnification.bootstrap.mountPath }}
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.accountUnification.resources | nindent 12 }}
+      volumes:
+        - name: bootstrap
+          secret:
+            secretName: {{ .Values.accountUnification.bootstrap.secretName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cwl-idp.fullname" . }}-account-unification
+  labels:
+    {{- include "cwl-idp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-unification
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
+    app.kubernetes.io/component: account-unification
+  ports:
+    - name: http
+      port: {{ .Values.accountUnification.service.port }}
+      targetPort: http

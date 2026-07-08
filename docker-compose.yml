@@ -1,0 +1,132 @@
+# cwl-idp — ecosystem central IdP, standalone bring-up.
+#
+# Engine: ZITADEL (Apache-2.0) + its own PostgreSQL.
+# Images are pinned by tag AND digest for reproducibility.
+#
+# Runs standalone:      docker compose up -d   (or: podman compose up -d)
+# Embeddable submodule: the same file is included from a parent compose via
+#                       `include:` or `-f cwl-idp/docker-compose.yml`.
+#
+# Readiness: ZITADEL exposes gRPC/HTTP health; `deploy/scripts/healthz.sh`
+# and the compose healthchecks below poll the debug /debug/healthz endpoint.
+
+name: cwl-idp
+
+services:
+  # --------------------------------------------------------------------- #
+  # PostgreSQL — ZITADEL system-of-record. Not exposed outside the network.
+  # --------------------------------------------------------------------- #
+  idp_database:
+    image: postgres:17-alpine@sha256:67f624a4ad70edba8d65c82341124fab7054b277b4f7dea4b04be6f939ce2314
+    container_name: cwl_idp_database
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${IDP_DB_SUPERUSER:-zitadel}
+      # Bootstrap-only transport: this value is injected from your secret
+      # manager (KV) at deploy time, never committed. See .env.example.
+      POSTGRES_PASSWORD: ${IDP_DB_SUPERUSER_PASSWORD:?set IDP_DB_SUPERUSER_PASSWORD from your KV}
+      POSTGRES_DB: ${IDP_DB_NAME:-zitadel}
+    volumes:
+      - idp_database_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IDP_DB_SUPERUSER:-zitadel} -d ${IDP_DB_NAME:-zitadel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - idp_internal_network
+
+  # --------------------------------------------------------------------- #
+  # ZITADEL — the IdP engine. Passwordless-first policy is applied via the
+  # setup steps file (deploy/zitadel/init-steps.yaml) at first-run init.
+  # --------------------------------------------------------------------- #
+  idp_engine:
+    image: ghcr.io/zitadel/zitadel:v4.15.3@sha256:2356d646340724b3d843c024d589314adb9b54dbd6452ebc34008b011e023eff
+    container_name: cwl_idp_engine
+    restart: unless-stopped
+    command: >
+      start-from-init
+      --config /config/zitadel-config.yaml
+      --steps /config/init-steps.yaml
+      --masterkeyFromEnv
+      --tlsMode ${IDP_TLS_MODE:-external}
+    environment:
+      # 32-byte master key that encrypts secrets at rest. Bootstrap transport
+      # only: sourced from KV at deploy time. Rotate via ZITADEL procedure.
+      ZITADEL_MASTERKEY: ${IDP_MASTERKEY:?set IDP_MASTERKEY (32 bytes) from your KV}
+      # Database wiring for the config template ($$ escapes for compose).
+      ZITADEL_DATABASE_POSTGRES_HOST: idp_database
+      ZITADEL_DATABASE_POSTGRES_PORT: "5432"
+      ZITADEL_DATABASE_POSTGRES_DATABASE: ${IDP_DB_NAME:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: ${IDP_DB_APP_USER:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${IDP_DB_APP_PASSWORD:?set IDP_DB_APP_PASSWORD from your KV}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${IDP_DB_SUPERUSER:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${IDP_DB_SUPERUSER_PASSWORD:?set IDP_DB_SUPERUSER_PASSWORD from your KV}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_EXTERNALDOMAIN: ${IDP_EXTERNAL_DOMAIN:-localhost}
+      ZITADEL_EXTERNALPORT: ${IDP_EXTERNAL_PORT:-8080}
+      ZITADEL_EXTERNALSECURE: ${IDP_EXTERNAL_SECURE:-false}
+    volumes:
+      - ./deploy/zitadel:/config:ro
+      - idp_engine_machinekey:/machinekey
+    ports:
+      - "${IDP_EXTERNAL_PORT:-8080}:8080"
+    depends_on:
+      idp_database:
+        condition: service_healthy
+    healthcheck:
+      # ZITADEL ships a self-probe; /debug/healthz returns 200 when serving.
+      test: ["CMD", "/app/zitadel", "ready", "--config", "/config/zitadel-config.yaml"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - idp_internal_network
+      - idp_edge_network
+
+  # --------------------------------------------------------------------- #
+  # account-unification admin service (this repo). Fills the gap ZITADEL
+  # does not cover natively: MERGE two pre-existing accounts into one.
+  # --------------------------------------------------------------------- #
+  account_unification_service:
+    build:
+      context: ./services/account_unification
+    image: cwl-idp/account-unification:local
+    container_name: cwl_account_unification_service
+    restart: unless-stopped
+    environment:
+      # ONLY bootstrap transport: a pointer to the KV/DB config store.
+      # All real config + secrets are read from that store at runtime,
+      # never from scattered os.getenv calls. See services/.../app/config.py.
+      CWL_IDP_BOOTSTRAP: /bootstrap/bootstrap.yaml
+    volumes:
+      - ./deploy/bootstrap:/bootstrap:ro
+    ports:
+      - "${UNIFICATION_PORT:-8099}:8099"
+    depends_on:
+      idp_engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - idp_internal_network
+      - idp_edge_network
+
+volumes:
+  idp_database_data:
+  idp_engine_machinekey:
+
+networks:
+  # Internal: DB + engine + admin service. Never routed to the public edge.
+  idp_internal_network:
+    driver: bridge
+  # Edge: only the engine (OIDC) and admin API are reachable from the WAF.
+  idp_edge_network:
+    driver: bridge

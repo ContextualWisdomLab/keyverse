@@ -1,0 +1,59 @@
+# ZITADEL runtime configuration (as-code) for cwl-idp.
+#
+# This file is mounted read-only at /config/zitadel-config.yaml. Secrets are
+# NOT stored here; they arrive via environment injected from your KV at deploy
+# time (see docker-compose.yml + .env.example). Everything below is either
+# non-secret policy or a ${VAR} reference resolved from that bootstrap env.
+#
+# Docs: https://zitadel.com/docs/self-hosting/manage/configure
+
+Log:
+  Level: info
+  Formatter:
+    Format: json
+
+# --------------------------------------------------------------------------
+# Database — ZITADEL system of record. Connection values come from env that
+# the compose file sources from KV. ZITADEL reads ZITADEL_DATABASE_* directly,
+# so this block only pins pool sizing / SSL defaults that are safe to commit.
+# --------------------------------------------------------------------------
+Database:
+  Postgres:
+    MaxOpenConns: 20
+    MaxIdleConns: 10
+    MaxConnLifetime: 30m
+    MaxConnIdleTime: 5m
+
+# --------------------------------------------------------------------------
+# External addressing — resolved from bootstrap env (KV-sourced).
+# --------------------------------------------------------------------------
+ExternalDomain: ${ZITADEL_EXTERNALDOMAIN}
+ExternalPort: ${ZITADEL_EXTERNALPORT}
+ExternalSecure: ${ZITADEL_EXTERNALSECURE}
+
+# --------------------------------------------------------------------------
+# SCIM v2 provisioning server (inbound). ZITADEL exposes a SCIM 2.0 server at
+# /scim/v2/{orgId}. It is served by the same process; we keep it enabled and
+# behind the WAF edge. Provisioning tokens are ZITADEL PATs held in KV.
+# --------------------------------------------------------------------------
+DefaultInstance:
+  Features:
+    # SCIM v2 server for inbound provisioning from upstream HR/IGA systems.
+    UserSchema: true
+
+# --------------------------------------------------------------------------
+# Passwordless-first crypto + WebAuthn (FIDO2/passkeys) relying-party config.
+# RPID must match the externally visible domain the browser sees.
+# --------------------------------------------------------------------------
+WebAuthNName: ContextualWisdom IdP
+
+# OIDC token lifetimes issued to ecosystem relying parties.
+OIDC:
+  DefaultAccessTokenLifetime: 12h
+  DefaultIdTokenLifetime: 12h
+  DefaultRefreshTokenExpiration: 720h
+  DefaultRefreshTokenIdleExpiration: 168h
+
+# Telemetry off by default for a private ecosystem deployment.
+Telemetry:
+  Enabled: false

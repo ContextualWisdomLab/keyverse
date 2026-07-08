@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "LDAP / Active Directory source template — INBOUND federation source.",
+    "Registers a corporate LDAP/AD directory so users can sign in with their",
+    "directory credentials and be JIT-provisioned + linked by verified email.",
+    "Feed to ZITADEL Management API: POST /management/v1/idps/ldap with an",
+    "Authorization: Bearer <mgmt PAT from KV> header.",
+    "",
+    "The bind password is NEVER stored here. {{ldap_bind_password}} is resolved",
+    "from the KV config store at apply time by the tooling."
+  ],
+
+  "name": "Corporate Directory (LDAP/AD)",
+
+  "servers": ["{{ldap_server_url}}"],
+  "$server_example": "ldaps://ad.corp.example:636",
+  "startTls": false,
+
+  "baseDn": "{{ldap_base_dn}}",
+  "$baseDn_example": "DC=corp,DC=example",
+
+  "bindDn": "{{ldap_bind_dn}}",
+  "$bindDn_example": "CN=svc-zitadel,OU=ServiceAccounts,DC=corp,DC=example",
+  "bindPassword": "{{ldap_bind_password}}",
+
+  "userBase": "{{ldap_user_base}}",
+  "$userBase_example": "OU=Users,DC=corp,DC=example",
+
+  "userObjectClasses": ["organizationalPerson", "user"],
+  "userFilters": ["uid", "sAMAccountName", "userPrincipalName", "mail"],
+
+  "timeout": "10s",
+
+  "$attributes_notes": [
+    "Map directory attributes to ZITADEL user fields. userPrincipalName and",
+    "mail are the identifiers that feed verified-email auto-linking."
+  ],
+  "attributes": {
+    "idAttribute": "objectGUID",
+    "firstNameAttribute": "givenName",
+    "lastNameAttribute": "sn",
+    "displayNameAttribute": "displayName",
+    "emailAttribute": "mail",
+    "emailVerifiedAttribute": "mail",
+    "preferredUsernameAttribute": "userPrincipalName",
+    "profileAttribute": "distinguishedName"
+  },
+
+  "providerOptions": {
+    "isLinkingAllowed": true,
+    "isCreationAllowed": true,
+    "isAutoCreation": true,
+    "isAutoUpdate": true,
+    "autoLinking": "AUTO_LINKING_OPTION_EMAIL"
+  }
+}
