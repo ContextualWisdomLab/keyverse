@@ -17,10 +17,25 @@ spec:
         app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
         app.kubernetes.io/component: account-unification
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: account-unification
           image: "{{ .Values.accountUnification.image.repository }}:{{ .Values.accountUnification.image.tag }}"
           imagePullPolicy: {{ .Values.accountUnification.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - name: http
               containerPort: 8099
@@ -32,6 +47,9 @@ spec:
             - name: bootstrap
               mountPath: {{ .Values.accountUnification.bootstrap.mountPath }}
               readOnly: true
+            # Writable scratch dir since the root filesystem is read-only.
+            - name: tmp
+              mountPath: /tmp
           readinessProbe:
             httpGet:
               path: /healthz
@@ -50,6 +68,8 @@ spec:
         - name: bootstrap
           secret:
             secretName: {{ .Values.accountUnification.bootstrap.secretName }}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

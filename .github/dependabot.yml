@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# Dependency-update tool config (OSSF Scorecard: Dependency-Update-Tool).
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/services/account_unification"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+  - package-ecosystem: "docker"
+    directory: "/services/account_unification"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

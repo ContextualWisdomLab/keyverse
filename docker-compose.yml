@@ -24,8 +24,11 @@ services:
     environment:
       POSTGRES_USER: ${IDP_DB_USER:-keycloak}
       # Bootstrap-only transport: this value is injected from your secret
-      # manager (KV) at deploy time, never committed. See .env.example.
-      POSTGRES_PASSWORD: ${IDP_DB_PASSWORD:?set IDP_DB_PASSWORD from your KV}
+      # manager (KV) at deploy time, never committed. See .env.example. Plain
+      # interpolation (no required-variable error operator) so `docker compose
+      # config` validates with no env present; the postgres image itself rejects
+      # an empty password at runtime.
+      POSTGRES_PASSWORD: ${IDP_DB_PASSWORD}
       POSTGRES_DB: ${IDP_DB_NAME:-keycloak}
     volumes:
       - idp_database_data:/var/lib/postgresql/data
@@ -58,11 +61,11 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://idp_database:5432/${IDP_DB_NAME:-keycloak}
       KC_DB_USERNAME: ${IDP_DB_USER:-keycloak}
-      KC_DB_PASSWORD: ${IDP_DB_PASSWORD:?set IDP_DB_PASSWORD from your KV}
+      KC_DB_PASSWORD: ${IDP_DB_PASSWORD}
       # ---- Bootstrap admin. Created ONCE; retire after switching to passkey.
       # Bootstrap transport only: sourced from KV at deploy time.
       KC_BOOTSTRAP_ADMIN_USERNAME: ${IDP_BOOTSTRAP_ADMIN_USERNAME:-idp-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDP_BOOTSTRAP_ADMIN_PASSWORD:?set IDP_BOOTSTRAP_ADMIN_PASSWORD from your KV}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDP_BOOTSTRAP_ADMIN_PASSWORD}
       # ---- Health + metrics management endpoints on port 9000 ----
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"

@@ -19,10 +19,25 @@ spec:
         app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
         app.kubernetes.io/component: keycloak
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: keycloak
           image: "{{ .Values.keycloak.image.repository }}:{{ .Values.keycloak.image.tag }}@{{ .Values.keycloak.image.digest }}"
           imagePullPolicy: {{ .Values.keycloak.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           args: ["start", "--import-realm"]
           env:
             - name: KC_DB
@@ -77,12 +92,21 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 15
           volumeMounts:
+            # Writable data + tmp dirs since the root filesystem is read-only.
+            - name: kc-data
+              mountPath: /opt/keycloak/data
             - name: realm-import
               mountPath: /opt/keycloak/data/import
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.keycloak.resources | nindent 12 }}
       volumes:
+        - name: kc-data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
         - name: realm-import
           configMap:
             name: {{ .Values.keycloak.realmImport.configMapName }}
