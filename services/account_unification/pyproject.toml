@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cwl-idp-account-unification"
 version = "0.1.0"
-description = "Account-unification admin service for cwl-idp (ZITADEL)"
+description = "Account-unification admin service for cwl-idp (Keycloak)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }

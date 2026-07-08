@@ -12,14 +12,16 @@ def test_config_loads_from_kv():
     store = InMemoryKvStore(
         {
             "account_unification": {
-                "zitadel_api_base": "http://z",
-                "zitadel_mgmt_token": "tok",
-                "zitadel_org_id": "org",
+                "keycloak_server_url": "http://kc",
+                "keycloak_realm": "cwl",
+                "keycloak_client_id": "svc",
+                "keycloak_client_secret": "secret",
             }
         }
     )
     config = load_service_config(store, "account_unification")
-    assert config.zitadel_api_base == "http://z"
+    assert config.keycloak_server_url == "http://kc"
+    assert config.keycloak_realm == "cwl"
     # policy default: unverified linking OFF.
     assert config.allow_unverified_email_link is False
     assert config.merge_conflict_policy == "survivor_wins"
@@ -34,9 +36,10 @@ def test_missing_required_config_fails_loudly():
 def test_bootstrap_points_at_sqlite_store(tmp_path):
     db = tmp_path / "store.db"
     seed = SqliteKvStore(str(db))
-    seed.put("account_unification", "zitadel_api_base", "http://z")
-    seed.put("account_unification", "zitadel_mgmt_token", "tok")
-    seed.put("account_unification", "zitadel_org_id", "org")
+    seed.put("account_unification", "keycloak_server_url", "http://kc")
+    seed.put("account_unification", "keycloak_realm", "cwl")
+    seed.put("account_unification", "keycloak_client_id", "svc")
+    seed.put("account_unification", "keycloak_client_secret", "secret")
 
     bootstrap = tmp_path / "bootstrap.yaml"
     bootstrap.write_text(
@@ -50,4 +53,4 @@ def test_bootstrap_points_at_sqlite_store(tmp_path):
     assert descriptor.backend == "sqlite"
     store = open_config_store(descriptor)
     config = load_service_config(store, descriptor.namespace)
-    assert config.zitadel_org_id == "org"
+    assert config.keycloak_realm == "cwl"

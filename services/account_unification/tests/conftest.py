@@ -12,12 +12,12 @@ from app.audit import AuditLogger, InMemoryAuditSink  # noqa: E402
 from app.config import ServiceConfig  # noqa: E402
 from app.service import UnificationService  # noqa: E402
 
-from .mock_zitadel import MockManagementApi  # noqa: E402
+from .mock_keycloak import MockKeycloakAdminApi  # noqa: E402
 
 
 @pytest.fixture
-def api() -> MockManagementApi:
-    return MockManagementApi()
+def api() -> MockKeycloakAdminApi:
+    return MockKeycloakAdminApi()
 
 
 @pytest.fixture
@@ -33,9 +33,10 @@ def audit(audit_sink: InMemoryAuditSink) -> AuditLogger:
 @pytest.fixture
 def config() -> ServiceConfig:
     return ServiceConfig(
-        zitadel_api_base="http://zitadel.test",
-        zitadel_mgmt_token="test-token",
-        zitadel_org_id="org-1",
+        keycloak_server_url="http://keycloak.test",
+        keycloak_realm="cwl",
+        keycloak_client_id="account-unification-svc",
+        keycloak_client_secret="test-secret",
         merge_conflict_policy="survivor_wins",
         allow_unverified_email_link=False,
     )
@@ -43,6 +44,6 @@ def config() -> ServiceConfig:
 
 @pytest.fixture
 def service(
-    api: MockManagementApi, audit: AuditLogger, config: ServiceConfig
+    api: MockKeycloakAdminApi, audit: AuditLogger, config: ServiceConfig
 ) -> UnificationService:
     return UnificationService(api, audit, config)

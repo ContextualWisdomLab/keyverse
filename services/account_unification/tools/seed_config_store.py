@@ -16,10 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import (  # noqa: E402
     KEY_ALLOW_UNVERIFIED_LINK,
+    KEY_KEYCLOAK_CLIENT_ID,
+    KEY_KEYCLOAK_CLIENT_SECRET,
+    KEY_KEYCLOAK_REALM,
+    KEY_KEYCLOAK_SERVER_URL,
     KEY_MERGE_CONFLICT_POLICY,
-    KEY_ZITADEL_API_BASE,
-    KEY_ZITADEL_MGMT_TOKEN,
-    KEY_ZITADEL_ORG_ID,
 )
 from app.kv_store import SqliteKvStore  # noqa: E402
 
@@ -28,15 +29,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default="../../deploy/bootstrap/idp_config_store.db")
     parser.add_argument("--namespace", default="account_unification")
-    parser.add_argument("--api-base", default="http://localhost:8080")
-    parser.add_argument("--org-id", default="dev-org")
-    parser.add_argument("--mgmt-token", default="dev-placeholder-token")
+    parser.add_argument("--server-url", default="http://localhost:8080")
+    parser.add_argument("--realm", default="cwl")
+    parser.add_argument("--client-id", default="account-unification-svc")
+    parser.add_argument("--client-secret", default="dev-placeholder-secret")
     args = parser.parse_args()
 
     store = SqliteKvStore(args.db)
-    store.put(args.namespace, KEY_ZITADEL_API_BASE, args.api_base)
-    store.put(args.namespace, KEY_ZITADEL_ORG_ID, args.org_id)
-    store.put(args.namespace, KEY_ZITADEL_MGMT_TOKEN, args.mgmt_token)
+    store.put(args.namespace, KEY_KEYCLOAK_SERVER_URL, args.server_url)
+    store.put(args.namespace, KEY_KEYCLOAK_REALM, args.realm)
+    store.put(args.namespace, KEY_KEYCLOAK_CLIENT_ID, args.client_id)
+    store.put(args.namespace, KEY_KEYCLOAK_CLIENT_SECRET, args.client_secret)
     store.put(args.namespace, KEY_MERGE_CONFLICT_POLICY, "survivor_wins")
     store.put(args.namespace, KEY_ALLOW_UNVERIFIED_LINK, "false")
     print(f"seeded {args.db} namespace={args.namespace}")

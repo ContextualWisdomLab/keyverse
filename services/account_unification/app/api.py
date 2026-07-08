@@ -11,7 +11,7 @@ from .errors import (
     UnverifiedEmailMergeError,
     UserNotFoundError,
 )
-from .models import IdentityLink, MergeRequest, MergeResult, UserAccount
+from .models import FederatedIdentity, MergeRequest, MergeResult, UserAccount
 from .service import UnificationService
 
 router = APIRouter()
@@ -41,13 +41,13 @@ def get_user(user_id: str, service: UnificationService = Depends(get_service)) -
 
 @router.get(
     "/users/{user_id}/identities",
-    response_model=list[IdentityLink],
+    response_model=list[FederatedIdentity],
     tags=["identities"],
 )
 def list_identities(
     user_id: str, service: UnificationService = Depends(get_service)
-) -> list[IdentityLink]:
-    """List one user's external identities (idp_links)."""
+) -> list[FederatedIdentity]:
+    """List one user's external identities (federated identities)."""
     try:
         return service.list_identities(user_id)
     except UserNotFoundError as exc:

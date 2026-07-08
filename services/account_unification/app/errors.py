@@ -7,7 +7,7 @@ class UnificationError(Exception):
 
 
 class UserNotFoundError(UnificationError):
-    """A referenced ZITADEL user does not exist."""
+    """A referenced Keycloak user does not exist."""
 
 
 class SameUserError(UnificationError):

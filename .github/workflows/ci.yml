@@ -19,9 +19,19 @@ jobs:
       - name: Install
         run: python -m pip install -e '.[dev]'
       - name: Lint
-        run: python -m ruff check app tests
+        run: python -m ruff check app tests tools
       - name: Test
         run: python -m pytest -q
+
+  realm-config-validates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Keycloak realm config-as-code
+        run: python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
 
   compose-config-validates:
     runs-on: ubuntu-latest
@@ -30,7 +40,5 @@ jobs:
       - name: Validate docker-compose
         run: docker compose -f docker-compose.yml config >/dev/null
         env:
-          IDP_DB_SUPERUSER_PASSWORD: ci-placeholder
-          IDP_DB_APP_PASSWORD: ci-placeholder
-          IDP_MASTERKEY: ci-placeholder-masterkey-32bytes-xx
-          ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ci-placeholder
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder

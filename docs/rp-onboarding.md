@@ -7,88 +7,90 @@ environment file.
 Ecosystem RPs: `naruon`, `pg-erd-cloud`, `semantic-data-portal`, `clearfolio`,
 `contextual-orchestrator`, and `newsdom-api` (reached via the WAF edge).
 
-## 1. Register a project + OIDC app
+## 1. Register an OIDC client
 
-Use the template `deploy/templates/oidc-rp-client.json` against the ZITADEL
-Management API. One project per RP, one OIDC app inside it:
+Use the template `deploy/templates/oidc-rp-client.json` against the Keycloak
+Admin REST API. One client per RP in the `cwl` realm:
 
 ```bash
-PAT="$(kv get secret/idp/mgmt-pat)"          # bootstrap transport only
-ORG="$(kv get config/idp/org-id)"
+REALM=cwl
 BASE="https://idp.example"
 
-# create the project (once)
-PROJECT_ID=$(curl -sS -X POST "$BASE/management/v1/projects" \
-  -H "Authorization: Bearer $PAT" -H "x-zitadel-orgid: $ORG" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"naruon"}' | jq -r .id)
+# admin token from the service-account client (secret from KV)
+TOKEN=$(curl -sS -X POST \
+  "$BASE/realms/$REALM/protocol/openid-connect/token" \
+  -d grant_type=client_credentials \
+  -d client_id=account-unification-svc \
+  -d client_secret="$(kv get secret/idp/account-unification-client-secret)" \
+  | jq -r .access_token)
 
-# create the OIDC app (render placeholders from KV first)
+# create the client (render placeholders from KV first)
 render deploy/templates/oidc-rp-client.json \
-  | curl -sS -X POST "$BASE/management/v1/projects/$PROJECT_ID/apps/oidc" \
-      -H "Authorization: Bearer $PAT" -H "x-zitadel-orgid: $ORG" \
+  | curl -sS -X POST "$BASE/admin/realms/$REALM/clients" \
+      -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" --data @-
 ```
 
-ZITADEL returns a `clientId` and, for confidential apps, a `clientSecret`.
+For a confidential client, read the generated secret with
+`GET /admin/realms/$REALM/clients/{uuid}/client-secret`.
 
 ## 2. Store credentials in KV (not env)
 
 ```bash
-kv put secret/idp/rp/naruon/client-id     "$CLIENT_ID"
+kv put secret/idp/rp/naruon/client-id     "naruon"
 kv put secret/idp/rp/naruon/client-secret "$CLIENT_SECRET"   # if confidential
 ```
 
 The RP reads these from KV at boot. Its deployment env carries at most a single
 bootstrap pointer to the KV path — the same pattern the admin service uses.
 
-## 3. Auth method per RP type
+## 3. Auth method per RP type (OAuth 2.1)
 
-| RP shape | `appType` | `authMethodType` | Notes |
+| RP shape | `publicClient` | Flow | Notes |
 | --- | --- | --- | --- |
-| Server-side web / API (e.g. `newsdom-api`, `contextual-orchestrator`) | `WEB` | `PRIVATE_KEY_JWT` (preferred) or `BASIC` | Confidential; secret/JWK in KV |
-| SPA / browser (e.g. parts of `semantic-data-portal`) | `USER_AGENT` | `NONE` + PKCE | No secret; PKCE required |
-| Native / CLI | `NATIVE` | `NONE` + PKCE | No secret; PKCE required |
+| Server-side web / API (e.g. `newsdom-api`, `contextual-orchestrator`) | `false` | auth-code + PKCE, client secret or `private_key_jwt` | Confidential; secret/JWK in KV |
+| SPA / browser (e.g. parts of `semantic-data-portal`) | `true` | auth-code + PKCE (S256) | No secret; PKCE required |
+| Native / CLI | `true` | auth-code + PKCE (S256) | No secret; PKCE required |
 
-All RPs use the authorization-code flow (`OIDC_RESPONSE_TYPE_CODE`) with refresh
-tokens; access tokens are JWTs with role assertions enabled so RPs can authorize
-locally from the token.
+All RPs use the authorization-code flow with refresh tokens; the implicit and
+hybrid flows are **disabled** (`implicitFlowEnabled: false`) per OAuth 2.1.
+Access tokens are JWTs with role assertions so RPs can authorize locally.
 
 ## 4. Endpoints the RP configures
 
 Discovery document (everything else is derived from it):
 
 ```
-https://idp.example/.well-known/openid-configuration
+https://idp.example/realms/cwl/.well-known/openid-configuration
 ```
 
-| Purpose | Endpoint |
+| Purpose | Endpoint (realm `cwl`) |
 | --- | --- |
-| Issuer | `https://idp.example` |
-| Authorization | `/oauth/v2/authorize` |
-| Token | `/oauth/v2/token` |
-| UserInfo | `/oidc/v1/userinfo` |
-| JWKS | `/oauth/v2/keys` |
-| End session | `/oidc/v1/end_session` |
+| Issuer | `https://idp.example/realms/cwl` |
+| Authorization | `/realms/cwl/protocol/openid-connect/auth` |
+| Token | `/realms/cwl/protocol/openid-connect/token` |
+| UserInfo | `/realms/cwl/protocol/openid-connect/userinfo` |
+| JWKS | `/realms/cwl/protocol/openid-connect/certs` |
+| End session | `/realms/cwl/protocol/openid-connect/logout` |
 
 ## 5. Redirect URIs
 
 Set the RP's exact callback and post-logout URIs in the template
-(`redirectUris`, `postLogoutRedirectUris`). `devMode: false` in all real
-environments so only registered, https redirect URIs are accepted.
+(`redirectUris`, and the `post.logout.redirect.uris` attribute). Use only
+registered, HTTPS redirect URIs in real environments (no wildcards).
 
 ## 6. Roles & grants
 
-Define project roles in ZITADEL, grant them to users/orgs, and enable
-`accessTokenRoleAssertion` / `idTokenRoleAssertion` (already set in the
-template). During account merges, grants follow the survivor — see
-`merge-unification-flow.md`.
+Define realm or client roles in Keycloak, assign them to users/groups, and keep
+`roles` in the client's default scopes (already set in the template) so tokens
+carry role claims. During account merges, role mappings and group memberships
+follow the survivor — see `merge-unification-flow.md`.
 
 ## Checklist
 
-- [ ] Project + OIDC app registered from the template
+- [ ] OIDC client registered from the template
 - [ ] `clientId` / `clientSecret` stored in KV under `secret/idp/rp/<name>/…`
 - [ ] RP reads credentials from KV at boot (no secret in env)
-- [ ] Correct `appType` / `authMethodType` for the RP shape (PKCE for public)
-- [ ] Redirect + post-logout URIs registered, `devMode: false`
-- [ ] Project roles defined and asserted in tokens
+- [ ] Public clients use PKCE (S256); implicit/hybrid disabled
+- [ ] Redirect + post-logout URIs registered, HTTPS only
+- [ ] Realm/client roles defined and asserted in tokens

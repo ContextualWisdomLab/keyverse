@@ -1,12 +1,16 @@
 # account-unification service
 
-FastAPI admin service for cwl-idp. Provides the two capabilities neither
-ZITADEL nor an external ADFS offers natively:
+FastAPI admin service for cwl-idp. Provides the capabilities neither Keycloak
+nor an external ADFS offers natively:
 
-- **inspect** one user's many external identities (`idp_links`), and
-- **merge** two pre-existing accounts into one survivor — moving idp_links,
-  role grants, and memberships/ownership, with a survivor-wins conflict policy,
-  a tombstoned duplicate, and a full audit trail.
+- **inspect** one user's many external identities (Keycloak federated
+  identities),
+- **merge** two pre-existing accounts into one survivor — moving federated
+  identities, role mappings (realm + client), and group memberships/ownership,
+  with a survivor-wins conflict policy, a tombstoned duplicate, and a full audit
+  trail, and
+- a minimal **SCIM 2.0** inbound provisioning shim (`/scim/v2/Users`) that
+  provisions into Keycloak via its Admin REST API.
 
 See [`../../docs/merge-unification-flow.md`](../../docs/merge-unification-flow.md)
 for the algorithm and matching rules.
@@ -18,9 +22,10 @@ for the algorithm and matching rules.
 | `app/bootstrap.py` | Reads the one allowed env var (`CWL_IDP_BOOTSTRAP`) → opens the KV/DB config store |
 | `app/kv_store.py` | Config/secret store (`idp_config_entries`); SQLite + in-memory backends |
 | `app/config.py` | Typed `ServiceConfig` loaded only from the store (no runtime `os.getenv`) |
-| `app/zitadel_client.py` | ZITADEL Management API `Protocol` + httpx implementation |
+| `app/keycloak_client.py` | Keycloak Admin REST API `Protocol` + httpx implementation |
 | `app/matching.py` | Match precedence: exact idp subject → verified email → explicit |
 | `app/service.py` | Merge engine (survivor-wins) + identity inspection |
+| `app/scim.py` | Inbound SCIM 2.0 provisioning shim → Keycloak Admin API |
 | `app/audit.py` | Append-only audit (`account_merge_audit`); in-memory + SQLite sinks |
 | `app/api.py` / `app/main.py` | HTTP routes + `/healthz` |
 
@@ -32,8 +37,8 @@ pip install -e '.[dev]'
 pytest -q
 ```
 
-Tests run entirely against an in-memory ZITADEL fake (`tests/mock_zitadel.py`) —
-no live IdP needed.
+Tests run entirely against an in-memory Keycloak fake (`tests/mock_keycloak.py`)
+— no live IdP needed.
 
 ## Run the service (standalone)
 
@@ -53,8 +58,9 @@ curl -fsS localhost:8099/healthz
 
 | Key | Meaning |
 | --- | --- |
-| `zitadel_api_base` | ZITADEL Management API base URL |
-| `zitadel_mgmt_token` | Management PAT (secret) |
-| `zitadel_org_id` | Org id for `x-zitadel-orgid` |
+| `keycloak_server_url` | Keycloak base URL (e.g. `http://localhost:8080`) |
+| `keycloak_realm` | Realm the service manages (e.g. `cwl`) |
+| `keycloak_client_id` | Confidential service-account client id |
+| `keycloak_client_secret` | Service-account client secret (secret) |
 | `merge_conflict_policy` | `survivor_wins` (default) |
 | `allow_unverified_email_link` | hard-default `false` — never link/merge on unverified email |

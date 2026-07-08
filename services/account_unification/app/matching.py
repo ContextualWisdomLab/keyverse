@@ -21,10 +21,13 @@ def _normalize_email(email: str | None) -> str | None:
 
 def shares_exact_idp_subject(a: UserAccount, b: UserAccount) -> str | None:
     """Return an identifier if the two accounts share an (idp, subject) pair."""
-    b_pairs = {(link.idp_id, link.external_user_id) for link in b.idp_links}
-    for link in a.idp_links:
-        if (link.idp_id, link.external_user_id) in b_pairs:
-            return f"{link.idp_id}:{link.external_user_id}"
+    b_pairs = {
+        (link.identity_provider, link.external_user_id)
+        for link in b.federated_identities
+    }
+    for link in a.federated_identities:
+        if (link.identity_provider, link.external_user_id) in b_pairs:
+            return f"{link.identity_provider}:{link.external_user_id}"
     return None
 
 
