@@ -1,0 +1,5 @@
+# Fuzz image dependencies. Keep separate from normal dev requirements because
+# Atheris wheels are platform-specific.
+--only-binary=:all:
+atheris==3.0.0 ; platform_system == "Linux" and platform_machine == "x86_64" \
+    --hash=sha256:510e502c57b6dc615fb174066407af620d4c7f73cf08a782c86e7761bf12c4eb

@@ -7,13 +7,18 @@ their successor is published.
 
 ## Reporting a Vulnerability
 
-Please report suspected vulnerabilities privately via GitHub Security Advisories
-at https://github.com/ContextualWisdomLab/keyverse/security/advisories/new rather
-than opening a public issue. Include affected version, reproduction steps, and
-impact.
+Please report suspected vulnerabilities privately through the repository's
+[GitHub Security Advisory intake](https://github.com/ContextualWisdomLab/keyverse/security/advisories/new)
+rather than opening a public issue. The direct reporting URL is:
 
-We aim to acknowledge reports within 3 business days and to ship a fix or
-mitigation for confirmed high/critical issues as quickly as practical.
+https://github.com/ContextualWisdomLab/keyverse/security/advisories/new
+
+Include affected version, reproduction steps, and impact.
+
+Disclosure handling SLA: we aim to acknowledge vulnerability reports within 3
+business days, provide a status update within 30 days when a fix needs longer
+coordination, and ship a fix or mitigation for confirmed high/critical issues as
+quickly as practical.
 
 ## Scope
 
