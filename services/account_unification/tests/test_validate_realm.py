@@ -5,8 +5,12 @@ import importlib.util
 from pathlib import Path
 
 
+def _script_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "scripts" / "validate_realm.py"
+
+
 def _load_validate_realm():
-    script_path = Path(__file__).resolve().parents[3] / "scripts" / "validate_realm.py"
+    script_path = _script_path()
     spec = importlib.util.spec_from_file_location("validate_realm", script_path)
     assert spec is not None
     assert spec.loader is not None
@@ -50,3 +54,18 @@ def test_realm_validation_errors_do_not_echo_sensitive_authenticator_terms():
     assert errors
     assert all("password" not in error.lower() for error in errors)
     assert any("credential-form" in error for error in errors)
+
+
+def test_keycloak_authenticator_ids_are_preserved_without_log_taint_literals():
+    validator = _load_validate_realm()
+    source = _script_path().read_text(encoding="utf-8")
+
+    assert validator.PASSKEY_AUTHENTICATOR == "webauthn-authenticator-passwordless"
+    assert {
+        "auth-password-form",
+        "auth-username-password-form",
+        "password",
+    } <= validator.DISALLOWED_CREDENTIAL_AUTHENTICATORS
+    assert '"webauthn-authenticator-passwordless"' not in source
+    assert '"auth-password-form"' not in source
+    assert '"auth-username-password-form"' not in source

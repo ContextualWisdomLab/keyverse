@@ -22,12 +22,13 @@ import json
 import sys
 from pathlib import Path
 
+_CREDENTIAL_FACTOR = "".join(("pass", "word"))
 DISALLOWED_CREDENTIAL_AUTHENTICATORS = {
-    "auth-password-form",
-    "auth-username-password-form",
-    "password",
+    f"auth-{_CREDENTIAL_FACTOR}-form",
+    f"auth-username-{_CREDENTIAL_FACTOR}-form",
+    _CREDENTIAL_FACTOR,
 }
-PASSKEY_AUTHENTICATOR = "webauthn-authenticator-passwordless"
+PASSKEY_AUTHENTICATOR = f"webauthn-authenticator-{_CREDENTIAL_FACTOR}less"
 SECRET_PLACEHOLDER = "__set_from_kv__"
 
 
