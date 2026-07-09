@@ -33,4 +33,5 @@ test: ## Run the account-unification unit tests
 	cd $(SERVICE_DIR) && python -m pytest -q
 
 lint: ## Ruff lint the admin service
-	cd $(SERVICE_DIR) && python -m ruff check app tests
+	cd $(SERVICE_DIR) && python -m ruff check app tests tools
+	cd $(SERVICE_DIR) && python -m interrogate .

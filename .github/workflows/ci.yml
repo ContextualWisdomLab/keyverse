@@ -25,6 +25,8 @@ jobs:
         run: uv sync --locked --extra dev
       - name: Lint
         run: uv run ruff check app tests tools
+      - name: Docstrings
+        run: uv run interrogate .
       - name: Test
         run: uv run pytest -q
 
