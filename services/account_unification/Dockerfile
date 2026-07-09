@@ -1,16 +1,17 @@
 # account-unification admin service image.
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /srv
 
-COPY pyproject.toml README.md ./
-COPY app ./app
+COPY requirements.txt ./
 
-RUN python -m pip install --no-cache-dir . \
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements.txt \
     && adduser --system --no-create-home appuser
+
+COPY app ./app
 
 USER appuser
 EXPOSE 8099

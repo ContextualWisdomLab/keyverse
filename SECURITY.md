@@ -8,8 +8,9 @@ their successor is published.
 ## Reporting a Vulnerability
 
 Please report suspected vulnerabilities privately via GitHub Security Advisories
-("Report a vulnerability" on the repository **Security** tab) rather than opening
-a public issue. Include affected version, reproduction steps, and impact.
+at https://github.com/ContextualWisdomLab/keyverse/security/advisories/new rather
+than opening a public issue. Include affected version, reproduction steps, and
+impact.
 
 We aim to acknowledge reports within 3 business days and to ship a fix or
 mitigation for confirmed high/critical issues as quickly as practical.
