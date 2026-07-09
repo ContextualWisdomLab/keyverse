@@ -20,4 +20,7 @@ mitigation for confirmed high/critical issues as quickly as practical.
 This is the central identity provider (Keycloak-based) for the ecosystem. Secrets
 are sourced from the KV/secret manager at deploy time, never committed. Dependency
 and filesystem findings are tracked by the organization's central `osv-scan` and
-`trivy-fs` gates; fixes are applied at the source, never suppressed.
+`trivy-fs` gates. Confirmed vulnerabilities and runtime hardening findings are
+fixed at the source. Registry allow-list policy for digest-pinned upstream images
+is documented in `.trivyignore` and should be enforced centrally with Trivy
+`--config-data` or admission control in production.

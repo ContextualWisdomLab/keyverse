@@ -1,5 +1,7 @@
 # Values for the cwl-idp chart.
 
+namespaceOverride: cwl-idp
+
 # The account-unification admin service (this repo).
 accountUnification:
   image:
