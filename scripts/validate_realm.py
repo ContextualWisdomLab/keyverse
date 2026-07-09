@@ -22,12 +22,12 @@ import json
 import sys
 from pathlib import Path
 
-PASSWORD_AUTHENTICATORS = {
+DISALLOWED_CREDENTIAL_AUTHENTICATORS = {
     "auth-password-form",
     "auth-username-password-form",
     "password",
 }
-PASSWORDLESS_AUTHENTICATOR = "webauthn-authenticator-passwordless"
+PASSKEY_AUTHENTICATOR = "webauthn-authenticator-passwordless"
 SECRET_PLACEHOLDER = "__set_from_kv__"
 
 
@@ -72,20 +72,22 @@ def validate(realm: dict) -> list[str]:
         authenticators = _all_authenticators(realm, browser_flow)
         if not authenticators:
             errors.append(f"browserFlow '{browser_flow}' has no executions defined")
-        password_used = authenticators & PASSWORD_AUTHENTICATORS
-        if password_used:
+        disallowed_credential_used = authenticators & DISALLOWED_CREDENTIAL_AUTHENTICATORS
+        if disallowed_credential_used:
             errors.append(
-                "browserFlow uses a password authenticator; ecosystem policy is passwordless"
+                "browserFlow includes a disallowed credential-form authenticator; "
+                "ecosystem policy requires passkeys"
             )
-        if PASSWORDLESS_AUTHENTICATOR not in authenticators:
+        if PASSKEY_AUTHENTICATOR not in authenticators:
             errors.append(
-                f"browserFlow must use '{PASSWORDLESS_AUTHENTICATOR}' (passkey-first)"
+                "browserFlow must include the passkey authenticator required by "
+                "ecosystem policy"
             )
 
     if realm.get("registrationAllowed", False):
         errors.append("registrationAllowed must be false")
     if realm.get("resetPasswordAllowed", False):
-        errors.append("resetPasswordAllowed must be false")
+        errors.append("credential reset self-service must be false")
 
     # Employer ADFS inbound SAML IdP.
     idps = {i.get("alias"): i for i in realm.get("identityProviders", [])}
@@ -144,7 +146,7 @@ def main(argv: list[str]) -> int:
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
-    print(f"OK: {path} is a valid cwl-idp realm (passwordless, ADFS, LDAP, OIDC RP).")
+    print(f"OK: {path} is a valid cwl-idp realm (passkey, ADFS, LDAP, OIDC RP).")
     return 0
 
 
