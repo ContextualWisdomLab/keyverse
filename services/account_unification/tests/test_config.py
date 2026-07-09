@@ -5,7 +5,12 @@ from contextlib import closing
 
 import pytest
 
-from app.bootstrap import BootstrapDescriptor, load_bootstrap_descriptor, open_config_store
+from app.bootstrap import (
+    BootstrapDescriptor,
+    UnsupportedConfigBackendError,
+    load_bootstrap_descriptor,
+    open_config_store,
+)
 from app.config import load_service_config
 from app.kv_store import InMemoryKvStore, KvStore, SqliteKvStore
 
@@ -80,5 +85,7 @@ def test_unsupported_standalone_backend_fails_loudly():
         namespace="account_unification",
         postgres_dsn_secret_ref="secret://idp/postgres",
     )
-    with pytest.raises(NotImplementedError, match="not built into the standalone image"):
+    with pytest.raises(
+        UnsupportedConfigBackendError, match="unavailable in the standalone image"
+    ):
         open_config_store(descriptor)
