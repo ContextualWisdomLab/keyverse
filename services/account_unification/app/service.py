@@ -39,18 +39,22 @@ _ACTIVE_STATES = {"active", "enabled"}
 
 
 class UnificationService:
+    """Coordinate identity inspection and audited account merges."""
+
     def __init__(
         self,
         api: AdminApi,
         audit: AuditLogger,
         config: ServiceConfig,
     ) -> None:
+        """Create a service around admin API, audit, and config dependencies."""
         self._api = api
         self._audit = audit
         self._config = config
 
     # -- (a) inspect identities -------------------------------------------
     def get_account(self, user_id: str) -> UserAccount:
+        """Load one account together with its federated identities."""
         user = self._load_user(user_id)
         user.federated_identities = self._api.list_federated_identities(user_id)
         return user
@@ -62,6 +66,7 @@ class UnificationService:
 
     # -- (b) merge --------------------------------------------------------
     def merge_accounts(self, request: MergeRequest) -> MergeResult:
+        """Merge duplicate into survivor using verified matching and audit."""
         if request.survivor_user_id == request.duplicate_user_id:
             raise SameUserError("survivor and duplicate are the same account")
 
@@ -152,6 +157,7 @@ class UnificationService:
     def _move_federated_identities(
         self, survivor, duplicate, audit_id, actor, conflicts
     ) -> list[str]:
+        """Move external identity links and record survivor-wins conflicts."""
         existing = {
             (link.identity_provider, link.external_user_id)
             for link in survivor.federated_identities
@@ -196,6 +202,7 @@ class UnificationService:
     def _move_role_mappings(
         self, survivor, duplicate, audit_id, actor, conflicts
     ) -> list[str]:
+        """Move realm and client role mappings without overwriting survivor roles."""
         survivor_roles = {
             (r.client_id, r.role_name)
             for r in self._api.list_role_mappings(survivor.user_id)
@@ -232,6 +239,7 @@ class UnificationService:
     def _move_group_memberships(
         self, survivor, duplicate, audit_id, actor, conflicts
     ) -> list[str]:
+        """Move group memberships without duplicating survivor memberships."""
         survivor_groups = {
             g.group_id for g in self._api.list_group_memberships(survivor.user_id)
         }
@@ -261,6 +269,7 @@ class UnificationService:
         return moved
 
     def _tombstone(self, duplicate, survivor, audit_id, actor) -> None:
+        """Disable the duplicate and stamp a pointer to the survivor."""
         # Stamp a pointer to the survivor, then disable the duplicate so it can
         # never authenticate again but remains for forensic history.
         self._api.set_user_attribute(
@@ -275,6 +284,7 @@ class UnificationService:
 
     # -- guards -----------------------------------------------------------
     def _load_user(self, user_id: str) -> UserAccount:
+        """Load one user or raise the domain not-found error."""
         try:
             return self._api.get_user(user_id)
         except KeyError as exc:  # mock raises KeyError for unknown ids
@@ -282,6 +292,7 @@ class UnificationService:
 
     @staticmethod
     def _assert_active(user: UserAccount) -> None:
+        """Reject inactive users before merge mutation begins."""
         if user.state not in _ACTIVE_STATES:
             raise InactiveAccountError(
                 f"user {user.user_id} is not active ({user.state})"

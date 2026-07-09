@@ -31,6 +31,7 @@ scim_router = APIRouter(prefix="/scim/v2", tags=["scim"])
 
 
 def get_provisioner(request: Request) -> AdminApi:
+    """Return the Keycloak provisioner wired into app state."""
     api = getattr(request.app.state, "keycloak_api", None)
     if api is None:  # pragma: no cover - only when misconfigured / test wiring
         raise HTTPException(status_code=503, detail="keycloak provisioner not wired")
@@ -38,6 +39,7 @@ def get_provisioner(request: Request) -> AdminApi:
 
 
 def _scim_error(status: int, detail: str) -> HTTPException:
+    """Build a SCIM-shaped HTTP error."""
     return HTTPException(
         status_code=status,
         detail={"schemas": [SCIM_ERROR_SCHEMA], "detail": detail, "status": str(status)},
@@ -45,6 +47,7 @@ def _scim_error(status: int, detail: str) -> HTTPException:
 
 
 def _primary_email(resource: dict[str, Any]) -> str | None:
+    """Return the primary SCIM email, falling back to the first email."""
     emails = resource.get("emails") or []
     if not emails:
         return None
@@ -55,6 +58,7 @@ def _primary_email(resource: dict[str, Any]) -> str | None:
 
 
 def _to_user_account(resource: dict[str, Any], user_id: str = "") -> UserAccount:
+    """Translate a SCIM User resource into the domain user model."""
     name = resource.get("name") or {}
     return UserAccount(
         user_id=user_id,
@@ -71,6 +75,7 @@ def _to_user_account(resource: dict[str, Any], user_id: str = "") -> UserAccount
 
 
 def _to_scim_resource(user: UserAccount) -> dict[str, Any]:
+    """Translate a domain user into a SCIM User resource."""
     resource: dict[str, Any] = {
         "schemas": [SCIM_USER_SCHEMA],
         "id": user.user_id,
@@ -87,6 +92,7 @@ def _to_scim_resource(user: UserAccount) -> dict[str, Any]:
 
 
 def _scim_response(body: dict[str, Any], status_code: int = 200) -> Response:
+    """Serialize a SCIM JSON response with the SCIM media type."""
     import json
 
     return Response(
@@ -98,6 +104,7 @@ def _scim_response(body: dict[str, Any], status_code: int = 200) -> Response:
 
 @scim_router.get("/ServiceProviderConfig")
 def service_provider_config() -> Response:
+    """Return the service capabilities advertised to SCIM clients."""
     return _scim_response(
         {
             "schemas": [SCIM_SPC_SCHEMA],
@@ -122,6 +129,7 @@ def service_provider_config() -> Response:
 def create_user(
     resource: dict[str, Any], provisioner: AdminApi = Depends(get_provisioner)
 ) -> Response:
+    """Provision a Keycloak user from a SCIM create request."""
     username = resource.get("userName")
     if not username:
         raise _scim_error(400, "userName is required")
@@ -137,6 +145,7 @@ def create_user(
 def get_user(
     user_id: str, provisioner: AdminApi = Depends(get_provisioner)
 ) -> Response:
+    """Return one provisioned user as a SCIM resource."""
     try:
         user = provisioner.get_user(user_id)
     except KeyError as exc:
@@ -148,6 +157,7 @@ def get_user(
 def search_users(
     request: Request, provisioner: AdminApi = Depends(get_provisioner)
 ) -> Response:
+    """Search users with the supported ``userName eq`` SCIM filter."""
     scim_filter = request.query_params.get("filter")
     results: list[UserAccount] = []
     if scim_filter:
@@ -177,6 +187,7 @@ def replace_user(
     resource: dict[str, Any],
     provisioner: AdminApi = Depends(get_provisioner),
 ) -> Response:
+    """Replace a provisioned user from a SCIM PUT request."""
     try:
         provisioner.get_user(user_id)
     except KeyError as exc:
@@ -192,6 +203,7 @@ def patch_user(
     body: dict[str, Any],
     provisioner: AdminApi = Depends(get_provisioner),
 ) -> Response:
+    """Apply the supported SCIM PATCH operations to one user."""
     try:
         provisioner.get_user(user_id)
     except KeyError as exc:
@@ -214,6 +226,7 @@ def patch_user(
 def delete_user(
     user_id: str, provisioner: AdminApi = Depends(get_provisioner)
 ) -> Response:
+    """Soft-delete a user by disabling the Keycloak account."""
     try:
         provisioner.get_user(user_id)
     except KeyError as exc:

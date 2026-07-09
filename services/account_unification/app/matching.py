@@ -14,6 +14,7 @@ from .models import MatchDecision, MatchReason, UserAccount
 
 
 def _normalize_email(email: str | None) -> str | None:
+    """Return a comparable email value or ``None`` for blank input."""
     if not email:
         return None
     return email.strip().lower() or None
@@ -32,6 +33,7 @@ def shares_exact_idp_subject(a: UserAccount, b: UserAccount) -> str | None:
 
 
 def have_matching_verified_email(a: UserAccount, b: UserAccount) -> bool:
+    """Return true when both accounts share the same verified email."""
     email_a = _normalize_email(a.email)
     email_b = _normalize_email(b.email)
     if email_a is None or email_b is None:

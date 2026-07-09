@@ -35,41 +35,73 @@ from .models import FederatedIdentity, GroupMembership, RoleMapping, UserAccount
 class AdminApi(Protocol):
     """Minimal Keycloak Admin REST API surface the merge engine needs."""
 
-    def get_user(self, user_id: str) -> UserAccount: ...
+    def get_user(self, user_id: str) -> UserAccount:
+        """Return one Keycloak user by id."""
+        ...
 
-    def find_users_by_email(self, email: str) -> list[UserAccount]: ...
+    def find_users_by_email(self, email: str) -> list[UserAccount]:
+        """Return exact-email Keycloak users."""
+        ...
 
-    def find_user_by_username(self, username: str) -> UserAccount | None: ...
+    def find_user_by_username(self, username: str) -> UserAccount | None:
+        """Return one exact-username Keycloak user, if present."""
+        ...
 
-    def create_user(self, user: UserAccount) -> str: ...
+    def create_user(self, user: UserAccount) -> str:
+        """Create a Keycloak user and return its id."""
+        ...
 
-    def replace_user(self, user_id: str, user: UserAccount) -> None: ...
+    def replace_user(self, user_id: str, user: UserAccount) -> None:
+        """Replace a Keycloak user representation."""
+        ...
 
-    def list_federated_identities(self, user_id: str) -> list[FederatedIdentity]: ...
+    def list_federated_identities(self, user_id: str) -> list[FederatedIdentity]:
+        """List external identity links attached to a user."""
+        ...
 
     def add_federated_identity(
         self, user_id: str, identity: FederatedIdentity
-    ) -> None: ...
+    ) -> None:
+        """Attach one external identity link to a user."""
+        ...
 
     def remove_federated_identity(
         self, user_id: str, identity_provider: str
-    ) -> None: ...
+    ) -> None:
+        """Remove one external identity link from a user."""
+        ...
 
-    def list_role_mappings(self, user_id: str) -> list[RoleMapping]: ...
+    def list_role_mappings(self, user_id: str) -> list[RoleMapping]:
+        """List realm and client roles mapped to a user."""
+        ...
 
-    def add_role_mapping(self, user_id: str, role: RoleMapping) -> None: ...
+    def add_role_mapping(self, user_id: str, role: RoleMapping) -> None:
+        """Add one realm or client role mapping to a user."""
+        ...
 
-    def remove_role_mapping(self, user_id: str, role: RoleMapping) -> None: ...
+    def remove_role_mapping(self, user_id: str, role: RoleMapping) -> None:
+        """Remove one realm or client role mapping from a user."""
+        ...
 
-    def list_group_memberships(self, user_id: str) -> list[GroupMembership]: ...
+    def list_group_memberships(self, user_id: str) -> list[GroupMembership]:
+        """List groups a user belongs to."""
+        ...
 
-    def add_group_membership(self, user_id: str, group: GroupMembership) -> None: ...
+    def add_group_membership(self, user_id: str, group: GroupMembership) -> None:
+        """Add a user to one Keycloak group."""
+        ...
 
-    def remove_group_membership(self, user_id: str, group: GroupMembership) -> None: ...
+    def remove_group_membership(self, user_id: str, group: GroupMembership) -> None:
+        """Remove a user from one Keycloak group."""
+        ...
 
-    def deactivate_user(self, user_id: str) -> None: ...
+    def deactivate_user(self, user_id: str) -> None:
+        """Disable a Keycloak user."""
+        ...
 
-    def set_user_attribute(self, user_id: str, key: str, value: str) -> None: ...
+    def set_user_attribute(self, user_id: str, key: str, value: str) -> None:
+        """Set one single-valued user attribute."""
+        ...
 
 
 class HttpAdminApi:
@@ -88,7 +120,9 @@ class HttpAdminApi:
         client_secret: str,
         token_realm: str | None = None,
         timeout_seconds: float = 10.0,
+        transport=None,
     ) -> None:
+        """Create an Admin REST client for one managed realm."""
         import httpx  # local import keeps httpx optional for pure unit tests
 
         self._realm = realm
@@ -101,11 +135,13 @@ class HttpAdminApi:
             base_url=server_url.rstrip("/"),
             timeout=timeout_seconds,
             headers={"Content-Type": "application/json"},
+            transport=transport,
         )
         self._token: str | None = None
 
     # -- auth --------------------------------------------------------------
     def _authenticate(self) -> str:
+        """Fetch and cache a service-account access token."""
         response = self._client.post(
             f"/realms/{self._token_realm}/protocol/openid-connect/token",
             data={
@@ -120,15 +156,18 @@ class HttpAdminApi:
         return self._token
 
     def _auth_header(self) -> dict[str, str]:
+        """Return the bearer auth header, authenticating lazily."""
         token = self._token or self._authenticate()
         return {"Authorization": f"Bearer {token}"}
 
     # -- reads -------------------------------------------------------------
     def get_user(self, user_id: str) -> UserAccount:
+        """Return one user by Keycloak id."""
         data = self._get(f"/admin/realms/{self._realm}/users/{user_id}")
         return _parse_user(data)
 
     def find_users_by_email(self, email: str) -> list[UserAccount]:
+        """Return exact-email user matches."""
         data = self._get(
             f"/admin/realms/{self._realm}/users",
             params={"email": email, "exact": "true"},
@@ -136,6 +175,7 @@ class HttpAdminApi:
         return [_parse_user(item) for item in data]
 
     def find_user_by_username(self, username: str) -> UserAccount | None:
+        """Return the exact case-insensitive username match."""
         data = self._get(
             f"/admin/realms/{self._realm}/users",
             params={"username": username, "exact": "true"},
@@ -146,6 +186,7 @@ class HttpAdminApi:
         return None
 
     def create_user(self, user: UserAccount) -> str:
+        """Create a user and derive its id from Location or username lookup."""
         # Keycloak returns 201 with a Location header ending in the new user id.
         response = self._client.post(
             f"/admin/realms/{self._realm}/users",
@@ -160,11 +201,13 @@ class HttpAdminApi:
         return found.user_id if found else ""
 
     def replace_user(self, user_id: str, user: UserAccount) -> None:
+        """Replace the Keycloak representation for one user."""
         self._put(
             f"/admin/realms/{self._realm}/users/{user_id}", _to_keycloak_user(user)
         )
 
     def list_federated_identities(self, user_id: str) -> list[FederatedIdentity]:
+        """Return all external identity links attached to a user."""
         data = self._get(
             f"/admin/realms/{self._realm}/users/{user_id}/federated-identity"
         )
@@ -178,6 +221,7 @@ class HttpAdminApi:
         ]
 
     def list_role_mappings(self, user_id: str) -> list[RoleMapping]:
+        """Return realm and client role mappings as one flat list."""
         data = self._get(
             f"/admin/realms/{self._realm}/users/{user_id}/role-mappings"
         )
@@ -199,6 +243,7 @@ class HttpAdminApi:
         return mappings
 
     def list_group_memberships(self, user_id: str) -> list[GroupMembership]:
+        """Return group memberships for one user."""
         data = self._get(
             f"/admin/realms/{self._realm}/users/{user_id}/groups"
         )
@@ -213,6 +258,7 @@ class HttpAdminApi:
 
     # -- writes ------------------------------------------------------------
     def add_federated_identity(self, user_id: str, identity: FederatedIdentity) -> None:
+        """Attach one federated identity link to a user."""
         self._post(
             f"/admin/realms/{self._realm}/users/{user_id}/federated-identity/"
             f"{identity.identity_provider}",
@@ -224,12 +270,14 @@ class HttpAdminApi:
         )
 
     def remove_federated_identity(self, user_id: str, identity_provider: str) -> None:
+        """Remove a federated identity link by provider alias."""
         self._delete(
             f"/admin/realms/{self._realm}/users/{user_id}/federated-identity/"
             f"{identity_provider}"
         )
 
     def add_role_mapping(self, user_id: str, role: RoleMapping) -> None:
+        """Add one realm or client role mapping."""
         payload = [{"id": role.role_id, "name": role.role_name}]
         if role.client_id is None:
             self._post(
@@ -244,6 +292,7 @@ class HttpAdminApi:
             )
 
     def remove_role_mapping(self, user_id: str, role: RoleMapping) -> None:
+        """Remove one realm or client role mapping."""
         payload = [{"id": role.role_id, "name": role.role_name}]
         if role.client_id is None:
             self._delete(
@@ -258,22 +307,26 @@ class HttpAdminApi:
             )
 
     def add_group_membership(self, user_id: str, group: GroupMembership) -> None:
+        """Add a user to one group."""
         self._put(
             f"/admin/realms/{self._realm}/users/{user_id}/groups/{group.group_id}", {}
         )
 
     def remove_group_membership(self, user_id: str, group: GroupMembership) -> None:
+        """Remove a user from one group."""
         self._delete(
             f"/admin/realms/{self._realm}/users/{user_id}/groups/{group.group_id}"
         )
 
     def deactivate_user(self, user_id: str) -> None:
+        """Disable a user without deleting audit-relevant identity data."""
         # Disable the user so it can never authenticate again (soft tombstone).
         self._put(
             f"/admin/realms/{self._realm}/users/{user_id}", {"enabled": False}
         )
 
     def set_user_attribute(self, user_id: str, key: str, value: str) -> None:
+        """Set one single-valued Keycloak user attribute."""
         current = self._get(f"/admin/realms/{self._realm}/users/{user_id}")
         attributes = dict(current.get("attributes") or {})
         attributes[key] = [value]
@@ -283,20 +336,24 @@ class HttpAdminApi:
 
     # -- transport ---------------------------------------------------------
     def _get(self, path: str, params: dict | None = None) -> dict | list:
+        """Issue an authenticated GET and parse JSON."""
         response = self._client.get(path, params=params, headers=self._auth_header())
         response.raise_for_status()
         return response.json()
 
     def _post(self, path: str, body) -> dict:
+        """Issue an authenticated POST and parse optional JSON."""
         response = self._client.post(path, json=body, headers=self._auth_header())
         response.raise_for_status()
         return response.json() if response.content else {}
 
     def _put(self, path: str, body: dict) -> None:
+        """Issue an authenticated PUT."""
         response = self._client.put(path, json=body, headers=self._auth_header())
         response.raise_for_status()
 
     def _delete(self, path: str, body=None) -> None:
+        """Issue an authenticated DELETE with an optional JSON body."""
         request = self._client.build_request(
             "DELETE", path, json=body, headers=self._auth_header()
         )
@@ -304,10 +361,12 @@ class HttpAdminApi:
         response.raise_for_status()
 
     def close(self) -> None:
+        """Close the underlying HTTP connection pool."""
         self._client.close()
 
 
 def _parse_user(data: dict) -> UserAccount:
+    """Convert a Keycloak user representation into the domain model."""
     enabled = bool(data.get("enabled", True))
     attributes = data.get("attributes") or {}
     external = attributes.get("scim_external_id")
@@ -324,6 +383,7 @@ def _parse_user(data: dict) -> UserAccount:
 
 
 def _to_keycloak_user(user: UserAccount) -> dict:
+    """Convert a domain user into a Keycloak user representation."""
     payload: dict = {
         "username": user.user_name,
         "email": user.email,

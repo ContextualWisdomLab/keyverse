@@ -1,6 +1,8 @@
 """Merge operations are fully audit-logged (in-memory and SQLite sinks)."""
 from __future__ import annotations
 
+from contextlib import closing
+
 from app.audit import AuditLogger, SqliteAuditSink
 from app.config import ServiceConfig
 from app.models import FederatedIdentity, MergeRequest, RoleMapping
@@ -44,18 +46,23 @@ def test_sqlite_audit_sink_persists(tmp_path):
     api = MockKeycloakAdminApi()
     _seed_mergeable(api)
     db = tmp_path / "audit.db"
-    audit = AuditLogger(SqliteAuditSink(str(db)))
-    config = ServiceConfig(
-        keycloak_server_url="http://kc",
-        keycloak_realm="cwl",
-        keycloak_client_id="svc",
-        keycloak_client_secret="secret",
-    )
-    service = UnificationService(api, audit, config)
-    result = service.merge_accounts(
-        MergeRequest(survivor_user_id="survivor", duplicate_user_id="dup", actor="admin@cwl")
-    )
-    # re-open a fresh sink over the same DB file: events are durable.
-    reopened = SqliteAuditSink(str(db))
-    events = reopened.events_for(result.audit_id)
-    assert any(e.event_type == "merge_completed" for e in events)
+    with closing(SqliteAuditSink(str(db))) as sink:
+        audit = AuditLogger(sink)
+        config = ServiceConfig(
+            keycloak_server_url="http://kc",
+            keycloak_realm="cwl",
+            keycloak_client_id="svc",
+            keycloak_client_secret="secret",
+        )
+        service = UnificationService(api, audit, config)
+        result = service.merge_accounts(
+            MergeRequest(
+                survivor_user_id="survivor",
+                duplicate_user_id="dup",
+                actor="admin@cwl",
+            )
+        )
+        # re-open a fresh sink over the same DB file: events are durable.
+        with closing(SqliteAuditSink(str(db))) as reopened:
+            events = reopened.events_for(result.audit_id)
+            assert any(e.event_type == "merge_completed" for e in events)

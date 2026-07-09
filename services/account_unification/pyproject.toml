@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "interrogate>=1.7",
     "pytest>=8.0",
     "ruff>=0.4",
 ]
@@ -33,3 +34,7 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.interrogate]
+exclude = ["tests", ".venv"]
+fail-under = 80

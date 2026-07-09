@@ -1,6 +1,8 @@
 """Config comes only from the KV store; bootstrap points at it."""
 from __future__ import annotations
 
+from contextlib import closing
+
 import pytest
 
 from app.bootstrap import load_bootstrap_descriptor, open_config_store
@@ -35,11 +37,11 @@ def test_missing_required_config_fails_loudly():
 
 def test_bootstrap_points_at_sqlite_store(tmp_path):
     db = tmp_path / "store.db"
-    seed = SqliteKvStore(str(db))
-    seed.put("account_unification", "keycloak_server_url", "http://kc")
-    seed.put("account_unification", "keycloak_realm", "cwl")
-    seed.put("account_unification", "keycloak_client_id", "svc")
-    seed.put("account_unification", "keycloak_client_secret", "secret")
+    with closing(SqliteKvStore(str(db))) as seed:
+        seed.put("account_unification", "keycloak_server_url", "http://kc")
+        seed.put("account_unification", "keycloak_realm", "cwl")
+        seed.put("account_unification", "keycloak_client_id", "svc")
+        seed.put("account_unification", "keycloak_client_secret", "secret")
 
     bootstrap = tmp_path / "bootstrap.yaml"
     bootstrap.write_text(
@@ -51,6 +53,6 @@ def test_bootstrap_points_at_sqlite_store(tmp_path):
     )
     descriptor = load_bootstrap_descriptor(str(bootstrap))
     assert descriptor.backend == "sqlite"
-    store = open_config_store(descriptor)
-    config = load_service_config(store, descriptor.namespace)
-    assert config.keycloak_realm == "cwl"
+    with closing(open_config_store(descriptor)) as store:
+        config = load_service_config(store, descriptor.namespace)
+        assert config.keycloak_realm == "cwl"

@@ -23,6 +23,8 @@ KEY_REQUEST_TIMEOUT_SECONDS = "request_timeout_seconds"
 
 @dataclass(frozen=True)
 class ServiceConfig:
+    """Runtime settings loaded from the config store."""
+
     # Keycloak Admin REST API wiring. The service authenticates to the realm
     # token endpoint with a confidential service-account client (client
     # credentials) that holds realm-management view-users/manage-users roles.
@@ -38,6 +40,7 @@ class ServiceConfig:
 
 
 def _require(store: KvStore, namespace: str, entry_key: str) -> str:
+    """Read a required config value or fail startup with context."""
     value = store.get(namespace, entry_key)
     if value is None or value == "":
         raise RuntimeError(
@@ -47,6 +50,7 @@ def _require(store: KvStore, namespace: str, entry_key: str) -> str:
 
 
 def _as_bool(raw: str | None, default: bool) -> bool:
+    """Parse a store value as a permissive boolean."""
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}

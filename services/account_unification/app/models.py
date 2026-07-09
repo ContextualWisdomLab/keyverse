@@ -71,6 +71,8 @@ class UserAccount(BaseModel):
 
 
 class MatchDecision(BaseModel):
+    """Result of applying the account matching policy."""
+
     matched: bool
     reason: MatchReason
     detail: str | None = None
@@ -97,6 +99,8 @@ class MergeConflict(BaseModel):
 
 
 class MergeResult(BaseModel):
+    """Audited outcome of a survivor-wins account merge."""
+
     survivor_user_id: str
     duplicate_user_id: str
     match_reason: MatchReason

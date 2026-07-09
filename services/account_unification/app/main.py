@@ -48,6 +48,7 @@ def build_service(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Build the live service before accepting traffic."""
     app.state.ready = False
     build_service(app)
     yield
@@ -65,6 +66,7 @@ def create_app(*, wire: bool = True) -> FastAPI:
 
     @app.get("/healthz", tags=["health"])
     def healthz() -> dict:
+        """Return readiness status for container and orchestration probes."""
         return {
             "status": "ok" if getattr(app.state, "ready", False) else "starting",
             "service": "account-unification",
