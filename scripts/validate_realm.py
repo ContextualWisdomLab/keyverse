@@ -32,6 +32,7 @@ SECRET_PLACEHOLDER = "__set_from_kv__"
 
 
 def _executions(realm: dict, alias: str) -> list[dict]:
+    """Return the direct executions for one named authentication flow."""
     for flow in realm.get("authenticationFlows", []):
         if flow.get("alias") == alias:
             return flow.get("authenticationExecutions", [])
@@ -55,6 +56,7 @@ def _all_authenticators(realm: dict, alias: str, seen: set[str] | None = None) -
 
 
 def validate(realm: dict) -> list[str]:
+    """Return human-readable policy violations for a realm export."""
     errors: list[str] = []
 
     if realm.get("realm") != "cwl":
@@ -128,6 +130,7 @@ def validate(realm: dict) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    """Run realm validation as a command-line check."""
     path = Path(argv[1]) if len(argv) > 1 else Path("deploy/keycloak/realm-cwl.json")
     try:
         realm = json.loads(path.read_text(encoding="utf-8"))

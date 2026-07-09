@@ -11,6 +11,7 @@ with atheris.instrument_imports():
 
 
 def _text(provider: atheris.FuzzedDataProvider, max_length: int = 48) -> str:
+    """Consume bounded unicode text without surrogate code points."""
     return provider.ConsumeUnicodeNoSurrogates(max_length)
 
 
@@ -58,6 +59,7 @@ def TestOneInput(data: bytes) -> None:
 
 
 def main() -> None:
+    """Start the Atheris fuzz loop for account matching."""
     atheris.Setup(sys.argv, TestOneInput)
     atheris.Fuzz()
 

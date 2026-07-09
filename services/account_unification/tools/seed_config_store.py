@@ -26,6 +26,7 @@ from app.kv_store import SqliteKvStore  # noqa: E402
 
 
 def main() -> int:
+    """Write development Keycloak settings into a local SQLite KV store."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default="../../deploy/bootstrap/idp_config_store.db")
     parser.add_argument("--namespace", default="account_unification")
