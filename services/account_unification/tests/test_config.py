@@ -5,9 +5,25 @@ from contextlib import closing
 
 import pytest
 
-from app.bootstrap import load_bootstrap_descriptor, open_config_store
+from app.bootstrap import BootstrapDescriptor, load_bootstrap_descriptor, open_config_store
 from app.config import load_service_config
-from app.kv_store import InMemoryKvStore, SqliteKvStore
+from app.kv_store import InMemoryKvStore, KvStore, SqliteKvStore
+
+
+def test_kv_store_protocol_methods_have_concrete_implementations():
+    protocol_methods = {
+        name
+        for name, member in KvStore.__dict__.items()
+        if callable(member) and not name.startswith("_")
+    }
+    assert protocol_methods
+    for implementation in (InMemoryKvStore, SqliteKvStore):
+        missing = [
+            name
+            for name in sorted(protocol_methods)
+            if not callable(getattr(implementation, name, None))
+        ]
+        assert missing == []
 
 
 def test_config_loads_from_kv():
@@ -56,3 +72,13 @@ def test_bootstrap_points_at_sqlite_store(tmp_path):
     with closing(open_config_store(descriptor)) as store:
         config = load_service_config(store, descriptor.namespace)
         assert config.keycloak_realm == "cwl"
+
+
+def test_unsupported_standalone_backend_fails_loudly():
+    descriptor = BootstrapDescriptor(
+        backend="postgres",
+        namespace="account_unification",
+        postgres_dsn_secret_ref="secret://idp/postgres",
+    )
+    with pytest.raises(NotImplementedError, match="not built into the standalone image"):
+        open_config_store(descriptor)

@@ -33,7 +33,12 @@ from .models import FederatedIdentity, GroupMembership, RoleMapping, UserAccount
 
 
 class AdminApi(Protocol):
-    """Minimal Keycloak Admin REST API surface the merge engine needs."""
+    """Minimal Keycloak Admin REST API surface the merge engine needs.
+
+    The ellipsis bodies declare the Protocol contract only. Concrete
+    implementations are :class:`HttpAdminApi` and the unit-test fake
+    ``tests.mock_keycloak.MockKeycloakAdminApi``.
+    """
 
     def get_user(self, user_id: str) -> UserAccount:
         """Return one Keycloak user by id."""

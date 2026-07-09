@@ -3,8 +3,26 @@ from __future__ import annotations
 
 import httpx
 
-from app.keycloak_client import HttpAdminApi
+from app.keycloak_client import AdminApi, HttpAdminApi
 from app.models import FederatedIdentity, GroupMembership, RoleMapping, UserAccount
+
+from .mock_keycloak import MockKeycloakAdminApi
+
+
+def test_admin_api_protocol_methods_have_concrete_implementations():
+    protocol_methods = {
+        name
+        for name, member in AdminApi.__dict__.items()
+        if callable(member) and not name.startswith("_")
+    }
+    assert protocol_methods
+    for implementation in (HttpAdminApi, MockKeycloakAdminApi):
+        missing = [
+            name
+            for name in sorted(protocol_methods)
+            if not callable(getattr(implementation, name, None))
+        ]
+        assert missing == []
 
 
 def test_http_admin_api_maps_keycloak_rest_calls():

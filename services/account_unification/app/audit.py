@@ -27,7 +27,11 @@ class AuditEvent:
 
 
 class AuditSink(Protocol):
-    """Persistence contract for append-only audit events."""
+    """Persistence contract for append-only audit events.
+
+    The ellipsis bodies declare the Protocol contract only. Concrete
+    implementations are :class:`InMemoryAuditSink` and :class:`SqliteAuditSink`.
+    """
 
     def record(self, event: AuditEvent) -> None:
         """Append one immutable audit event."""

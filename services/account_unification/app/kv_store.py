@@ -13,7 +13,11 @@ from typing import Protocol
 
 
 class KvStore(Protocol):
-    """Read interface for the config/secret store."""
+    """Read interface for the config/secret store.
+
+    The ellipsis bodies declare the Protocol contract only. Concrete
+    implementations are :class:`InMemoryKvStore` and :class:`SqliteKvStore`.
+    """
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return the value for ``entry_key`` in ``namespace`` or ``None``."""

@@ -3,12 +3,28 @@ from __future__ import annotations
 
 from contextlib import closing
 
-from app.audit import AuditLogger, SqliteAuditSink
+from app.audit import AuditLogger, AuditSink, InMemoryAuditSink, SqliteAuditSink
 from app.config import ServiceConfig
 from app.models import FederatedIdentity, MergeRequest, RoleMapping
 from app.service import UnificationService
 
 from .mock_keycloak import MockKeycloakAdminApi
+
+
+def test_audit_sink_protocol_methods_have_concrete_implementations():
+    protocol_methods = {
+        name
+        for name, member in AuditSink.__dict__.items()
+        if callable(member) and not name.startswith("_")
+    }
+    assert protocol_methods
+    for implementation in (InMemoryAuditSink, SqliteAuditSink):
+        missing = [
+            name
+            for name in sorted(protocol_methods)
+            if not callable(getattr(implementation, name, None))
+        ]
+        assert missing == []
 
 
 def _seed_mergeable(api):
