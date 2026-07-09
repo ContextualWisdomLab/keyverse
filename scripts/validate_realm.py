@@ -73,8 +73,7 @@ def validate(realm: dict) -> list[str]:
         password_used = authenticators & PASSWORD_AUTHENTICATORS
         if password_used:
             errors.append(
-                f"browserFlow uses a password authenticator {sorted(password_used)}; "
-                "ecosystem policy is passwordless"
+                "browserFlow uses a password authenticator; ecosystem policy is passwordless"
             )
         if PASSWORDLESS_AUTHENTICATOR not in authenticators:
             errors.append(
