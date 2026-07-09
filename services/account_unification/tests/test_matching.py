@@ -2,17 +2,20 @@
 from __future__ import annotations
 
 from app.matching import decide_match
-from app.models import IdentityLink, MatchReason, UserAccount
+from app.models import FederatedIdentity, MatchReason, UserAccount
 
 
 def _user(uid, email=None, verified=False, links=None):
     return UserAccount(
-        user_id=uid, email=email, is_email_verified=verified, idp_links=links or []
+        user_id=uid,
+        email=email,
+        is_email_verified=verified,
+        federated_identities=links or [],
     )
 
 
 def test_exact_idp_subject_wins():
-    link = IdentityLink(idp_id="adfs", external_user_id="jane@corp")
+    link = FederatedIdentity(identity_provider="employer-adfs", external_user_id="jane@corp")
     a = _user("a", links=[link])
     b = _user("b", links=[link])
     decision = decide_match(a, b)
@@ -45,8 +48,22 @@ def test_explicit_link_is_lowest_precedence():
 
 
 def test_exact_subject_beats_explicit_flag():
-    link = IdentityLink(idp_id="ldap", external_user_id="guid-1")
+    link = FederatedIdentity(identity_provider="corp-ldap", external_user_id="guid-1")
     a = _user("a", links=[link])
     b = _user("b", links=[link])
     decision = decide_match(a, b, explicit_link=True)
     assert decision.reason is MatchReason.EXACT_IDP_SUBJECT
+
+
+def test_different_subject_same_provider_is_not_exact_match():
+    a = _user(
+        "a",
+        links=[FederatedIdentity(identity_provider="employer-adfs", external_user_id="jane@corp")],
+    )
+    b = _user(
+        "b",
+        links=[FederatedIdentity(identity_provider="employer-adfs", external_user_id="john@corp")],
+    )
+    decision = decide_match(a, b)
+    assert not decision.matched
+    assert decision.reason is MatchReason.NO_MATCH

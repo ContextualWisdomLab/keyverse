@@ -11,13 +11,14 @@ from .errors import (
     UnverifiedEmailMergeError,
     UserNotFoundError,
 )
-from .models import IdentityLink, MergeRequest, MergeResult, UserAccount
+from .models import FederatedIdentity, MergeRequest, MergeResult, UserAccount
 from .service import UnificationService
 
 router = APIRouter()
 
 
 def get_service(request: Request) -> UnificationService:
+    """Return the request-scoped unification service."""
     service = getattr(request.app.state, "unification_service", None)
     if service is None:  # pragma: no cover - only when misconfigured
         raise HTTPException(status_code=503, detail="service not initialised")
@@ -25,6 +26,7 @@ def get_service(request: Request) -> UnificationService:
 
 
 def get_audit(request: Request) -> AuditLogger:
+    """Return the request-scoped audit logger."""
     audit = getattr(request.app.state, "audit_logger", None)
     if audit is None:  # pragma: no cover
         raise HTTPException(status_code=503, detail="audit not initialised")
@@ -33,6 +35,7 @@ def get_audit(request: Request) -> AuditLogger:
 
 @router.get("/users/{user_id}", response_model=UserAccount, tags=["identities"])
 def get_user(user_id: str, service: UnificationService = Depends(get_service)) -> UserAccount:
+    """Return one account and its merge-relevant identity state."""
     try:
         return service.get_account(user_id)
     except UserNotFoundError as exc:
@@ -41,13 +44,13 @@ def get_user(user_id: str, service: UnificationService = Depends(get_service)) -
 
 @router.get(
     "/users/{user_id}/identities",
-    response_model=list[IdentityLink],
+    response_model=list[FederatedIdentity],
     tags=["identities"],
 )
 def list_identities(
     user_id: str, service: UnificationService = Depends(get_service)
-) -> list[IdentityLink]:
-    """List one user's external identities (idp_links)."""
+) -> list[FederatedIdentity]:
+    """List one user's external identities (federated identities)."""
     try:
         return service.list_identities(user_id)
     except UserNotFoundError as exc:

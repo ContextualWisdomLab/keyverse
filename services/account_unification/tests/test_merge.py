@@ -1,4 +1,4 @@
-"""MERGE two pre-existing accounts into one survivor."""
+"""MERGE two pre-existing accounts into one survivor (Keycloak-backed)."""
 from __future__ import annotations
 
 import pytest
@@ -10,8 +10,14 @@ from app.errors import (
     UnverifiedEmailMergeError,
     UserNotFoundError,
 )
-from app.models import IdentityLink, Membership, MergeRequest, MatchReason, UserGrant
-from app.service import TOMBSTONE_METADATA_KEY
+from app.models import (
+    FederatedIdentity,
+    GroupMembership,
+    MatchReason,
+    MergeRequest,
+    RoleMapping,
+)
+from app.service import TOMBSTONE_ATTRIBUTE_KEY
 
 
 def _merge(survivor="survivor", duplicate="dup", explicit=False):
@@ -23,22 +29,26 @@ def _merge(survivor="survivor", duplicate="dup", explicit=False):
     )
 
 
-def test_merge_moves_links_grants_memberships_and_tombstones(service, api):
-    api.create_user(
+def test_merge_moves_links_roles_groups_and_tombstones(service, api):
+    api.create_test_user(
         "survivor",
         email="jane@corp.com",
         is_email_verified=True,
-        idp_links=[IdentityLink(idp_id="adfs", external_user_id="jane@corp")],
-        grants=[UserGrant(grant_id="g-s", project_id="naruon", role_keys=["viewer"])],
-        memberships=[Membership(membership_type="org", aggregate_id="org-1", roles=["owner"])],
+        federated_identities=[
+            FederatedIdentity(identity_provider="employer-adfs", external_user_id="jane@corp")
+        ],
+        role_mappings=[RoleMapping(role_id="r-s", role_name="viewer", client_id="naruon")],
+        group_memberships=[GroupMembership(group_id="g-org", group_path="/org")],
     )
-    api.create_user(
+    api.create_test_user(
         "dup",
         email="jane@corp.com",
         is_email_verified=True,
-        idp_links=[IdentityLink(idp_id="google", external_user_id="jane@gmail")],
-        grants=[UserGrant(grant_id="g-d", project_id="clearfolio", role_keys=["editor"])],
-        memberships=[Membership(membership_type="project", aggregate_id="pg-erd", roles=["admin"])],
+        federated_identities=[
+            FederatedIdentity(identity_provider="google", external_user_id="jane@gmail")
+        ],
+        role_mappings=[RoleMapping(role_id="r-d", role_name="editor", client_id="clearfolio")],
+        group_memberships=[GroupMembership(group_id="g-proj", group_path="/pg-erd")],
     )
 
     result = service.merge_accounts(_merge())
@@ -46,49 +56,97 @@ def test_merge_moves_links_grants_memberships_and_tombstones(service, api):
     assert result.match_reason is MatchReason.VERIFIED_EMAIL
     assert result.duplicate_tombstoned is True
     # survivor gained the duplicate's external identity...
-    survivor_idps = {link.external_user_id for link in api.list_idp_links("survivor")}
-    assert "jane@gmail" in survivor_idps and "jane@corp" in survivor_idps
-    # ...its project grant...
-    assert {g.project_id for g in api.list_user_grants("survivor")} == {"naruon", "clearfolio"}
-    # ...and its membership.
-    assert {m.aggregate_id for m in api.list_memberships("survivor")} == {"org-1", "pg-erd"}
-    # duplicate is emptied + tombstoned + deactivated.
-    assert api.list_idp_links("dup") == []
+    survivor_idps = {f.identity_provider for f in api.list_federated_identities("survivor")}
+    assert survivor_idps == {"employer-adfs", "google"}
+    # ...its client role...
+    survivor_roles = {r.role_name for r in api.list_role_mappings("survivor")}
+    assert survivor_roles == {"viewer", "editor"}
+    # ...and its group.
+    survivor_groups = {g.group_id for g in api.list_group_memberships("survivor")}
+    assert survivor_groups == {"g-org", "g-proj"}
+    # duplicate is emptied + tombstoned + disabled.
+    assert api.list_federated_identities("dup") == []
     assert "dup" in api.deactivated
-    assert api.metadata[("dup", TOMBSTONE_METADATA_KEY)] == "survivor"
+    assert api.attributes[("dup", TOMBSTONE_ATTRIBUTE_KEY)] == "survivor"
 
 
 def test_merge_by_exact_idp_subject(service, api):
-    shared = IdentityLink(idp_id="adfs", external_user_id="jane@corp")
-    api.create_user("survivor", email="a@x.com", idp_links=[shared])
-    api.create_user("dup", email="b@y.com", idp_links=[shared])
+    shared = FederatedIdentity(identity_provider="employer-adfs", external_user_id="jane@corp")
+    api.create_test_user("survivor", email="a@x.com", federated_identities=[shared])
+    api.create_test_user("dup", email="b@y.com", federated_identities=[shared])
     result = service.merge_accounts(_merge())
     assert result.match_reason is MatchReason.EXACT_IDP_SUBJECT
     # shared link stays on survivor exactly once (survivor-wins conflict).
-    assert [link.external_user_id for link in api.list_idp_links("survivor")] == ["jane@corp"]
-    assert any(c.kind == "idp_link" for c in result.conflicts)
+    assert [f.external_user_id for f in api.list_federated_identities("survivor")] == ["jane@corp"]
+    assert any(c.kind == "federated_identity" for c in result.conflicts)
 
 
-def test_grant_conflict_is_survivor_wins(service, api):
-    api.create_user(
+def test_federated_identity_provider_conflict_is_survivor_wins(service, api):
+    # Same provider alias, different external subject: Keycloak allows only one
+    # link per provider, so survivor-wins keeps the survivor's.
+    api.create_test_user(
         "survivor", email="j@x.com", is_email_verified=True,
-        grants=[UserGrant(grant_id="g-s", project_id="naruon", role_keys=["admin"])],
+        federated_identities=[
+            FederatedIdentity(identity_provider="employer-adfs", external_user_id="jane@corp")
+        ],
     )
-    api.create_user(
+    api.create_test_user(
         "dup", email="j@x.com", is_email_verified=True,
-        grants=[UserGrant(grant_id="g-d", project_id="naruon", role_keys=["viewer"])],
+        federated_identities=[
+            FederatedIdentity(identity_provider="employer-adfs", external_user_id="jane2@corp")
+        ],
     )
     result = service.merge_accounts(_merge())
-    survivor_grants = api.list_user_grants("survivor")
-    # only the survivor's grant on naruon survives.
-    assert len(survivor_grants) == 1
-    assert survivor_grants[0].role_keys == ["admin"]
-    assert any(c.kind == "grant" and c.resolution == "survivor_wins" for c in result.conflicts)
+    survivor_links = api.list_federated_identities("survivor")
+    assert [f.external_user_id for f in survivor_links] == ["jane@corp"]
+    assert any(c.kind == "federated_identity" for c in result.conflicts)
+
+
+def test_role_conflict_is_survivor_wins(service, api):
+    api.create_test_user(
+        "survivor", email="j@x.com", is_email_verified=True,
+        role_mappings=[RoleMapping(role_id="r-s", role_name="admin", client_id="naruon")],
+    )
+    api.create_test_user(
+        "dup", email="j@x.com", is_email_verified=True,
+        role_mappings=[RoleMapping(role_id="r-d", role_name="admin", client_id="naruon")],
+    )
+    result = service.merge_accounts(_merge())
+    survivor_roles = api.list_role_mappings("survivor")
+    # only the survivor's admin role on naruon survives.
+    assert len(survivor_roles) == 1
+    assert survivor_roles[0].role_id == "r-s"
+    assert any(c.kind == "role_mapping" and c.resolution == "survivor_wins" for c in result.conflicts)
+
+
+def test_realm_role_moves(service, api):
+    api.create_test_user("survivor", email="j@x.com", is_email_verified=True)
+    api.create_test_user(
+        "dup", email="j@x.com", is_email_verified=True,
+        role_mappings=[RoleMapping(role_id="r-realm", role_name="ecosystem-user", client_id=None)],
+    )
+    result = service.merge_accounts(_merge())
+    assert "realm:ecosystem-user" in result.moved_role_mappings
+    assert any(r.client_id is None for r in api.list_role_mappings("survivor"))
+
+
+def test_group_conflict_is_survivor_wins(service, api):
+    api.create_test_user(
+        "survivor", email="j@x.com", is_email_verified=True,
+        group_memberships=[GroupMembership(group_id="g1", group_path="/owners")],
+    )
+    api.create_test_user(
+        "dup", email="j@x.com", is_email_verified=True,
+        group_memberships=[GroupMembership(group_id="g1", group_path="/owners")],
+    )
+    result = service.merge_accounts(_merge())
+    assert len(api.list_group_memberships("survivor")) == 1
+    assert any(c.kind == "group_membership" for c in result.conflicts)
 
 
 def test_refuse_merge_on_unverified_email(service, api):
-    api.create_user("survivor", email="jane@corp.com", is_email_verified=True)
-    api.create_user("dup", email="jane@corp.com", is_email_verified=False)
+    api.create_test_user("survivor", email="jane@corp.com", is_email_verified=True)
+    api.create_test_user("dup", email="jane@corp.com", is_email_verified=False)
     with pytest.raises(UnverifiedEmailMergeError):
         service.merge_accounts(_merge())
     # nothing mutated: duplicate not tombstoned.
@@ -96,35 +154,35 @@ def test_refuse_merge_on_unverified_email(service, api):
 
 
 def test_refuse_merge_when_no_match(service, api):
-    api.create_user("survivor", email="a@x.com", is_email_verified=True)
-    api.create_user("dup", email="b@y.com", is_email_verified=True)
+    api.create_test_user("survivor", email="a@x.com", is_email_verified=True)
+    api.create_test_user("dup", email="b@y.com", is_email_verified=True)
     with pytest.raises(NoMatchError):
         service.merge_accounts(_merge())
 
 
 def test_explicit_link_allows_merge_without_shared_signal(service, api):
-    api.create_user("survivor", email="a@x.com")
-    api.create_user("dup", email="b@y.com")
+    api.create_test_user("survivor", email="a@x.com")
+    api.create_test_user("dup", email="b@y.com")
     result = service.merge_accounts(_merge(explicit=True))
     assert result.match_reason is MatchReason.EXPLICIT_LINK
     assert result.duplicate_tombstoned
 
 
 def test_refuse_self_merge(service, api):
-    api.create_user("same", email="a@x.com", is_email_verified=True)
+    api.create_test_user("same", email="a@x.com", is_email_verified=True)
     with pytest.raises(SameUserError):
         service.merge_accounts(_merge(survivor="same", duplicate="same"))
 
 
 def test_refuse_merge_missing_user(service, api):
-    api.create_user("survivor", email="a@x.com", is_email_verified=True)
+    api.create_test_user("survivor", email="a@x.com", is_email_verified=True)
     with pytest.raises(UserNotFoundError):
         service.merge_accounts(_merge())
 
 
 def test_refuse_merge_inactive_duplicate(service, api):
-    api.create_user("survivor", email="j@x.com", is_email_verified=True)
-    api.create_user("dup", email="j@x.com", is_email_verified=True)
+    api.create_test_user("survivor", email="j@x.com", is_email_verified=True)
+    api.create_test_user("dup", email="j@x.com", is_email_verified=True)
     api.deactivate_user("dup")
     with pytest.raises(InactiveAccountError):
         service.merge_accounts(_merge())

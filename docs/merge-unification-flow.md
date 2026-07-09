@@ -1,21 +1,26 @@
 # Account unification & merge flow
 
-Neither ZITADEL nor an external ADFS *merges two pre-existing accounts into one*
+Neither Keycloak nor an external ADFS *merges two pre-existing accounts into one*
 natively. The `account-unification` service (this repo, `services/account_unification`)
 fills that gap. It does two things:
 
-1. **Inspect** — list the external identities (`idp_links`) tied to one user
-   (one-user-to-many-external-identities).
+1. **Inspect** — list the external identities (Keycloak federated identities)
+   tied to one user (one-user-to-many-external-identities).
 2. **Merge** — fold a duplicate account into a survivor, moving everything the
    duplicate owns, tombstoning it, and auditing every step.
+
+It talks to Keycloak through the **Admin REST API** (`app/keycloak_client.py`),
+authenticating with a confidential service-account client (client credentials)
+that holds `realm-management` `view-users` + `manage-users`.
 
 ## Matching rules (precedence, highest first)
 
 Implemented in `app/matching.py` / enforced in `app/service.py`:
 
-1. **Exact `(idp_id, external subject/nameID)`** shared by both accounts.
-2. **Verified email** equal on **both** accounts (`is_email_verified` true on
-   each). Case-insensitive.
+1. **Exact `(identity_provider, external subject/userId)`** shared by both
+   accounts (a Keycloak federated-identity link).
+2. **Verified email** equal on **both** accounts (`emailVerified` true on each).
+   Case-insensitive.
 3. **Explicit operator link** (`explicit_link: true` on the merge request).
 
 **Hard rule:** never auto-merge on an *unverified* email. If the accounts share
@@ -27,42 +32,45 @@ only an unverified email, the merge is refused with `422 Unverified email`.
 merge(survivor S, duplicate D, actor A):
   reject if S == D                         -> 400 SameUser
   load S, D (must exist)                   -> 404 UserNotFound
-  reject if S or D not active              -> 409 InactiveAccount
+  reject if S or D disabled                -> 409 InactiveAccount
   decision = decide_match(S, D, explicit)
   reject if only tie is unverified email   -> 422 UnverifiedEmailMerge
   reject if no rule satisfied              -> 409 NoMatch
 
   audit "merge_started" {match_reason, conflict_policy=survivor_wins}
 
-  for each idp_link L in D:
-     if S already has (L.idp, L.subject): CONFLICT -> keep S's, detach D's, audit
-     else: add L to S, remove L from D, audit "idp_link_moved"
+  for each federated identity L in D:
+     if S already links L.provider (or L.subject): CONFLICT -> keep S's, detach D's, audit
+     else: add L to S, remove L from D, audit "federated_identity_moved"
 
-  for each role grant G in D:
-     if S already granted on G.project: CONFLICT -> keep S's, drop D's, audit
-     else: grant G.project/roles to S, remove from D, audit "grant_moved"
+  for each role mapping R in D (realm + client roles):
+     if S already has (R.client, R.name): CONFLICT -> keep S's, drop D's, audit
+     else: add R to S, remove R from D, audit "role_mapping_moved"
 
-  for each membership M in D (org/project/instance ownership):
-     if S already a member of M.aggregate: CONFLICT -> keep S's, drop D's, audit
-     else: add M to S, remove M from D, audit "membership_moved"
+  for each group membership G in D (ownership via group inheritance):
+     if S already in G: CONFLICT -> keep S's, drop D's, audit
+     else: add G to S, remove G from D, audit "group_membership_moved"
 
-  set D.metadata[merged_into_user_id] = S.id     # tombstone pointer
-  deactivate D                                    # D can never authenticate again
+  set D.attributes[merged_into_user_id] = S.id   # tombstone pointer
+  disable D                                       # D can never authenticate again
   audit "duplicate_tombstoned"
   audit "merge_completed" {moved_*, conflicts}
   return MergeResult{..., audit_id}
 ```
 
-**Survivor-wins** means: on any collision (same external identity, same project
-grant, same ownership), the survivor's value is kept, the duplicate's is
-dropped, and the collision is recorded as a `MergeConflict{resolution:
-"survivor_wins"}` in both the result and the audit trail.
+**Survivor-wins** means: on any collision (same external identity / provider,
+same realm-or-client role, same group), the survivor's value is kept, the
+duplicate's is dropped, and the collision is recorded as a `MergeConflict{
+resolution: "survivor_wins"}` in both the result and the audit trail. Because
+Keycloak allows at most one federated-identity link per provider alias, a
+duplicate link on an already-linked provider is always a survivor-wins conflict.
 
 ## Tombstoning
 
-The duplicate is **not deleted**. It is stamped with metadata
-`merged_into_user_id = <survivor>` and deactivated. This preserves forensic
-history and lets any stale reference resolve to the survivor.
+The duplicate is **not deleted**. Its Keycloak user attribute
+`merged_into_user_id = <survivor>` is set and the user is disabled
+(`enabled: false`). This preserves forensic history and lets any stale reference
+resolve to the survivor.
 
 ## Audit
 
@@ -81,14 +89,16 @@ production swaps in a Postgres-backed sink.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/users/{id}` | Inspect a user + its idp_links |
+| `GET` | `/users/{id}` | Inspect a user + its federated identities |
 | `GET` | `/users/{id}/identities` | List external identities |
 | `POST` | `/merges` | Merge duplicate into survivor |
 | `GET` | `/merges/{audit_id}/audit` | Full audit trail of a merge |
+| `POST` | `/scim/v2/Users` | SCIM inbound provisioning (create) |
+| `GET`/`PUT`/`PATCH`/`DELETE` | `/scim/v2/Users/{id}` | SCIM read / replace / deactivate |
 | `GET` | `/healthz` | Readiness |
 
 ## Configuration
 
-All config/secrets (ZITADEL API base, management token, org id, conflict policy)
-come from the KV/DB store via the bootstrap pointer — see
-`services/account_unification/app/config.py`. No runtime `os.getenv`.
+All config/secrets (Keycloak server URL, realm, service-account client id +
+secret, conflict policy) come from the KV/DB store via the bootstrap pointer —
+see `services/account_unification/app/config.py`. No runtime `os.getenv`.

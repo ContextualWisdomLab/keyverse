@@ -1,17 +1,14 @@
 apiVersion: v2
 name: cwl-idp
 description: >-
-  Ecosystem central IdP (ZITADEL): passwordless OIDC/SCIM + inbound ADFS/LDAP
-  federation + the account-unification admin service.
+  Ecosystem central IdP (Keycloak): passwordless OIDC + inbound ADFS/LDAP
+  federation + a SCIM v2 shim + the account-unification admin service.
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.2.0
+appVersion: "0.2.0"
 
-# ZITADEL itself is deployed via its official chart as a dependency. Pin the
-# subchart version in your umbrella and let it manage Postgres, or point it at
-# an external managed Postgres. This chart adds the account-unification service.
-dependencies:
-  - name: zitadel
-    version: "8.13.2"
-    repository: "https://charts.zitadel.com"
-    condition: zitadel.enabled
+# Keycloak (Apache-2.0) and its Postgres (MIT) are templated directly by this
+# chart (see templates/keycloak.yaml, templates/postgres.yaml) rather than
+# pulled as a third-party subchart, so there is no external chart dependency to
+# license-audit. Set keycloak.enabled=false to federate an externally-managed
+# Keycloak instead.

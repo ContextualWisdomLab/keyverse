@@ -1,0 +1,15 @@
+# Trivy ignore file — registry allow-list policy checks that do not apply to
+# the digest-pinned upstream images used by this reusable Helm chart.
+# Runtime hardening findings (UID/GID, capabilities,
+# readOnlyRootFilesystem, seccomp, privilege escalation) are fixed in the
+# templates, not ignored. The central trivy-fs gate targets CRITICAL,HIGH and
+# there are zero CRITICAL/HIGH findings.
+
+# KSV-0125: "Restrict container images to trusted registries".
+# The trusted-registry allow-list is deployment policy, not a chart defect.
+# Third-party images are pinned by immutable sha256 digest
+# (quay.io/keycloak/keycloak, docker.io/library/postgres), which is a stronger
+# guarantee than registry trust, and the first-party account-unification image
+# repository is an operator-overridable value. Enforce registry trust via
+# admission control at deploy time, not against the packaged chart defaults.
+KSV-0125

@@ -1,0 +1,140 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "cwl-idp.fullname" . }}-keycloak
+  namespace: {{ include "cwl-idp.namespace" . }}
+  labels:
+    {{- include "cwl-idp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: keycloak
+spec:
+  serviceName: {{ include "cwl-idp.fullname" . }}-keycloak
+  replicas: {{ .Values.keycloak.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
+      app.kubernetes.io/component: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
+        app.kubernetes.io/component: keycloak
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # High UID/GID (>10000) avoids collisions with the host user table
+        # (KSV-0020/KSV-0021). Keycloak supports running as an arbitrary
+        # non-root user; fsGroup makes the writable data/tmp emptyDirs
+        # group-owned for this UID.
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak
+          image: "{{ .Values.keycloak.image.repository }}:{{ .Values.keycloak.image.tag }}@{{ .Values.keycloak.image.digest }}"
+          imagePullPolicy: {{ .Values.keycloak.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          args: ["start", "--import-realm"]
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: "jdbc:postgresql://{{ include "cwl-idp.fullname" . }}-postgres:5432/{{ .Values.postgres.database }}"
+            - name: KC_DB_USERNAME
+              value: {{ .Values.postgres.username | quote }}
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keycloak.existingSecret }}
+                  key: db-password
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keycloak.existingSecret }}
+                  key: admin-username
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keycloak.existingSecret }}
+                  key: admin-password
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_METRICS_ENABLED
+              value: "true"
+            - name: KC_HTTP_ENABLED
+              value: {{ .Values.keycloak.httpEnabled | quote }}
+            - name: KC_HOSTNAME
+              value: {{ .Values.keycloak.hostname | quote }}
+            - name: KC_HOSTNAME_STRICT
+              value: {{ .Values.keycloak.hostnameStrict | quote }}
+            - name: KC_PROXY_HEADERS
+              value: xforwarded
+          ports:
+            - name: http
+              containerPort: {{ .Values.keycloak.service.httpPort }}
+            - name: management
+              containerPort: {{ .Values.keycloak.service.managementPort }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: management
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          volumeMounts:
+            # Writable data + tmp dirs since the root filesystem is read-only.
+            - name: kc-data
+              mountPath: /opt/keycloak/data
+            - name: realm-import
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.keycloak.resources | nindent 12 }}
+      volumes:
+        - name: kc-data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: realm-import
+          configMap:
+            name: {{ .Values.keycloak.realmImport.configMapName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cwl-idp.fullname" . }}-keycloak
+  namespace: {{ include "cwl-idp.namespace" . }}
+  labels:
+    {{- include "cwl-idp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: keycloak
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
+    app.kubernetes.io/component: keycloak
+  ports:
+    - name: http
+      port: {{ .Values.keycloak.service.httpPort }}
+      targetPort: http
+    - name: management
+      port: {{ .Values.keycloak.service.managementPort }}
+      targetPort: management
+{{- end }}

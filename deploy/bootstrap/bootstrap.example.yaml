@@ -6,6 +6,9 @@
 # No application secrets live here — only enough to reach the KV/DB store.
 #
 # Copy to bootstrap.yaml and mount read-only at /bootstrap/bootstrap.yaml.
+# The store is expected to hold, under the namespace below, the Keycloak wiring
+# keys: keycloak_server_url, keycloak_realm, keycloak_client_id,
+# keycloak_client_secret (+ merge_conflict_policy, allow_unverified_email_link).
 
 config_store:
   # Backends: "sqlite" (dev/standalone), "postgres" (prod), "env-kv" (12-factor

@@ -6,6 +6,10 @@
 {{- printf "%s-%s" .Release.Name (include "cwl-idp.name" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{- define "cwl-idp.namespace" -}}
+{{- default .Release.Namespace .Values.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
 {{- define "cwl-idp.labels" -}}
 app.kubernetes.io/name: {{ include "cwl-idp.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}

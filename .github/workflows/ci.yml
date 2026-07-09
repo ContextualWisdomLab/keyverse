@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default token (OSSF Scorecard: Token-Permissions).
+permissions:
+  contents: read
+
 jobs:
   account-unification-tests:
     runs-on: ubuntu-latest
@@ -12,25 +16,36 @@ jobs:
       run:
         working-directory: services/account_unification
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
-      - name: Install
-        run: python -m pip install -e '.[dev]'
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
       - name: Lint
-        run: python -m ruff check app tests
+        run: uv run ruff check app tests tools
+      - name: Docstrings
+        run: uv run interrogate .
       - name: Test
-        run: python -m pytest -q
+        run: uv run pytest -q
+
+  realm-config-validates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
+      - name: Validate Keycloak realm config-as-code
+        run: python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
 
   compose-config-validates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Validate docker-compose
         run: docker compose -f docker-compose.yml config >/dev/null
         env:
-          IDP_DB_SUPERUSER_PASSWORD: ci-placeholder
-          IDP_DB_APP_PASSWORD: ci-placeholder
-          IDP_MASTERKEY: ci-placeholder-masterkey-32bytes-xx
-          ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ci-placeholder
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder

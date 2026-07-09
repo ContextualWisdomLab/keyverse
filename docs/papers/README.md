@@ -14,9 +14,10 @@ offline reference.
    auto-link on a *verified* attribute.
 
 2. **RFC 7644 — System for Cross-domain Identity Management: Protocol**
-   (`rfc7644-scim-protocol.txt`). The SCIM 2.0 protocol we enable on ZITADEL for
-   inbound provisioning (`/scim/v2/{orgId}`). Defines the resource operations
-   (create/replace/patch/delete) upstream HR/IGA systems use to provision users.
+   (`rfc7644-scim-protocol.txt`). The SCIM 2.0 protocol implemented by our
+   Apache-2.0 SCIM v2 server shim (`/scim/v2/Users`) for inbound provisioning
+   into Keycloak. Defines the resource operations (create/replace/patch/delete)
+   upstream HR/IGA systems use to provision users.
 
 ## Citations
 
@@ -40,6 +41,6 @@ Full BibTeX in [`citations.bib`](./citations.bib).
 | Source | Where it shows up |
 | --- | --- |
 | NIST SP 800-63C | `docs/passwordless-policy.md`, verified-email auto-link rule in `app/matching.py` |
-| RFC 7644 (SCIM) | SCIM v2 server enabled in `deploy/zitadel/zitadel-config.yaml` |
+| RFC 7644 (SCIM) | SCIM v2 server shim `services/account_unification/app/scim.py` |
 | OIDC Core | `deploy/templates/oidc-rp-client.json`, `docs/rp-onboarding.md` |
 | SAML V2.0 | `deploy/templates/saml-idp-employer-adfs.json`, `docs/topology.md` |

@@ -28,6 +28,10 @@ class BootstrapDescriptor:
     postgres_dsn_secret_ref: str | None = None
 
 
+class UnsupportedConfigBackendError(RuntimeError):
+    """Raised when the selected standalone image lacks a config-store adapter."""
+
+
 def load_bootstrap_descriptor(bootstrap_path: str | None = None) -> BootstrapDescriptor:
     """Read the bootstrap YAML named by ``CWL_IDP_BOOTSTRAP`` (or an override)."""
     resolved = bootstrap_path or os.environ.get(BOOTSTRAP_ENV_VAR)
@@ -60,7 +64,8 @@ def open_config_store(descriptor: BootstrapDescriptor) -> KvStore:
     # idp_config_entries); its DSN is fetched from the platform secret manager
     # via descriptor.postgres_dsn_secret_ref. Kept out of the standalone image
     # to avoid a hard psycopg dependency for local runs.
-    raise NotImplementedError(
-        f"config store backend '{descriptor.backend}' is not built into the "
-        "standalone image; use the sqlite backend or provide a PgKvStore."
+    raise UnsupportedConfigBackendError(
+        f"config store backend '{descriptor.backend}' is unavailable in the "
+        "standalone image; use the sqlite backend or ship a PgKvStore adapter "
+        "with this deployment image."
     )

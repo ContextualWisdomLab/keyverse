@@ -1,42 +1,45 @@
 {
   "$comment": [
-    "OIDC relying-party (RP) client registration template.",
+    "OIDC / OAuth 2.1 relying-party (RP) client registration template.",
     "cwl-idp is the OIDC PROVIDER; each ecosystem app is an RP. Register one",
-    "project + one app per RP via the ZITADEL Management API:",
-    "  POST /management/v1/projects                        (once per RP)",
-    "  POST /management/v1/projects/{projectId}/apps/oidc  (this body)",
+    "client per RP via the Keycloak Admin REST API:",
+    "  POST /admin/realms/{realm}/clients   (this body)",
     "",
-    "The returned clientId/clientSecret are stored in the IdP DB by ZITADEL and",
-    "mirrored into the ecosystem KV under secret/idp/rp/<name> — NOT in any RP",
-    "env file. RPs read their client secret from KV at boot. See",
-    "docs/rp-onboarding.md. Known RPs: naruon, pg-erd-cloud,",
-    "semantic-data-portal, clearfolio, contextual-orchestrator, newsdom-api."
+    "The generated client secret is stored by Keycloak and mirrored into the",
+    "ecosystem KV under secret/idp/rp/<name> — NOT in any RP env file. RPs read",
+    "their client secret from KV at boot. See docs/rp-onboarding.md. Known RPs:",
+    "naruon, pg-erd-cloud, semantic-data-portal, clearfolio,",
+    "contextual-orchestrator, newsdom-api.",
+    "",
+    "OAuth 2.1 posture: authorization-code + PKCE (S256), refresh tokens, NO",
+    "implicit/hybrid grant, exact HTTPS redirect URIs only."
   ],
 
+  "clientId": "{{rp_name}}",
   "name": "{{rp_name}}",
+  "enabled": true,
+  "protocol": "openid-connect",
+
+  "publicClient": false,
+  "$publicClient_note": "SPA/native RPs: set publicClient=true, omit secret, keep PKCE.",
+
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
 
   "redirectUris": ["{{rp_redirect_uri}}"],
   "$redirect_example": "https://naruon.example/auth/callback",
-  "postLogoutRedirectUris": ["{{rp_post_logout_uri}}"],
+  "webOrigins": ["+"],
 
-  "responseTypes": ["OIDC_RESPONSE_TYPE_CODE"],
-  "grantTypes": ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE", "OIDC_GRANT_TYPE_REFRESH_TOKEN"],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "{{rp_post_logout_uri}}",
+    "access.token.lifespan": "300",
+    "backchannel.logout.session.required": "true",
+    "require.pushed.authorization.requests": "false"
+  },
 
-  "appType": "OIDC_APP_TYPE_WEB",
-
-  "$auth_method_notes": [
-    "Confidential web/service RPs: BASIC or JWT (private_key_jwt preferred).",
-    "SPA/native RPs behind the WAF: set appType NATIVE/USER_AGENT and use",
-    "PKCE with authMethodType OIDC_AUTH_METHOD_TYPE_NONE."
-  ],
-  "authMethodType": "OIDC_AUTH_METHOD_TYPE_PRIVATE_KEY_JWT",
-
-  "devMode": false,
-  "accessTokenType": "OIDC_TOKEN_TYPE_JWT",
-  "accessTokenRoleAssertion": true,
-  "idTokenRoleAssertion": true,
-  "idTokenUserinfoAssertion": true,
-  "clockSkew": "5s",
-
-  "additionalOrigins": []
+  "fullScopeAllowed": false,
+  "defaultClientScopes": ["openid", "profile", "email", "roles"]
 }

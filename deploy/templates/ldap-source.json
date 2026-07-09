@@ -1,56 +1,51 @@
 {
   "$comment": [
-    "LDAP / Active Directory source template — INBOUND federation source.",
-    "Registers a corporate LDAP/AD directory so users can sign in with their",
-    "directory credentials and be JIT-provisioned + linked by verified email.",
-    "Feed to ZITADEL Management API: POST /management/v1/idps/ldap with an",
-    "Authorization: Bearer <mgmt PAT from KV> header.",
+    "LDAP / Active Directory source template — INBOUND user-federation source.",
+    "Registers a corporate LDAP/AD directory as a Keycloak user-storage provider",
+    "so users sign in with directory credentials and are imported + linked by",
+    "verified email. Feed to the Keycloak Admin REST API:",
+    "  POST /admin/realms/{realm}/components",
+    "with an Authorization: Bearer <admin token> header.",
     "",
     "The bind password is NEVER stored here. {{ldap_bind_password}} is resolved",
-    "from the KV config store at apply time by the tooling."
+    "from the KV config store at apply time by the tooling. Keycloak component",
+    "config values are arrays of strings (MultivaluedHashMap)."
   ],
 
-  "name": "Corporate Directory (LDAP/AD)",
+  "name": "corp-ldap",
+  "providerId": "ldap",
+  "providerType": "org.keycloak.storage.UserStorageProvider",
 
-  "servers": ["{{ldap_server_url}}"],
-  "$server_example": "ldaps://ad.corp.example:636",
-  "startTls": false,
+  "config": {
+    "enabled": ["true"],
+    "priority": ["1"],
+    "editMode": ["READ_ONLY"],
+    "importEnabled": ["true"],
+    "syncRegistrations": ["false"],
+    "vendor": ["ad"],
 
-  "baseDn": "{{ldap_base_dn}}",
-  "$baseDn_example": "DC=corp,DC=example",
+    "connectionUrl": ["{{ldap_server_url}}"],
+    "$connectionUrl_example": ["ldaps://ad.corp.example:636"],
+    "usersDn": ["{{ldap_users_dn}}"],
+    "$usersDn_example": ["OU=Users,DC=corp,DC=example"],
+    "bindDn": ["{{ldap_bind_dn}}"],
+    "$bindDn_example": ["CN=svc-keycloak,OU=ServiceAccounts,DC=corp,DC=example"],
+    "bindCredential": ["{{ldap_bind_password}}"],
 
-  "bindDn": "{{ldap_bind_dn}}",
-  "$bindDn_example": "CN=svc-zitadel,OU=ServiceAccounts,DC=corp,DC=example",
-  "bindPassword": "{{ldap_bind_password}}",
+    "usernameLDAPAttribute": ["sAMAccountName"],
+    "rdnLDAPAttribute": ["cn"],
+    "uuidLDAPAttribute": ["objectGUID"],
+    "userObjectClasses": ["person, organizationalPerson, user"],
+    "searchScope": ["2"],
 
-  "userBase": "{{ldap_user_base}}",
-  "$userBase_example": "OU=Users,DC=corp,DC=example",
-
-  "userObjectClasses": ["organizationalPerson", "user"],
-  "userFilters": ["uid", "sAMAccountName", "userPrincipalName", "mail"],
-
-  "timeout": "10s",
-
-  "$attributes_notes": [
-    "Map directory attributes to ZITADEL user fields. userPrincipalName and",
-    "mail are the identifiers that feed verified-email auto-linking."
-  ],
-  "attributes": {
-    "idAttribute": "objectGUID",
-    "firstNameAttribute": "givenName",
-    "lastNameAttribute": "sn",
-    "displayNameAttribute": "displayName",
-    "emailAttribute": "mail",
-    "emailVerifiedAttribute": "mail",
-    "preferredUsernameAttribute": "userPrincipalName",
-    "profileAttribute": "distinguishedName"
-  },
-
-  "providerOptions": {
-    "isLinkingAllowed": true,
-    "isCreationAllowed": true,
-    "isAutoCreation": true,
-    "isAutoUpdate": true,
-    "autoLinking": "AUTO_LINKING_OPTION_EMAIL"
+    "$attribute_notes": [
+      "userPrincipalName + mail feed verified-email auto-linking. AD marks",
+      "directory mail as authoritative, so trustEmail is enabled below."
+    ],
+    "trustEmail": ["true"],
+    "useTruststoreSpi": ["ldapsOnly"],
+    "connectionPooling": ["true"],
+    "connectionTimeout": ["10000"],
+    "readTimeout": ["10000"]
   }
 }

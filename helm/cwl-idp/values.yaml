@@ -1,10 +1,12 @@
 # Values for the cwl-idp chart.
 
+namespaceOverride: cwl-idp
+
 # The account-unification admin service (this repo).
 accountUnification:
   image:
     repository: cwl-idp/account-unification
-    tag: "0.1.0"
+    tag: "0.2.0"
     pullPolicy: IfNotPresent
   replicaCount: 1
   service:
@@ -24,9 +26,57 @@ accountUnification:
       cpu: 250m
       memory: 256Mi
 
-# ZITADEL subchart. Set enabled=false to federate an externally-managed ZITADEL.
-# Passwordless-first policy is applied via the setup steps (see the chart's
-# configmap / ZITADEL machine config); mirror deploy/zitadel/init-steps.yaml.
-zitadel:
+# Keycloak engine (Apache-2.0), templated by this chart. Set enabled=false to
+# federate an externally-managed Keycloak. The passwordless-first realm is
+# imported as-code from a ConfigMap built from deploy/keycloak/realm-cwl.json.
+keycloak:
   enabled: true
-  # zitadel.* values pass through to the official ZITADEL subchart.
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: "26.3.2"
+    digest: "sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  # Public base URL Keycloak advertises (behind the WAF in prod).
+  hostname: "http://localhost:8080"
+  hostnameStrict: false
+  httpEnabled: true
+  service:
+    httpPort: 8080
+    managementPort: 9000
+  # Bootstrap admin + DB credentials are read from this pre-created secret
+  # (populated from your KV). Keys: admin-username, admin-password, db-password.
+  existingSecret: cwl-idp-keycloak
+  # Realm import ConfigMap (kubectl create configmap ... --from-file=realm-cwl.json).
+  realmImport:
+    configMapName: cwl-idp-realm
+    fileName: realm-cwl.json
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+# Bundled Postgres (MIT) for Keycloak. Point Keycloak at a managed Postgres by
+# setting postgres.enabled=false and keycloak DB env from your own secret.
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "17-alpine"
+    digest: "sha256:67f624a4ad70edba8d65c82341124fab7054b277b4f7dea4b04be6f939ce2314"
+    pullPolicy: IfNotPresent
+  database: keycloak
+  username: keycloak
+  # DB password is read from the keycloak.existingSecret key 'db-password'.
+  storage:
+    size: 8Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi

@@ -13,6 +13,7 @@ DEFAULT_URL = "http://127.0.0.1:8099/healthz"
 
 
 def main(url: str = DEFAULT_URL) -> int:
+    """Check the configured health endpoint and return a shell status code."""
     try:
         with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             body = json.loads(response.read().decode("utf-8"))

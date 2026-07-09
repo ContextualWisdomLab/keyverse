@@ -15,6 +15,8 @@ from typing import Protocol
 
 @dataclass(frozen=True)
 class AuditEvent:
+    """Immutable record for one merge or identity-link action."""
+
     audit_id: str
     event_type: str
     actor: str
@@ -25,9 +27,19 @@ class AuditEvent:
 
 
 class AuditSink(Protocol):
-    def record(self, event: AuditEvent) -> None: ...
+    """Persistence contract for append-only audit events.
 
-    def events_for(self, audit_id: str) -> list[AuditEvent]: ...
+    The ellipsis bodies declare the Protocol contract only. Concrete
+    implementations are :class:`InMemoryAuditSink` and :class:`SqliteAuditSink`.
+    """
+
+    def record(self, event: AuditEvent) -> None:
+        """Append one immutable audit event."""
+        ...
+
+    def events_for(self, audit_id: str) -> list[AuditEvent]:
+        """Return events for one correlation id in write order."""
+        ...
 
 
 @dataclass
@@ -37,9 +49,11 @@ class InMemoryAuditSink:
     events: list[AuditEvent] = field(default_factory=list)
 
     def record(self, event: AuditEvent) -> None:
+        """Append an event to the in-memory list."""
         self.events.append(event)
 
     def events_for(self, audit_id: str) -> list[AuditEvent]:
+        """Return recorded events for one correlation id."""
         return [event for event in self.events if event.audit_id == audit_id]
 
 
@@ -60,6 +74,7 @@ class SqliteAuditSink:
     """
 
     def __init__(self, database_path: str) -> None:
+        """Open the audit database and ensure the audit table exists."""
         import sqlite3
 
         self._connection = sqlite3.connect(database_path)
@@ -67,6 +82,7 @@ class SqliteAuditSink:
         self._connection.commit()
 
     def record(self, event: AuditEvent) -> None:
+        """Persist one event row and commit immediately."""
         self._connection.execute(
             "INSERT INTO account_merge_audit "
             "(audit_id, event_type, actor_name, survivor_user_id, "
@@ -85,6 +101,7 @@ class SqliteAuditSink:
         self._connection.commit()
 
     def events_for(self, audit_id: str) -> list[AuditEvent]:
+        """Load events for one correlation id in event sequence order."""
         rows = self._connection.execute(
             "SELECT audit_id, event_type, actor_name, survivor_user_id, "
             "duplicate_user_id, payload_json, created_at "
@@ -104,14 +121,20 @@ class SqliteAuditSink:
             for row in rows
         ]
 
+    def close(self) -> None:
+        """Close the SQLite connection."""
+        self._connection.close()
+
 
 class AuditLogger:
     """Builds and persists audit events; returns a stable correlation id."""
 
     def __init__(self, sink: AuditSink) -> None:
+        """Create an audit logger around one sink implementation."""
         self._sink = sink
 
     def new_correlation_id(self) -> str:
+        """Return a new opaque merge correlation id."""
         return uuid.uuid4().hex
 
     def emit(
@@ -124,6 +147,7 @@ class AuditLogger:
         duplicate_user_id: str | None = None,
         payload: dict | None = None,
     ) -> AuditEvent:
+        """Create, persist, and return one audit event."""
         event = AuditEvent(
             audit_id=audit_id,
             event_type=event_type,
@@ -137,4 +161,5 @@ class AuditLogger:
         return event
 
     def events_for(self, audit_id: str) -> list[AuditEvent]:
+        """Return the audit trail for one merge correlation id."""
         return self._sink.events_for(audit_id)

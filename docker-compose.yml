@@ -1,35 +1,39 @@
 # cwl-idp — ecosystem central IdP, standalone bring-up.
 #
-# Engine: ZITADEL (Apache-2.0) + its own PostgreSQL.
+# Engine: Keycloak (Apache-2.0) + its own PostgreSQL (MIT).
 # Images are pinned by tag AND digest for reproducibility.
 #
 # Runs standalone:      docker compose up -d   (or: podman compose up -d)
 # Embeddable submodule: the same file is included from a parent compose via
 #                       `include:` or `-f cwl-idp/docker-compose.yml`.
 #
-# Readiness: ZITADEL exposes gRPC/HTTP health; `deploy/scripts/healthz.sh`
-# and the compose healthchecks below poll the debug /debug/healthz endpoint.
+# Readiness: Keycloak exposes a management port (9000) with /health/ready and
+# /health/live when KC_HEALTH_ENABLED=true; `deploy/scripts/healthz.sh` and the
+# compose healthchecks below poll it.
 
 name: cwl-idp
 
 services:
   # --------------------------------------------------------------------- #
-  # PostgreSQL — ZITADEL system-of-record. Not exposed outside the network.
+  # PostgreSQL — Keycloak system-of-record. Not exposed outside the network.
   # --------------------------------------------------------------------- #
   idp_database:
     image: postgres:17-alpine@sha256:67f624a4ad70edba8d65c82341124fab7054b277b4f7dea4b04be6f939ce2314
     container_name: cwl_idp_database
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${IDP_DB_SUPERUSER:-zitadel}
+      POSTGRES_USER: ${IDP_DB_USER:-keycloak}
       # Bootstrap-only transport: this value is injected from your secret
-      # manager (KV) at deploy time, never committed. See .env.example.
-      POSTGRES_PASSWORD: ${IDP_DB_SUPERUSER_PASSWORD:?set IDP_DB_SUPERUSER_PASSWORD from your KV}
-      POSTGRES_DB: ${IDP_DB_NAME:-zitadel}
+      # manager (KV) at deploy time, never committed. See .env.example. Plain
+      # interpolation (no required-variable error operator) so `docker compose
+      # config` validates with no env present; the postgres image itself rejects
+      # an empty password at runtime.
+      POSTGRES_PASSWORD: ${IDP_DB_PASSWORD}
+      POSTGRES_DB: ${IDP_DB_NAME:-keycloak}
     volumes:
       - idp_database_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${IDP_DB_SUPERUSER:-zitadel} -d ${IDP_DB_NAME:-zitadel}"]
+      test: ["CMD-SHELL", "pg_isready -U ${IDP_DB_USER:-keycloak} -d ${IDP_DB_NAME:-keycloak}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -38,58 +42,67 @@ services:
       - idp_internal_network
 
   # --------------------------------------------------------------------- #
-  # ZITADEL — the IdP engine. Passwordless-first policy is applied via the
-  # setup steps file (deploy/zitadel/init-steps.yaml) at first-run init.
+  # Keycloak — the IdP engine. The passwordless-first realm (WebAuthn
+  # passwordless flow, passwords disabled) is imported as-code at start from
+  # deploy/keycloak/realm-cwl.json via --import-realm.
   # --------------------------------------------------------------------- #
   idp_engine:
-    image: ghcr.io/zitadel/zitadel:v4.15.3@sha256:2356d646340724b3d843c024d589314adb9b54dbd6452ebc34008b011e023eff
+    image: quay.io/keycloak/keycloak:26.3.2@sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2
     container_name: cwl_idp_engine
     restart: unless-stopped
+    # `start` (production mode) with a runtime build; --import-realm loads the
+    # realm-as-code on first boot. TLS terminates at the WAF edge, so HTTP is
+    # enabled and hostname-strict relaxed for the internal listener.
     command: >
-      start-from-init
-      --config /config/zitadel-config.yaml
-      --steps /config/init-steps.yaml
-      --masterkeyFromEnv
-      --tlsMode ${IDP_TLS_MODE:-external}
+      start
+      --import-realm
     environment:
-      # 32-byte master key that encrypts secrets at rest. Bootstrap transport
-      # only: sourced from KV at deploy time. Rotate via ZITADEL procedure.
-      ZITADEL_MASTERKEY: ${IDP_MASTERKEY:?set IDP_MASTERKEY (32 bytes) from your KV}
-      # Database wiring for the config template ($$ escapes for compose).
-      ZITADEL_DATABASE_POSTGRES_HOST: idp_database
-      ZITADEL_DATABASE_POSTGRES_PORT: "5432"
-      ZITADEL_DATABASE_POSTGRES_DATABASE: ${IDP_DB_NAME:-zitadel}
-      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: ${IDP_DB_APP_USER:-zitadel}
-      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${IDP_DB_APP_PASSWORD:?set IDP_DB_APP_PASSWORD from your KV}
-      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
-      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${IDP_DB_SUPERUSER:-zitadel}
-      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${IDP_DB_SUPERUSER_PASSWORD:?set IDP_DB_SUPERUSER_PASSWORD from your KV}
-      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
-      ZITADEL_EXTERNALDOMAIN: ${IDP_EXTERNAL_DOMAIN:-localhost}
-      ZITADEL_EXTERNALPORT: ${IDP_EXTERNAL_PORT:-8080}
-      ZITADEL_EXTERNALSECURE: ${IDP_EXTERNAL_SECURE:-false}
+      # ---- Database wiring (values sourced from KV at deploy time) ----
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://idp_database:5432/${IDP_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${IDP_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${IDP_DB_PASSWORD}
+      # ---- Bootstrap admin. Created ONCE; retire after switching to passkey.
+      # Bootstrap transport only: sourced from KV at deploy time.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${IDP_BOOTSTRAP_ADMIN_USERNAME:-idp-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDP_BOOTSTRAP_ADMIN_PASSWORD}
+      # ---- Health + metrics management endpoints on port 9000 ----
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      # ---- HTTP/hostname. TLS terminates at the WAF edge; enable http here. ----
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: ${IDP_EXTERNAL_HOSTNAME:-http://localhost:8080}
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
     volumes:
-      - ./deploy/zitadel:/config:ro
-      - idp_engine_machinekey:/machinekey
+      # Realm config-as-code imported on first start.
+      - ./deploy/keycloak/realm-cwl.json:/opt/keycloak/data/import/realm-cwl.json:ro
     ports:
       - "${IDP_EXTERNAL_PORT:-8080}:8080"
     depends_on:
       idp_database:
         condition: service_healthy
     healthcheck:
-      # ZITADEL ships a self-probe; /debug/healthz returns 200 when serving.
-      test: ["CMD", "/app/zitadel", "ready", "--config", "/config/zitadel-config.yaml"]
+      # Keycloak's distroless image ships bash; probe the management health
+      # endpoint over a bash /dev/tcp socket (no curl in the image).
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000;
+          echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3;
+          cat <&3 | grep -q '"status": "UP"'
       interval: 10s
       timeout: 5s
       retries: 30
-      start_period: 30s
+      start_period: 40s
     networks:
       - idp_internal_network
       - idp_edge_network
 
   # --------------------------------------------------------------------- #
-  # account-unification admin service (this repo). Fills the gap ZITADEL
-  # does not cover natively: MERGE two pre-existing accounts into one.
+  # account-unification admin service (this repo). Fills the gap Keycloak
+  # does not cover natively: MERGE two pre-existing accounts into one, and a
+  # minimal inbound SCIM 2.0 provisioning shim into Keycloak.
   # --------------------------------------------------------------------- #
   account_unification_service:
     build:
@@ -121,7 +134,6 @@ services:
 
 volumes:
   idp_database_data:
-  idp_engine_machinekey:
 
 networks:
   # Internal: DB + engine + admin service. Never routed to the public edge.
