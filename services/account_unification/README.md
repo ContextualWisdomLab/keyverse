@@ -32,9 +32,8 @@ for the algorithm and matching rules.
 ## Run the tests
 
 ```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -e '.[dev]'
-pytest -q
+uv sync --locked --extra dev
+uv run pytest -q
 ```
 
 Tests run entirely against an in-memory Keycloak fake (`tests/mock_keycloak.py`)

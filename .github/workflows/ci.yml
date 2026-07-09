@@ -20,12 +20,13 @@ jobs:
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - name: Install locked dependencies
-        run: python -m pip install --require-hashes -r requirements-dev.txt
+        run: uv sync --locked --extra dev
       - name: Lint
-        run: python -m ruff check app tests tools
+        run: uv run ruff check app tests tools
       - name: Test
-        run: python -m pytest -q
+        run: uv run pytest -q
 
   realm-config-validates:
     runs-on: ubuntu-latest
