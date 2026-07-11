@@ -14,14 +14,15 @@ dependencies = [
     "pydantic==2.13.4",
     "httpx==0.28.1",
     "pyyaml==6.0.3",
-    "uvicorn==0.50.2",
+    "uvicorn==0.51.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "httpx2>=2.5.0",
     "interrogate==1.7.0",
     "pytest==9.1.1",
-    "ruff==0.15.20",
+    "ruff==0.15.21",
 ]
 
 [tool.setuptools]
