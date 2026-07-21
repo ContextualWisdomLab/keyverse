@@ -41,3 +41,46 @@ KC_SERVER=http://localhost:8080 deploy/keycloak/kcadm-bootstrap.sh
 Additional Admin-API request bodies for registering more RPs / IdPs live in
 [`../templates/`](../templates/) (Keycloak client / SAML IdP / LDAP component
 representations).
+
+## Realm-file rules Keycloak 26 enforces
+
+The realm JSON is parsed into typed representations, so two patterns that used
+to live in this file are **import failures** on Keycloak 26 and must not come
+back (`scripts/validate_realm.py` guards both):
+
+- **No `$`-prefixed annotation keys.** `RealmRepresentation` rejects unknown
+  fields (`Unrecognized field "$comment"`), which aborts `--import-realm` and
+  crash-loops the container. Document intent in this README instead of inline
+  JSON annotations.
+- **Placeholder URLs must still parse as URLs.** SAML IdP fields such as
+  `singleSignOnServiceUrl` are URL-validated at import; a bare
+  `__set_from_kv__` string aborts the import. Committed placeholders use the
+  reserved host form `https://set-from-kv.invalid/__set_from_kv__`
+  (`ldaps://set-from-kv.invalid:636` for LDAP) and are replaced from KV by
+  `kcadm-bootstrap.sh` exactly as before.
+
+## Client scopes and the Keycloak 26 lightweight-token pitfall
+
+Imported realms do **not** get the standard client scopes auto-created, and
+without the `basic` scope Keycloak 26 access tokens omit the `sub` claim —
+which breaks any RP that authenticates by subject (naruon returns 401 for
+every request). The realm therefore commits `basic` (Subject + auth_time),
+`profile`, and `email` scopes and assigns them as realm defaults plus explicit
+`defaultClientScopes` on each RP client.
+
+## RP clients: template + naruon
+
+`ecosystem-rp-template` stays the confidential-client blueprint (OAuth 2.1:
+code + PKCE S256, no implicit, exact redirect URIs, secret from KV). Clones
+must rename the audience mapper's `included.client.audience` to the new
+clientId.
+
+`naruon-web` is the first concrete RP, committed as-code as a **public** PKCE
+client because the naruon browser flow cannot hold a client secret. It carries
+the claims naruon's backend session contract requires: `sub` (via `basic`),
+an `aud` containing `naruon-web`, and hardcoded `role=member` /
+`org` / `workspace` claims. The committed `org`/`workspace` values
+(`org-cwl` / `workspace-org-cwl`) and the `https://naruon.example` redirect
+URIs are deployment placeholders — patch them per environment with `kcadm.sh`
+(see `../templates/`). `access.token.lifespan` is 43200s to fit naruon's 12h
+session ceiling; admin roles are never asserted from IdP claims by design.

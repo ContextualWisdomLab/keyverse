@@ -1,31 +1,4 @@
 {
-  "$comment": [
-    "cwl-idp realm config-as-code, imported by Keycloak at start via",
-    "`start --import-realm` (mounted at /opt/keycloak/data/import).",
-    "",
-    "It encodes the ecosystem policy declaratively:",
-    "  - passwordless-first: a passkey-first browser flow (auth-username-form +",
-    "    webauthn-authenticator-passwordless), NO password authenticator; the",
-    "    realm's browserFlow is set to it and password registration/reset are off.",
-    "  - an OIDC/OAuth2.1 confidential client TEMPLATE for ecosystem RPs (PKCE,",
-    "    authorization-code + refresh, no implicit grant).",
-    "  - the employer ADFS registered as an INBOUND SAML identity provider with",
-    "    trustEmail=true so first-login auto-links by VERIFIED email + JIT.",
-    "  - an LDAP/AD user-federation source (bindCredential is a placeholder that",
-    "    the kcadm bootstrap patches from KV -- never committed).",
-    "  - a confidential service-account client for the account-unification +",
-    "    SCIM shim service (holds realm-management view-users/manage-users).",
-    "",
-    "SCIM inbound provisioning is served by the account-unification service's",
-    "SCIM v2 shim (services/account_unification/app/scim.py), which provisions",
-    "into this realm via the Admin REST API -- Keycloak's native SCIM is",
-    "experimental and the mature plugin is commercial, so we ship a permissive",
-    "Apache-2.0 shim instead.",
-    "",
-    "Secrets are NOT stored here. Placeholder values marked __set_from_kv__ are",
-    "patched post-import by deploy/keycloak/kcadm-bootstrap.sh from the KV store."
-  ],
-
   "realm": "cwl",
   "displayName": "ContextualWisdom IdP",
   "enabled": true,
@@ -39,8 +12,6 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "editUsernameAllowed": false,
-
-  "$password_policy_note": "No passwordPolicy -> ecosystem-local accounts never set a password; the passkey-first flow below carries authentication.",
 
   "webAuthnPolicyPasswordlessRpEntityName": "ContextualWisdom IdP",
   "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256", "RS256"],
@@ -57,7 +28,7 @@
   "defaultSignatureAlgorithm": "RS256",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
-  "ssoSessionMaxLifespan": 36000,
+  "ssoSessionMaxLifespan": 43200,
 
   "requiredActions": [
     {
@@ -153,13 +124,11 @@
       "addReadTokenRoleOnCreate": false,
       "authenticateByDefault": false,
       "linkOnly": false,
-      "$firstBrokerLoginFlowAlias": "first broker login (default) auto-links by verified email; trustEmail=true makes the ADFS-asserted email an eligible link anchor.",
       "config": {
-        "$metadata_note": "Prefer metadataUrl so ADFS cert rollover is picked up automatically; typically https://sts.hssmartdev.com/FederationMetadata/2007-06/FederationMetadata.xml -- patched from KV.",
         "entityId": "https://idp.example/realms/cwl",
         "idpEntityId": "http://sts.hssmartdev.com/adfs/services/trust",
-        "singleSignOnServiceUrl": "__set_from_kv__",
-        "metadataDescriptorUrl": "__set_from_kv__",
+        "singleSignOnServiceUrl": "https://set-from-kv.invalid/__set_from_kv__",
+        "metadataDescriptorUrl": "https://set-from-kv.invalid/__set_from_kv__",
         "useMetadataDescriptorUrl": "true",
         "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
         "principalType": "SUBJECT",
@@ -179,14 +148,13 @@
         "name": "corp-ldap",
         "providerId": "ldap",
         "config": {
-          "$note": ["bindCredential is a placeholder patched from KV by kcadm-bootstrap.sh."],
-          "enabled": ["true"],
+          "enabled": ["false"],
           "priority": ["1"],
           "editMode": ["READ_ONLY"],
           "importEnabled": ["true"],
           "syncRegistrations": ["false"],
           "vendor": ["ad"],
-          "connectionUrl": ["__set_from_kv__"],
+          "connectionUrl": ["ldaps://set-from-kv.invalid:636"],
           "usersDn": ["__set_from_kv__"],
           "bindDn": ["__set_from_kv__"],
           "bindCredential": ["__set_from_kv__"],
@@ -203,17 +171,130 @@
     ]
   },
 
-  "clientScopes": [],
+  "clientScopes": [
+    {
+      "name": "basic",
+      "description": "OpenID Connect built-in scope: sub and auth_time claims",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "Subject (sub)",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "false"
+          }
+        },
+        {
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "claim.name": "auth_time",
+            "jsonType.label": "long",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "description": "OpenID Connect built-in scope: profile",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "description": "OpenID Connect built-in scope: email",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "emailVerified",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+
+  "defaultDefaultClientScopes": ["basic", "profile", "email"],
+  "defaultOptionalClientScopes": [],
 
   "clients": [
     {
-      "$comment": [
-        "OIDC / OAuth 2.1 confidential client TEMPLATE for ecosystem RPs.",
-        "Clone per RP (naruon, pg-erd-cloud, semantic-data-portal, clearfolio,",
-        "contextual-orchestrator, newsdom-api) and set redirectUris + secret.",
-        "OAuth 2.1 posture: authorization-code + PKCE, refresh tokens, NO",
-        "implicit/hybrid, exact HTTPS redirect URIs. Secret patched from KV."
-      ],
       "clientId": "ecosystem-rp-template",
       "name": "Ecosystem RP template",
       "enabled": true,
@@ -226,19 +307,107 @@
       "secret": "__set_from_kv__",
       "redirectUris": ["https://naruon.example/auth/callback"],
       "webOrigins": ["+"],
+      "defaultClientScopes": ["basic", "profile", "email"],
+      "optionalClientScopes": [],
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "https://naruon.example/",
         "access.token.lifespan": "300"
       },
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "ecosystem-rp-template",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ],
       "fullScopeAllowed": false
     },
     {
-      "$comment": [
-        "Confidential service-account client used by the account-unification",
-        "service AND the SCIM shim to call the Admin REST API. It holds the",
-        "realm-management roles view-users + manage-users. Secret from KV."
+      "clientId": "naruon-web",
+      "name": "Naruon web client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["https://naruon.example/auth/callback"],
+      "webOrigins": ["https://naruon.example"],
+      "defaultClientScopes": ["basic", "profile", "email"],
+      "optionalClientScopes": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://naruon.example/",
+        "access.token.lifespan": "43200"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "naruon-web",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "naruon-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "role",
+            "claim.value": "member",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "naruon-org",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "org",
+            "claim.value": "org-cwl",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "naruon-workspace",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "workspace",
+            "claim.value": "workspace-org-cwl",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
       ],
+      "fullScopeAllowed": false
+    },
+    {
       "clientId": "account-unification-svc",
       "name": "Account unification service",
       "enabled": true,
@@ -251,7 +420,5 @@
       "secret": "__set_from_kv__",
       "fullScopeAllowed": false
     }
-  ],
-
-  "$roles_note": "realm-management client roles view-users/manage-users are granted to the account-unification-svc service account by kcadm-bootstrap.sh (composite service-account role assignment is applied post-import)."
+  ]
 }

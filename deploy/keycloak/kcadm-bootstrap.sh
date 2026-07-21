@@ -33,13 +33,17 @@ kcadm.sh update "identity-provider/instances/employer-adfs" -r "${REALM}" \
   -s "config.useMetadataDescriptorUrl=true"
 
 echo "==> patching corp-ldap bind credential + connection from KV"
+# The committed component ships DISABLED with placeholder DNs: an enabled LDAP
+# source with an unparsable DN breaks every realm user operation (Invalid DN),
+# so it only turns on here, after the real connection values are applied.
 LDAP_COMPONENT_ID="$(kcadm.sh get components -r "${REALM}" \
   --query 'name=corp-ldap' --fields id --format csv --noquotes | head -n1)"
 kcadm.sh update "components/${LDAP_COMPONENT_ID}" -r "${REALM}" \
   -s "config.connectionUrl=[\"$(kv get config/idp/ldap-connection-url)\"]" \
   -s "config.usersDn=[\"$(kv get config/idp/ldap-users-dn)\"]" \
   -s "config.bindDn=[\"$(kv get secret/idp/ldap-bind-dn)\"]" \
-  -s "config.bindCredential=[\"$(kv get secret/idp/ldap-bind-password)\"]"
+  -s "config.bindCredential=[\"$(kv get secret/idp/ldap-bind-password)\"]" \
+  -s 'config.enabled=["true"]'
 
 echo "==> patching account-unification-svc client secret from KV"
 SVC_CLIENT_UUID="$(kcadm.sh get clients -r "${REALM}" \
