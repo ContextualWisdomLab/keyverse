@@ -69,6 +69,7 @@ def test_sqlite_audit_sink_persists(tmp_path):
             keycloak_realm="cwl",
             keycloak_client_id="svc",
             keycloak_client_secret="secret",
+            operator_api_token="op-token",
         )
         service = UnificationService(api, audit, config)
         result = service.merge_accounts(

@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .audit import AuditLogger
+from .identifiers import InvalidIdentifierError, validate_path_segment
 from .errors import (
     InactiveAccountError,
     NoMatchError,
@@ -33,9 +34,18 @@ def get_audit(request: Request) -> AuditLogger:
     return audit
 
 
+def _safe_identifier(value: str, field_name: str) -> str:
+    """Validate a path-segment identifier at the API boundary (400 on failure)."""
+    try:
+        return validate_path_segment(value, field_name=field_name)
+    except InvalidIdentifierError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("/users/{user_id}", response_model=UserAccount, tags=["identities"])
 def get_user(user_id: str, service: UnificationService = Depends(get_service)) -> UserAccount:
     """Return one account and its merge-relevant identity state."""
+    user_id = _safe_identifier(user_id, "user_id")
     try:
         return service.get_account(user_id)
     except UserNotFoundError as exc:
@@ -51,6 +61,7 @@ def list_identities(
     user_id: str, service: UnificationService = Depends(get_service)
 ) -> list[FederatedIdentity]:
     """List one user's external identities (federated identities)."""
+    user_id = _safe_identifier(user_id, "user_id")
     try:
         return service.list_identities(user_id)
     except UserNotFoundError as exc:

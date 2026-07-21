@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
+from .identifiers import InvalidIdentifierError, validate_path_segment
 from .keycloak_client import AdminApi
 from .models import UserAccount
 
@@ -44,6 +45,14 @@ def _scim_error(status: int, detail: str) -> HTTPException:
         status_code=status,
         detail={"schemas": [SCIM_ERROR_SCHEMA], "detail": detail, "status": str(status)},
     )
+
+
+def _safe_user_id(user_id: str) -> str:
+    """Validate a SCIM user id as one safe path segment (400 on failure)."""
+    try:
+        return validate_path_segment(user_id, field_name="user_id")
+    except InvalidIdentifierError as exc:
+        raise _scim_error(400, str(exc)) from exc
 
 
 def _primary_email(resource: dict[str, Any]) -> str | None:
@@ -146,6 +155,7 @@ def get_user(
     user_id: str, provisioner: AdminApi = Depends(get_provisioner)
 ) -> Response:
     """Return one provisioned user as a SCIM resource."""
+    user_id = _safe_user_id(user_id)
     try:
         user = provisioner.get_user(user_id)
     except KeyError as exc:
@@ -188,6 +198,7 @@ def replace_user(
     provisioner: AdminApi = Depends(get_provisioner),
 ) -> Response:
     """Replace a provisioned user from a SCIM PUT request."""
+    user_id = _safe_user_id(user_id)
     try:
         provisioner.get_user(user_id)
     except KeyError as exc:
@@ -204,6 +215,7 @@ def patch_user(
     provisioner: AdminApi = Depends(get_provisioner),
 ) -> Response:
     """Apply the supported SCIM PATCH operations to one user."""
+    user_id = _safe_user_id(user_id)
     try:
         provisioner.get_user(user_id)
     except KeyError as exc:
@@ -227,6 +239,7 @@ def delete_user(
     user_id: str, provisioner: AdminApi = Depends(get_provisioner)
 ) -> Response:
     """Soft-delete a user by disabling the Keycloak account."""
+    user_id = _safe_user_id(user_id)
     try:
         provisioner.get_user(user_id)
     except KeyError as exc:

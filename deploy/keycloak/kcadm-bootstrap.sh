@@ -20,9 +20,38 @@ KC_SERVER="${KC_SERVER:-http://localhost:8080}"
 ADMIN_USER="$(kv get secret/idp/bootstrap-admin-username)"
 ADMIN_PASS="$(kv get secret/idp/bootstrap-admin-password)"
 
+# Do NOT pass the admin password on the kcadm.sh command line: argv is visible
+# to any same-host process via /proc/<pid>/cmdline. Obtain a short-lived admin
+# token by handing the password to curl through a restricted temp file
+# (--data-urlencode "@file", never argv), then configure kcadm with that
+# bearer token. The reusable password never appears in any process's argv.
+_pass_file="$(mktemp)"
+chmod 600 "${_pass_file}"
+_kcadm_token=""
+cleanup() {
+  rm -f "${_pass_file}"
+  unset ADMIN_PASS _kcadm_token
+}
+trap cleanup EXIT
+printf '%s' "${ADMIN_PASS}" > "${_pass_file}"
+unset ADMIN_PASS
+
+_kcadm_token="$(curl -sf \
+  --data-urlencode "grant_type=password" \
+  --data-urlencode "client_id=admin-cli" \
+  --data-urlencode "username=${ADMIN_USER}" \
+  --data-urlencode "password@${_pass_file}" \
+  "${KC_SERVER}/realms/master/protocol/openid-connect/token" \
+  | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')"
+rm -f "${_pass_file}"
+if [ -z "${_kcadm_token}" ]; then
+  echo "ERROR: failed to obtain a bootstrap admin token" >&2
+  exit 1
+fi
+
 kcadm.sh config credentials \
   --server "${KC_SERVER}" --realm master \
-  --user "${ADMIN_USER}" --password "${ADMIN_PASS}"
+  --token "${_kcadm_token}"
 
 # NOTE: external federation (the employer ADFS SAML IdP, corporate LDAP/AD)
 # is deliberately NOT part of this bootstrap. Those are deployment data, not

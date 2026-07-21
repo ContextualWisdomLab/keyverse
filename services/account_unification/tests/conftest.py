@@ -30,6 +30,20 @@ def audit(audit_sink: InMemoryAuditSink) -> AuditLogger:
     return AuditLogger(audit_sink)
 
 
+OPERATOR_TOKEN = "test-operator-token"
+
+
+@pytest.fixture
+def operator_token() -> str:
+    return OPERATOR_TOKEN
+
+
+@pytest.fixture
+def auth_header(operator_token: str) -> dict[str, str]:
+    """Default operator bearer header for authenticated admin requests."""
+    return {"Authorization": f"Bearer {operator_token}"}
+
+
 @pytest.fixture
 def config() -> ServiceConfig:
     return ServiceConfig(
@@ -37,6 +51,7 @@ def config() -> ServiceConfig:
         keycloak_realm="cwl",
         keycloak_client_id="account-unification-svc",
         keycloak_client_secret="test-secret",
+        operator_api_token=OPERATOR_TOKEN,
         merge_conflict_policy="survivor_wins",
         allow_unverified_email_link=False,
     )

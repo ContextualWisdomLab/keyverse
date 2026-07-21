@@ -130,10 +130,11 @@ def test_alias_and_provider_id_validation(federation: FederationService) -> None
     assert getattr(invalid_provider.value, "status_code", None) == 400
 
 
-def test_http_surface_round_trip(api: MockKeycloakAdminApi) -> None:
+def test_http_surface_round_trip(api: MockKeycloakAdminApi, auth_header) -> None:
     app = create_app(wire=False)
     app.state.federation_service = FederationService(InMemoryKvStore(), api)
-    client = TestClient(app)
+    app.state.operator_api_token = "test-operator-token"
+    client = TestClient(app, headers=auth_header)
     body = _employer_adfs_registration().model_dump()
 
     put_response = client.put("/federation/identity-providers/employer-adfs", json=body)

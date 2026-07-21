@@ -19,6 +19,7 @@ KEY_KEYCLOAK_CLIENT_SECRET = "keycloak_client_secret"
 KEY_MERGE_CONFLICT_POLICY = "merge_conflict_policy"
 KEY_ALLOW_UNVERIFIED_LINK = "allow_unverified_email_link"
 KEY_REQUEST_TIMEOUT_SECONDS = "request_timeout_seconds"
+KEY_OPERATOR_API_TOKEN = "operator_api_token"
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,10 @@ class ServiceConfig:
     keycloak_realm: str
     keycloak_client_id: str
     keycloak_client_secret: str
+    # Shared operator bearer token gating the privileged admin API surface
+    # (merge, SCIM, federation, identity reads). Required: the service must not
+    # start with an open privileged surface.
+    operator_api_token: str
     merge_conflict_policy: str = "survivor_wins"
     # Hard default False: the ecosystem policy forbids linking/merging on an
     # unverified email. Present as config only so audits can prove it is off.
@@ -63,6 +68,7 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
         keycloak_realm=_require(store, namespace, KEY_KEYCLOAK_REALM),
         keycloak_client_id=_require(store, namespace, KEY_KEYCLOAK_CLIENT_ID),
         keycloak_client_secret=_require(store, namespace, KEY_KEYCLOAK_CLIENT_SECRET),
+        operator_api_token=_require(store, namespace, KEY_OPERATOR_API_TOKEN),
         merge_conflict_policy=store.get(namespace, KEY_MERGE_CONFLICT_POLICY)
         or "survivor_wins",
         allow_unverified_email_link=_as_bool(

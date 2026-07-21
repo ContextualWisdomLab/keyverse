@@ -39,6 +39,7 @@ def test_config_loads_from_kv():
                 "keycloak_realm": "cwl",
                 "keycloak_client_id": "svc",
                 "keycloak_client_secret": "secret",
+                "operator_api_token": "op-token",
             }
         }
     )
@@ -63,6 +64,7 @@ def test_bootstrap_points_at_sqlite_store(tmp_path):
         seed.put("account_unification", "keycloak_realm", "cwl")
         seed.put("account_unification", "keycloak_client_id", "svc")
         seed.put("account_unification", "keycloak_client_secret", "secret")
+        seed.put("account_unification", "operator_api_token", "op-token")
 
     bootstrap = tmp_path / "bootstrap.yaml"
     bootstrap.write_text(

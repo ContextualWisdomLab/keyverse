@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from .identifiers import InvalidIdentifierError
 from .models import FederatedIdentity, GroupMembership, RoleMapping, UserAccount
 
 
@@ -395,27 +396,56 @@ class HttpAdminApi:
         )
 
     # -- transport ---------------------------------------------------------
+    @staticmethod
+    def _guard_path(path: str) -> str:
+        """Reject a request path that shows path-traversal or encoding.
+
+        Caller-controlled ids (user_id, provider_alias, group_id, ...) are
+        interpolated into these paths. This centralized chokepoint rejects any
+        ``.``/``..`` segment and any percent-encoding regardless of which id
+        introduced it, so an id like ``../users/victim`` or ``%2e%2e`` cannot
+        escape the intended Admin REST resource. Every static segment here is a
+        UUID/slug/literal, so ``%`` never legitimately appears.
+        """
+        if "%" in path:
+            raise InvalidIdentifierError("request path must not contain percent-encoding")
+        segments = path.split("/")
+        for index, segment in enumerate(segments):
+            if segment in {".", ".."}:
+                raise InvalidIdentifierError("request path must not navigate directories")
+            # A middle segment is never legitimately empty (only a trailing
+            # slash may be), so an empty middle segment means an empty id.
+            if segment == "" and 0 < index < len(segments) - 1:
+                raise InvalidIdentifierError("request path must not contain empty segments")
+        return path
+
     def _get(self, path: str, params: dict | None = None) -> dict | list:
         """Issue an authenticated GET and parse JSON."""
-        response = self._client.get(path, params=params, headers=self._auth_header())
+        response = self._client.get(
+            self._guard_path(path), params=params, headers=self._auth_header()
+        )
         response.raise_for_status()
         return response.json()
 
     def _post(self, path: str, body) -> dict:
         """Issue an authenticated POST and parse optional JSON."""
-        response = self._client.post(path, json=body, headers=self._auth_header())
+        response = self._client.post(
+            self._guard_path(path), json=body, headers=self._auth_header()
+        )
         response.raise_for_status()
         return response.json() if response.content else {}
 
     def _put(self, path: str, body: dict) -> None:
         """Issue an authenticated PUT."""
-        response = self._client.put(path, json=body, headers=self._auth_header())
+        response = self._client.put(
+            self._guard_path(path), json=body, headers=self._auth_header()
+        )
         response.raise_for_status()
 
     def _delete(self, path: str, body=None) -> None:
         """Issue an authenticated DELETE with an optional JSON body."""
         request = self._client.build_request(
-            "DELETE", path, json=body, headers=self._auth_header()
+            "DELETE", self._guard_path(path), json=body, headers=self._auth_header()
         )
         response = self._client.send(request)
         response.raise_for_status()

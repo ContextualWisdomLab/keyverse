@@ -8,10 +8,11 @@ from app.main import create_app
 
 
 @pytest.fixture
-def client(api):
+def client(api, config, auth_header):
     app = create_app(wire=False)
     app.state.keycloak_api = api
-    with TestClient(app) as test_client:
+    app.state.operator_api_token = config.operator_api_token
+    with TestClient(app, headers=auth_header) as test_client:
         yield test_client
 
 

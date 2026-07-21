@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from . import __version__
 from .api import router
 from .audit import AuditLogger, SqliteAuditSink
+from .auth import operator_auth_dependency
 from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .federation import FederationService, federation_router
@@ -47,6 +48,8 @@ def build_service(app: FastAPI) -> None:
     # External IdPs (employer ADFS etc.) are runtime data in the KV/DB store,
     # never realm code; this service converges Keycloak from that store.
     app.state.federation_service = FederationService(store, api)
+    # Gate the privileged admin surface on the operator bearer token.
+    app.state.operator_api_token = config.operator_api_token
     app.state.ready = True
 
 
@@ -77,9 +80,11 @@ def create_app(*, wire: bool = True) -> FastAPI:
             "version": __version__,
         }
 
-    app.include_router(router)
-    app.include_router(scim_router)
-    app.include_router(federation_router)
+    # Every privileged router requires the operator bearer token; /healthz is
+    # registered directly on the app above and stays open for probes.
+    app.include_router(router, dependencies=[operator_auth_dependency])
+    app.include_router(scim_router, dependencies=[operator_auth_dependency])
+    app.include_router(federation_router, dependencies=[operator_auth_dependency])
     return app
 
 

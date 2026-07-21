@@ -9,14 +9,15 @@ from app.models import FederatedIdentity, RoleMapping
 
 
 @pytest.fixture
-def client(api, audit, config):
+def client(api, audit, config, auth_header):
     from app.service import UnificationService
 
     app = create_app(wire=False)
     app.state.unification_service = UnificationService(api, audit, config)
     app.state.audit_logger = audit
     app.state.keycloak_api = api
-    with TestClient(app) as test_client:
+    app.state.operator_api_token = config.operator_api_token
+    with TestClient(app, headers=auth_header) as test_client:
         yield test_client
 
 
