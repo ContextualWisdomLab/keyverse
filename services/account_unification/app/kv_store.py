@@ -27,6 +27,10 @@ class KvStore(Protocol):
         """Return every entry in ``namespace`` as a dict."""
         ...
 
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Remove ``entry_key`` from ``namespace`` if present."""
+        ...
+
 
 class InMemoryKvStore:
     """Dict-backed store for tests and ephemeral bootstrap shims."""
@@ -49,6 +53,10 @@ class InMemoryKvStore:
     def get_all(self, namespace: str) -> dict[str, str]:
         """Return a copy of every value in one namespace."""
         return dict(self._data.get(namespace, {}))
+
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Remove one value from one namespace if present."""
+        self._data.get(namespace, {}).pop(entry_key, None)
 
 
 class SqliteKvStore:
@@ -102,6 +110,15 @@ class SqliteKvStore:
             (namespace,),
         ).fetchall()
         return {entry_key: entry_value for entry_key, entry_value in rows}
+
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Remove one config value from one namespace if present."""
+        with self._connection:
+            self._connection.execute(
+                "DELETE FROM idp_config_entries "
+                "WHERE config_namespace = ? AND entry_key = ?",
+                (namespace, entry_key),
+            )
 
     def close(self) -> None:
         """Close the SQLite connection."""

@@ -24,26 +24,12 @@ kcadm.sh config credentials \
   --server "${KC_SERVER}" --realm master \
   --user "${ADMIN_USER}" --password "${ADMIN_PASS}"
 
-echo "==> patching employer-adfs SAML metadata URL from KV"
-ADFS_METADATA_URL="$(kv get config/idp/employer-adfs-metadata-url)"
-IDP_ID="$(kcadm.sh get "identity-provider/instances/employer-adfs" -r "${REALM}" --fields internalId --format csv --noquotes)"
-kcadm.sh update "identity-provider/instances/employer-adfs" -r "${REALM}" \
-  -s "config.metadataDescriptorUrl=${ADFS_METADATA_URL}" \
-  -s "config.singleSignOnServiceUrl=${ADFS_METADATA_URL}" \
-  -s "config.useMetadataDescriptorUrl=true"
-
-echo "==> patching corp-ldap bind credential + connection from KV"
-# The committed component ships DISABLED with placeholder DNs: an enabled LDAP
-# source with an unparsable DN breaks every realm user operation (Invalid DN),
-# so it only turns on here, after the real connection values are applied.
-LDAP_COMPONENT_ID="$(kcadm.sh get components -r "${REALM}" \
-  --query 'name=corp-ldap' --fields id --format csv --noquotes | head -n1)"
-kcadm.sh update "components/${LDAP_COMPONENT_ID}" -r "${REALM}" \
-  -s "config.connectionUrl=[\"$(kv get config/idp/ldap-connection-url)\"]" \
-  -s "config.usersDn=[\"$(kv get config/idp/ldap-users-dn)\"]" \
-  -s "config.bindDn=[\"$(kv get secret/idp/ldap-bind-dn)\"]" \
-  -s "config.bindCredential=[\"$(kv get secret/idp/ldap-bind-password)\"]" \
-  -s 'config.enabled=["true"]'
+# NOTE: external federation (the employer ADFS SAML IdP, corporate LDAP/AD)
+# is deliberately NOT part of this bootstrap. Those are deployment data, not
+# realm code: register them at runtime through the account-unification
+# service's /federation/identity-providers API, which persists the desired
+# state in the KV/DB store and converges Keycloak via the Admin REST API.
+# See deploy/templates/ for ready-made request payloads.
 
 echo "==> patching account-unification-svc client secret from KV"
 SVC_CLIENT_UUID="$(kcadm.sh get clients -r "${REALM}" \
@@ -51,7 +37,9 @@ SVC_CLIENT_UUID="$(kcadm.sh get clients -r "${REALM}" \
 kcadm.sh update "clients/${SVC_CLIENT_UUID}" -r "${REALM}" \
   -s "secret=$(kv get secret/idp/account-unification-client-secret)"
 
-echo "==> granting realm-management view-users + manage-users to the service account"
+echo "==> granting realm-management roles to the service account"
+# view-users/manage-users: account unification + SCIM shim.
+# manage-identity-providers: the runtime federation registry API.
 SVC_SA_USER_ID="$(kcadm.sh get "clients/${SVC_CLIENT_UUID}/service-account-user" \
   -r "${REALM}" --fields id --format csv --noquotes)"
 REALM_MGMT_UUID="$(kcadm.sh get clients -r "${REALM}" \
@@ -59,7 +47,8 @@ REALM_MGMT_UUID="$(kcadm.sh get clients -r "${REALM}" \
 kcadm.sh add-roles -r "${REALM}" \
   --uid "${SVC_SA_USER_ID}" \
   --cclientid realm-management \
-  --rolename view-users --rolename manage-users
+  --rolename view-users --rolename manage-users \
+  --rolename manage-identity-providers
 
 echo "==> mirroring the service client secret into KV for the admin service"
 # The account-unification service reads keycloak_client_secret from KV; keep it

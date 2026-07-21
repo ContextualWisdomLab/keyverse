@@ -148,3 +148,27 @@ class MockKeycloakAdminApi:
             self.users[user_id] = self.users[user_id].model_copy(
                 update={"external_id": value}
             )
+
+    # -- identity providers (runtime federation registry) -------------------
+    def get_identity_provider(self, provider_alias: str) -> dict | None:
+        self.calls.append(f"get_identity_provider:{provider_alias}")
+        return getattr(self, "identity_providers", {}).get(provider_alias)
+
+    def create_identity_provider(self, provider_payload: dict) -> None:
+        alias = provider_payload["alias"]
+        self.calls.append(f"create_identity_provider:{alias}")
+        if not hasattr(self, "identity_providers"):
+            self.identity_providers: dict[str, dict] = {}
+        self.identity_providers[alias] = dict(provider_payload)
+
+    def update_identity_provider(
+        self, provider_alias: str, provider_payload: dict
+    ) -> None:
+        self.calls.append(f"update_identity_provider:{provider_alias}")
+        if not hasattr(self, "identity_providers"):
+            self.identity_providers = {}
+        self.identity_providers[provider_alias] = dict(provider_payload)
+
+    def delete_identity_provider(self, provider_alias: str) -> None:
+        self.calls.append(f"delete_identity_provider:{provider_alias}")
+        getattr(self, "identity_providers", {}).pop(provider_alias, None)

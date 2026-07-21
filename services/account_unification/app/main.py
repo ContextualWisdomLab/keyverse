@@ -17,6 +17,7 @@ from .api import router
 from .audit import AuditLogger, SqliteAuditSink
 from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
+from .federation import FederationService, federation_router
 from .keycloak_client import HttpAdminApi
 from .scim import scim_router
 from .service import UnificationService
@@ -43,6 +44,9 @@ def build_service(app: FastAPI) -> None:
     app.state.unification_service = UnificationService(api, audit, config)
     app.state.audit_logger = audit
     app.state.keycloak_api = api
+    # External IdPs (employer ADFS etc.) are runtime data in the KV/DB store,
+    # never realm code; this service converges Keycloak from that store.
+    app.state.federation_service = FederationService(store, api)
     app.state.ready = True
 
 
@@ -75,6 +79,7 @@ def create_app(*, wire: bool = True) -> FastAPI:
 
     app.include_router(router)
     app.include_router(scim_router)
+    app.include_router(federation_router)
     return app
 
 

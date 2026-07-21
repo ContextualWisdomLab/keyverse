@@ -108,6 +108,24 @@ class AdminApi(Protocol):
         """Set one single-valued user attribute."""
         ...
 
+    def get_identity_provider(self, provider_alias: str) -> dict | None:
+        """Return one identity-provider instance or ``None`` when absent."""
+        ...
+
+    def create_identity_provider(self, provider_payload: dict) -> None:
+        """Create an identity-provider instance from an admin representation."""
+        ...
+
+    def update_identity_provider(
+        self, provider_alias: str, provider_payload: dict
+    ) -> None:
+        """Replace an identity-provider instance."""
+        ...
+
+    def delete_identity_provider(self, provider_alias: str) -> None:
+        """Delete an identity-provider instance."""
+        ...
+
 
 class HttpAdminApi:
     """httpx-backed :class:`AdminApi` for a live Keycloak instance.
@@ -337,6 +355,43 @@ class HttpAdminApi:
         attributes[key] = [value]
         self._put(
             f"/admin/realms/{self._realm}/users/{user_id}", {"attributes": attributes}
+        )
+
+    # -- identity providers (runtime federation registry) -------------------
+    def get_identity_provider(self, provider_alias: str) -> dict | None:
+        """Return one identity-provider instance or ``None`` when absent."""
+        import httpx
+
+        try:
+            data = self._get(
+                f"/admin/realms/{self._realm}/identity-provider/instances/{provider_alias}"
+            )
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 404:
+                return None
+            raise
+        return data if isinstance(data, dict) else None
+
+    def create_identity_provider(self, provider_payload: dict) -> None:
+        """Create an identity-provider instance from an admin representation."""
+        self._post(
+            f"/admin/realms/{self._realm}/identity-provider/instances",
+            provider_payload,
+        )
+
+    def update_identity_provider(
+        self, provider_alias: str, provider_payload: dict
+    ) -> None:
+        """Replace an identity-provider instance."""
+        self._put(
+            f"/admin/realms/{self._realm}/identity-provider/instances/{provider_alias}",
+            provider_payload,
+        )
+
+    def delete_identity_provider(self, provider_alias: str) -> None:
+        """Delete an identity-provider instance."""
+        self._delete(
+            f"/admin/realms/{self._realm}/identity-provider/instances/{provider_alias}"
         )
 
     # -- transport ---------------------------------------------------------

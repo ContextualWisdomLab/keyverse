@@ -52,12 +52,17 @@ back (`scripts/validate_realm.py` guards both):
   fields (`Unrecognized field "$comment"`), which aborts `--import-realm` and
   crash-loops the container. Document intent in this README instead of inline
   JSON annotations.
-- **Placeholder URLs must still parse as URLs.** SAML IdP fields such as
-  `singleSignOnServiceUrl` are URL-validated at import; a bare
-  `__set_from_kv__` string aborts the import. Committed placeholders use the
-  reserved host form `https://set-from-kv.invalid/__set_from_kv__`
-  (`ldaps://set-from-kv.invalid:636` for LDAP) and are replaced from KV by
-  `kcadm-bootstrap.sh` exactly as before.
+- **No committed external federation.** SAML IdP URL fields are URL-validated
+  at import (a bare `__set_from_kv__` aborts it) and an enabled LDAP source
+  with placeholder DNs breaks every realm user operation (`Invalid DN`). The
+  deeper problem is that employer-specific federation (ADFS, corporate LDAP)
+  is deployment data, so the realm commits **none of it**: register external
+  IdPs at runtime through the account-unification service's
+  `/federation/identity-providers` API. Desired state persists in the KV/DB
+  config store and is converged into Keycloak over the Admin REST API, so a
+  realm rebuild is re-converged with one `POST
+  /federation/identity-providers:apply`. `../templates/` holds ready-made
+  payloads (ADFS SAML, LDAP component, OIDC RP).
 
 ## Client scopes and the Keycloak 26 lightweight-token pitfall
 

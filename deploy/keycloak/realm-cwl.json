@@ -3,7 +3,6 @@
   "displayName": "ContextualWisdom IdP",
   "enabled": true,
   "sslRequired": "external",
-
   "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "resetPasswordAllowed": false,
@@ -12,9 +11,11 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "editUsernameAllowed": false,
-
   "webAuthnPolicyPasswordlessRpEntityName": "ContextualWisdom IdP",
-  "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256", "RS256"],
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": [
+    "ES256",
+    "RS256"
+  ],
   "webAuthnPolicyPasswordlessRpId": "",
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
   "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
@@ -22,14 +23,11 @@
   "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
-
   "browserFlow": "browser-passwordless",
-
   "defaultSignatureAlgorithm": "RS256",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 43200,
-
   "requiredActions": [
     {
       "alias": "webauthn-register-passwordless",
@@ -50,7 +48,6 @@
       "config": {}
     }
   ],
-
   "authenticationFlows": [
     {
       "alias": "browser-passwordless",
@@ -111,66 +108,6 @@
       ]
     }
   ],
-
-  "identityProviders": [
-    {
-      "alias": "employer-adfs",
-      "displayName": "Employer ADFS (hssmartdev)",
-      "providerId": "saml",
-      "enabled": true,
-      "updateProfileFirstLoginMode": "on",
-      "trustEmail": true,
-      "storeToken": false,
-      "addReadTokenRoleOnCreate": false,
-      "authenticateByDefault": false,
-      "linkOnly": false,
-      "config": {
-        "entityId": "https://idp.example/realms/cwl",
-        "idpEntityId": "http://sts.hssmartdev.com/adfs/services/trust",
-        "singleSignOnServiceUrl": "https://set-from-kv.invalid/__set_from_kv__",
-        "metadataDescriptorUrl": "https://set-from-kv.invalid/__set_from_kv__",
-        "useMetadataDescriptorUrl": "true",
-        "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-        "principalType": "SUBJECT",
-        "postBindingResponse": "true",
-        "postBindingAuthnRequest": "true",
-        "wantAuthnRequestsSigned": "true",
-        "wantAssertionsSigned": "true",
-        "validateSignature": "true",
-        "syncMode": "FORCE"
-      }
-    }
-  ],
-
-  "components": {
-    "org.keycloak.storage.UserStorageProvider": [
-      {
-        "name": "corp-ldap",
-        "providerId": "ldap",
-        "config": {
-          "enabled": ["false"],
-          "priority": ["1"],
-          "editMode": ["READ_ONLY"],
-          "importEnabled": ["true"],
-          "syncRegistrations": ["false"],
-          "vendor": ["ad"],
-          "connectionUrl": ["ldaps://set-from-kv.invalid:636"],
-          "usersDn": ["__set_from_kv__"],
-          "bindDn": ["__set_from_kv__"],
-          "bindCredential": ["__set_from_kv__"],
-          "usernameLDAPAttribute": ["sAMAccountName"],
-          "rdnLDAPAttribute": ["cn"],
-          "uuidLDAPAttribute": ["objectGUID"],
-          "userObjectClasses": ["person, organizationalPerson, user"],
-          "searchScope": ["2"],
-          "useTruststoreSpi": ["ldapsOnly"],
-          "connectionPooling": ["true"],
-          "trustEmail": ["true"]
-        }
-      }
-    ]
-  },
-
   "clientScopes": [
     {
       "name": "basic",
@@ -289,10 +226,12 @@
       ]
     }
   ],
-
-  "defaultDefaultClientScopes": ["basic", "profile", "email"],
+  "defaultDefaultClientScopes": [
+    "basic",
+    "profile",
+    "email"
+  ],
   "defaultOptionalClientScopes": [],
-
   "clients": [
     {
       "clientId": "ecosystem-rp-template",
@@ -305,9 +244,17 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "secret": "__set_from_kv__",
-      "redirectUris": ["https://naruon.example/auth/callback"],
-      "webOrigins": ["+"],
-      "defaultClientScopes": ["basic", "profile", "email"],
+      "redirectUris": [
+        "https://naruon.example/auth/callback"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email"
+      ],
       "optionalClientScopes": [],
       "attributes": {
         "pkce.code.challenge.method": "S256",
@@ -340,9 +287,17 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["https://naruon.example/auth/callback"],
-      "webOrigins": ["https://naruon.example"],
-      "defaultClientScopes": ["basic", "profile", "email"],
+      "redirectUris": [
+        "https://naruon.example/auth/callback"
+      ],
+      "webOrigins": [
+        "https://naruon.example"
+      ],
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email"
+      ],
       "optionalClientScopes": [],
       "attributes": {
         "pkce.code.challenge.method": "S256",
