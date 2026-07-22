@@ -13,9 +13,14 @@ imported at container start; secrets are patched afterwards from the KV store.
 `realm-cwl.json` defines an authentication flow **`browser-passwordless`** with
 `auth-username-form` → `webauthn-authenticator-passwordless` and **no password
 authenticator**, and binds it as the realm `browserFlow`. Combined with
-`resetPasswordAllowed:false`, `registrationAllowed:false`, and a default
+`resetPasswordAllowed:false` and a default
 `webauthn-register-passwordless` required action, ecosystem-local accounts
-authenticate with a **passkey (FIDO2/WebAuthn)**, never a password. See
+authenticate with a **passkey (FIDO2/WebAuthn)**, never a password. Self-service
+signup is allowed (`registrationAllowed:true`, `registrationEmailAsUsername:true`):
+the registration form's throwaway password never becomes a usable login
+credential, because the first session immediately enrolls a passkey and the
+browser flow has no password authenticator. `verifyEmail` stays `false` until a
+realm `smtpServer` is configured (the validator enforces that pairing). See
 [`../../docs/passwordless-policy.md`](../../docs/passwordless-policy.md).
 
 ## What is committed vs. patched from KV

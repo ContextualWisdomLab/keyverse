@@ -94,8 +94,36 @@ def validate(realm: dict) -> list[str]:
                 "ecosystem policy"
             )
 
+    # Self-registration is allowed, but only under the email-first passkey
+    # contract: the account identity is the email address, and the default
+    # webauthn-register-passwordless required action enrolls a passkey on the
+    # first session so the throwaway registration password never becomes a
+    # usable credential (the browser flow has no password authenticator).
     if realm.get("registrationAllowed", False):
-        errors.append("registrationAllowed must be false")
+        if not realm.get("registrationEmailAsUsername", False):
+            errors.append(
+                "self-registration requires registrationEmailAsUsername so new "
+                "accounts keep the email-first identity contract"
+            )
+        passkey_enrollment_is_default = any(
+            action.get("providerId") == "webauthn-register-passwordless"
+            and action.get("enabled", False)
+            and action.get("defaultAction", False)
+            for action in realm.get("requiredActions", [])
+        )
+        if not passkey_enrollment_is_default:
+            errors.append(
+                "self-registration requires the webauthn-register-passwordless "
+                "required action as an enabled default so every new account "
+                "enrolls a passkey"
+            )
+    # verifyEmail without a mail server strands every new account on a
+    # verification screen whose email never arrives.
+    if realm.get("verifyEmail", False) and not realm.get("smtpServer"):
+        errors.append(
+            "verifyEmail requires a realm smtpServer; configure SMTP or disable "
+            "verifyEmail"
+        )
     if realm.get("resetPasswordAllowed", False):
         errors.append("credential reset self-service must be false")
 

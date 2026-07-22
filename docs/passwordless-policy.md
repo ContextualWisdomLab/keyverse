@@ -16,7 +16,9 @@ Set once at realm import from `deploy/keycloak/realm-cwl.json`:
 | --- | --- | --- |
 | `browserFlow` | `browser-passwordless` | Custom flow: username form → **WebAuthn passwordless**, no password authenticator |
 | `authenticationFlows[browser-passwordless-forms]` | `auth-username-form` + `webauthn-authenticator-passwordless` | Passkey is the primary (and only) knowledge-free factor |
-| `registrationAllowed` | `false` | No self-service signup |
+| `registrationAllowed` | `true` | Email-first self-service signup; the registration password is throwaway because login never accepts passwords |
+| `registrationEmailAsUsername` | `true` | The email address is the account identity |
+| `verifyEmail` | `false` (until SMTP) | Must stay `false` while the realm has no `smtpServer`; the validator enforces the pairing |
 | `resetPasswordAllowed` | `false` | No password-reset surface |
 | `requiredActions[webauthn-register-passwordless]` | `defaultAction: true` | New users are prompted to enrol a passkey |
 | `webAuthnPolicyPasswordless*` | RP name / ES256,RS256 / resident key / UV required | Passkey relying-party policy |
