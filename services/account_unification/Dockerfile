@@ -13,7 +13,10 @@ WORKDIR /srv
 COPY pyproject.toml uv.lock ./
 
 RUN uv sync --locked --no-dev --no-install-project \
-    && adduser --system --no-create-home appuser
+    && adduser --system --no-create-home appuser \
+    # Writable home for the audit database; /bootstrap stays read-only.
+    && mkdir -p /var/lib/account-unification \
+    && chown appuser /var/lib/account-unification
 
 COPY app ./app
 

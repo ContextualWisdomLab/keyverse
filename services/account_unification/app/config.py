@@ -20,6 +20,9 @@ KEY_MERGE_CONFLICT_POLICY = "merge_conflict_policy"
 KEY_ALLOW_UNVERIFIED_LINK = "allow_unverified_email_link"
 KEY_REQUEST_TIMEOUT_SECONDS = "request_timeout_seconds"
 KEY_OPERATOR_API_TOKEN = "operator_api_token"
+KEY_REGISTRATION_API_TOKEN = "registration_api_token"
+KEY_AUDIT_DATABASE_PATH = "audit_database_path"
+KEY_PASSWORD_JANITOR_INTERVAL_SECONDS = "password_janitor_interval_seconds"
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,16 @@ class ServiceConfig:
     # (merge, SCIM, federation, identity reads). Required: the service must not
     # start with an open privileged surface.
     operator_api_token: str
+    # Bearer token for the headless self-registration surface, held by product
+    # frontend backends (e.g. Naruon). Optional: deployments without
+    # self-signup leave it unset and the surface answers 503, never open.
+    registration_api_token: str | None = None
+    # Seconds between bootstrap-password janitor passes; 0 disables the
+    # periodic task (the operator endpoint still runs passes on demand).
+    password_janitor_interval_seconds: float = 300.0
+    # Audit sink location. Must NOT live inside the read-only /bootstrap
+    # mount: the config store and the audit trail have different write needs.
+    audit_database_path: str = "/var/lib/account-unification/audit.db"
     merge_conflict_policy: str = "survivor_wins"
     # Hard default False: the ecosystem policy forbids linking/merging on an
     # unverified email. Present as config only so audits can prove it is off.
@@ -69,6 +82,12 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
         keycloak_client_id=_require(store, namespace, KEY_KEYCLOAK_CLIENT_ID),
         keycloak_client_secret=_require(store, namespace, KEY_KEYCLOAK_CLIENT_SECRET),
         operator_api_token=_require(store, namespace, KEY_OPERATOR_API_TOKEN),
+        registration_api_token=store.get(namespace, KEY_REGISTRATION_API_TOKEN) or None,
+        password_janitor_interval_seconds=float(
+            store.get(namespace, KEY_PASSWORD_JANITOR_INTERVAL_SECONDS) or "300"
+        ),
+        audit_database_path=store.get(namespace, KEY_AUDIT_DATABASE_PATH)
+        or "/var/lib/account-unification/audit.db",
         merge_conflict_policy=store.get(namespace, KEY_MERGE_CONFLICT_POLICY)
         or "survivor_wins",
         allow_unverified_email_link=_as_bool(

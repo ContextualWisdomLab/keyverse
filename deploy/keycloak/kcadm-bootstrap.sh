@@ -79,6 +79,19 @@ kcadm.sh add-roles -r "${REALM}" \
   --rolename view-users --rolename manage-users \
   --rolename manage-identity-providers
 
+echo "==> scoping the granted roles into the service-account access token"
+# The client is fullScopeAllowed:false (least privilege), so a granted role
+# only reaches the token when it is ALSO in the client's scope mappings AND a
+# client-role protocol mapper emits resource_access. Without both, every
+# Admin REST call from the service fails 403 on a fresh bring-up.
+REALM_MGMT_ROLE_JSON="$(kcadm.sh get "clients/${REALM_MGMT_UUID}/roles" -r "${REALM}" \
+  --fields id,name \
+  | python3 -c 'import json,sys; roles=json.load(sys.stdin); print(json.dumps([r for r in roles if r["name"] in ("view-users","manage-users","manage-identity-providers")]))')"
+kcadm.sh create "clients/${SVC_CLIENT_UUID}/scope-mappings/clients/${REALM_MGMT_UUID}" \
+  -r "${REALM}" -b "${REALM_MGMT_ROLE_JSON}"
+kcadm.sh create "clients/${SVC_CLIENT_UUID}/protocol-mappers/models" -r "${REALM}" \
+  -b '{"name":"realm-management roles","protocol":"openid-connect","protocolMapper":"oidc-usermodel-client-role-mapper","config":{"usermodel.clientRoleMapping.clientId":"realm-management","claim.name":"resource_access.realm-management.roles","multivalued":"true","jsonType.label":"String","access.token.claim":"true","id.token.claim":"false","userinfo.token.claim":"false"}}'
+
 echo "==> mirroring the service client secret into KV for the admin service"
 # The account-unification service reads keycloak_client_secret from KV; keep it
 # in sync so both sides use the same credential.

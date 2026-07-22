@@ -3,7 +3,7 @@
   "displayName": "ContextualWisdom IdP",
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": true,
+  "registrationAllowed": false,
   "registrationEmailAsUsername": true,
   "resetPasswordAllowed": false,
   "rememberMe": false,
@@ -84,7 +84,7 @@
     },
     {
       "alias": "browser-passwordless-forms",
-      "description": "Username identification then a passwordless passkey (WebAuthn) assertion.",
+      "description": "Username identification then a passkey assertion, with a password form offered only to bootstrap accounts that have not enrolled a passkey yet.",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -98,9 +98,34 @@
           "userSetupAllowed": false
         },
         {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "flowAlias": "browser-passwordless-credentials",
+          "autheticatorFlow": true,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "browser-passwordless-credentials",
+      "description": "Passkey (steady state) or the bootstrap password (only while the account has no passkey; the janitor revokes it after enrollment).",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
           "authenticator": "webauthn-authenticator-passwordless",
           "authenticatorFlow": false,
-          "requirement": "REQUIRED",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-password-form",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
           "priority": 20,
           "autheticatorFlow": false,
           "userSetupAllowed": false

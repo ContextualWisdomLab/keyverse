@@ -15,12 +15,16 @@ imported at container start; secrets are patched afterwards from the KV store.
 authenticator**, and binds it as the realm `browserFlow`. Combined with
 `resetPasswordAllowed:false` and a default
 `webauthn-register-passwordless` required action, ecosystem-local accounts
-authenticate with a **passkey (FIDO2/WebAuthn)**, never a password. Self-service
-signup is allowed (`registrationAllowed:true`, `registrationEmailAsUsername:true`):
-the registration form's throwaway password never becomes a usable login
-credential, because the first session immediately enrolls a passkey and the
-browser flow has no password authenticator. `verifyEmail` stays `false` until a
-realm `smtpServer` is configured (the validator enforces that pairing). See
+authenticate with a **passkey (FIDO2/WebAuthn)** in the steady state.
+Self-service signup is **headless**: product frontends (e.g. Naruon) own the
+signup page and create accounts through the account-unification service's
+`/registration/accounts` API (`registrationAllowed` stays `false`, so the
+IdP-hosted registration form never appears). API-registered accounts carry a
+bootstrap password that the `browser-passwordless-credentials` subflow offers
+ONLY while no passkey exists; the first session enrolls a passkey and the
+registration password janitor then revokes the password credential.
+`verifyEmail` stays `false` until a realm `smtpServer` is configured (the
+validator enforces that pairing). See
 [`../../docs/passwordless-policy.md`](../../docs/passwordless-policy.md).
 
 ## What is committed vs. patched from KV

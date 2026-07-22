@@ -65,6 +65,36 @@ def _all_authenticators(realm: dict, alias: str, seen: set[str] | None = None) -
     return found
 
 
+def _bootstrap_form_violations(realm: dict, bootstrap_form: str) -> list[str]:
+    """Check every credential-form execution matches the bootstrap shape."""
+    violations: list[str] = []
+    for flow in realm.get("authenticationFlows", []):
+        executions = flow.get("authenticationExecutions", [])
+        for execution in executions:
+            if execution.get("authenticator") != bootstrap_form:
+                continue
+            passkey_sibling = next(
+                (
+                    sibling
+                    for sibling in executions
+                    if sibling.get("authenticator") == PASSKEY_AUTHENTICATOR
+                ),
+                None,
+            )
+            if (
+                execution.get("requirement") != "ALTERNATIVE"
+                or passkey_sibling is None
+                or passkey_sibling.get("requirement") != "ALTERNATIVE"
+                or passkey_sibling.get("priority", 0) >= execution.get("priority", 0)
+            ):
+                violations.append(
+                    "the credential-form authenticator is only allowed as an "
+                    "ALTERNATIVE sibling below the passkey authenticator "
+                    f"(bootstrap shape) in flow '{flow.get('alias')}'"
+                )
+    return violations
+
+
 def validate(realm: dict) -> list[str]:
     """Return human-readable policy violations for a realm export."""
     errors: list[str] = []
@@ -82,12 +112,22 @@ def validate(realm: dict) -> list[str]:
         authenticators = _all_authenticators(realm, browser_flow)
         if not authenticators:
             errors.append(f"browserFlow '{browser_flow}' has no executions defined")
-        disallowed_credential_used = authenticators & DISALLOWED_CREDENTIAL_AUTHENTICATORS
+        # The plain credential form is tolerated ONLY in the bootstrap shape:
+        # an ALTERNATIVE sibling of the passkey authenticator with lower
+        # priority, so it is offered solely to accounts that have not enrolled
+        # a passkey yet (the registration janitor then revokes it). Every
+        # other credential-form authenticator stays banned outright.
+        bootstrap_form = f"auth-{_CREDENTIAL_FACTOR}-form"
+        disallowed_credential_used = (
+            authenticators & DISALLOWED_CREDENTIAL_AUTHENTICATORS
+        ) - {bootstrap_form}
         if disallowed_credential_used:
             errors.append(
                 "browserFlow includes a disallowed credential-form authenticator; "
                 "ecosystem policy requires passkeys"
             )
+        if bootstrap_form in authenticators:
+            errors.extend(_bootstrap_form_violations(realm, bootstrap_form))
         if PASSKEY_AUTHENTICATOR not in authenticators:
             errors.append(
                 "browserFlow must include the passkey authenticator required by "

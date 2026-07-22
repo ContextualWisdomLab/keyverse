@@ -172,3 +172,42 @@ class MockKeycloakAdminApi:
     def delete_identity_provider(self, provider_alias: str) -> None:
         self.calls.append(f"delete_identity_provider:{provider_alias}")
         getattr(self, "identity_providers", {}).pop(provider_alias, None)
+
+    # -- self-registration support ------------------------------------------
+    def list_users(self, first_result: int, max_results: int) -> list[UserAccount]:
+        self.calls.append(f"list_users:{first_result}:{max_results}")
+        ordered = list(self.users.values())
+        return ordered[first_result : first_result + max_results]
+
+    def reset_user_password(self, user_id: str, password_value: str) -> None:
+        self.calls.append(f"reset_user_password:{user_id}")
+        if user_id not in self.users:
+            raise KeyError(user_id)
+        if not hasattr(self, "credentials"):
+            self.credentials: dict[str, list[dict]] = {}
+        entries = self.credentials.setdefault(user_id, [])
+        entries[:] = [item for item in entries if item.get("type") != "password"]
+        entries.append({"id": f"cred-pw-{user_id}", "type": "password"})
+
+    def set_user_required_actions(self, user_id: str, action_aliases: list[str]) -> None:
+        self.calls.append(f"set_user_required_actions:{user_id}")
+        if not hasattr(self, "required_actions"):
+            self.required_actions: dict[str, list[str]] = {}
+        self.required_actions[user_id] = list(action_aliases)
+
+    def list_user_credentials(self, user_id: str) -> list[dict]:
+        self.calls.append(f"list_user_credentials:{user_id}")
+        return list(getattr(self, "credentials", {}).get(user_id, []))
+
+    def delete_user_credential(self, user_id: str, credential_id: str) -> None:
+        self.calls.append(f"delete_user_credential:{user_id}:{credential_id}")
+        entries = getattr(self, "credentials", {}).get(user_id, [])
+        entries[:] = [item for item in entries if item.get("id") != credential_id]
+
+    def add_test_passkey(self, user_id: str) -> None:
+        """Test fixture: mark a user as having enrolled a passkey."""
+        if not hasattr(self, "credentials"):
+            self.credentials = {}
+        self.credentials.setdefault(user_id, []).append(
+            {"id": f"cred-wa-{user_id}", "type": "webauthn-passwordless"}
+        )

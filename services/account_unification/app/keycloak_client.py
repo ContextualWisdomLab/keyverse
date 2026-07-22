@@ -109,6 +109,26 @@ class AdminApi(Protocol):
         """Set one single-valued user attribute."""
         ...
 
+    def list_users(self, first_result: int, max_results: int) -> list[UserAccount]:
+        """Return one page of realm users."""
+        ...
+
+    def reset_user_password(self, user_id: str, password_value: str) -> None:
+        """Set a non-temporary password credential on a user."""
+        ...
+
+    def set_user_required_actions(self, user_id: str, action_aliases: list[str]) -> None:
+        """Replace the pending required actions on a user."""
+        ...
+
+    def list_user_credentials(self, user_id: str) -> list[dict]:
+        """List stored credential representations for a user."""
+        ...
+
+    def delete_user_credential(self, user_id: str, credential_id: str) -> None:
+        """Delete one stored credential from a user."""
+        ...
+
     def get_identity_provider(self, provider_alias: str) -> dict | None:
         """Return one identity-provider instance or ``None`` when absent."""
         ...
@@ -356,6 +376,40 @@ class HttpAdminApi:
         attributes[key] = [value]
         self._put(
             f"/admin/realms/{self._realm}/users/{user_id}", {"attributes": attributes}
+        )
+
+    # -- self-registration support ------------------------------------------
+    def list_users(self, first_result: int, max_results: int) -> list[UserAccount]:
+        """Return one page of realm users (GET /users?first&max)."""
+        data = self._get(
+            f"/admin/realms/{self._realm}/users",
+            params={"first": first_result, "max": max_results},
+        )
+        return [_parse_user(item) for item in data]
+
+    def reset_user_password(self, user_id: str, password_value: str) -> None:
+        """Set a non-temporary password (PUT /users/{id}/reset-password)."""
+        self._put(
+            f"/admin/realms/{self._realm}/users/{user_id}/reset-password",
+            {"type": "password", "value": password_value, "temporary": False},
+        )
+
+    def set_user_required_actions(self, user_id: str, action_aliases: list[str]) -> None:
+        """Replace pending required actions (PUT /users/{id})."""
+        self._put(
+            f"/admin/realms/{self._realm}/users/{user_id}",
+            {"requiredActions": list(action_aliases)},
+        )
+
+    def list_user_credentials(self, user_id: str) -> list[dict]:
+        """List credential representations (GET /users/{id}/credentials)."""
+        data = self._get(f"/admin/realms/{self._realm}/users/{user_id}/credentials")
+        return [item for item in data if isinstance(item, dict)]
+
+    def delete_user_credential(self, user_id: str, credential_id: str) -> None:
+        """Delete one credential (DELETE /users/{id}/credentials/{cid})."""
+        self._delete(
+            f"/admin/realms/{self._realm}/users/{user_id}/credentials/{credential_id}"
         )
 
     # -- identity providers (runtime federation registry) -------------------

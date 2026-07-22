@@ -21,6 +21,8 @@ from app.config import (  # noqa: E402
     KEY_KEYCLOAK_REALM,
     KEY_KEYCLOAK_SERVER_URL,
     KEY_MERGE_CONFLICT_POLICY,
+    KEY_OPERATOR_API_TOKEN,
+    KEY_REGISTRATION_API_TOKEN,
 )
 from app.kv_store import SqliteKvStore  # noqa: E402
 
@@ -34,6 +36,8 @@ def main() -> int:
     parser.add_argument("--realm", default="cwl")
     parser.add_argument("--client-id", default="account-unification-svc")
     parser.add_argument("--client-secret", default="dev-placeholder-secret")
+    parser.add_argument("--operator-token", default="dev-operator-token")
+    parser.add_argument("--registration-token", default="dev-registration-token")
     args = parser.parse_args()
 
     store = SqliteKvStore(args.db)
@@ -43,6 +47,8 @@ def main() -> int:
     store.put(args.namespace, KEY_KEYCLOAK_CLIENT_SECRET, args.client_secret)
     store.put(args.namespace, KEY_MERGE_CONFLICT_POLICY, "survivor_wins")
     store.put(args.namespace, KEY_ALLOW_UNVERIFIED_LINK, "false")
+    store.put(args.namespace, KEY_OPERATOR_API_TOKEN, args.operator_token)
+    store.put(args.namespace, KEY_REGISTRATION_API_TOKEN, args.registration_token)
     print(f"seeded {args.db} namespace={args.namespace}")
     return 0
 
