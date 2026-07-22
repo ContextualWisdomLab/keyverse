@@ -121,3 +121,45 @@ def test_http_admin_api_maps_keycloak_rest_calls():
 
     assert any(call.headers.get("authorization") == "Bearer token-1" for call in calls)
     assert any(call.method == "DELETE" and call.content for call in calls)
+
+
+def test_http_admin_api_reauthenticates_once_on_expired_token():
+    token_requests = 0
+    user_requests = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal token_requests, user_requests
+        path = request.url.path
+        if path.endswith("/protocol/openid-connect/token"):
+            token_requests += 1
+            return httpx.Response(200, json={"access_token": f"token-{token_requests}"})
+        user_requests += 1
+        # The first data call sees an expired-token 401; the retry must carry
+        # a freshly fetched token and succeed.
+        if request.headers.get("Authorization") == "Bearer token-0":
+            return httpx.Response(401, json={"error": "invalid_token"})
+        return httpx.Response(
+            200,
+            json={
+                "id": "u1",
+                "username": "jane",
+                "email": "jane@corp.test",
+                "emailVerified": True,
+                "enabled": True,
+            },
+        )
+
+    api = HttpAdminApi(
+        server_url="http://keycloak.test",
+        realm="cwl",
+        client_id="svc",
+        client_secret="secret",
+        transport=httpx.MockTransport(handler),
+    )
+    api._token = "token-0"  # simulate a token cached before it expired
+
+    user = api.get_user("u1")
+
+    assert user.user_id == "u1"
+    assert token_requests == 1
+    assert user_requests == 2

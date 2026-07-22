@@ -473,36 +473,60 @@ class HttpAdminApi:
                 raise InvalidIdentifierError("request path must not contain empty segments")
         return path
 
+    def _send_with_reauth(self, make_request):
+        """Send a request, re-authenticating once when the token expired.
+
+        The service-account token is cached for the connection lifetime, so a
+        401 after a quiet period just means the token aged out — refresh it and
+        retry once instead of failing the whole operation.
+        """
+        response = make_request()
+        if response.status_code == 401:
+            self._token = None
+            response = make_request()
+        response.raise_for_status()
+        return response
+
     def _get(self, path: str, params: dict | None = None) -> dict | list:
         """Issue an authenticated GET and parse JSON."""
-        response = self._client.get(
-            self._guard_path(path), params=params, headers=self._auth_header()
+        guarded_path = self._guard_path(path)
+        response = self._send_with_reauth(
+            lambda: self._client.get(
+                guarded_path, params=params, headers=self._auth_header()
+            )
         )
-        response.raise_for_status()
         return response.json()
 
     def _post(self, path: str, body) -> dict:
         """Issue an authenticated POST and parse optional JSON."""
-        response = self._client.post(
-            self._guard_path(path), json=body, headers=self._auth_header()
+        guarded_path = self._guard_path(path)
+        response = self._send_with_reauth(
+            lambda: self._client.post(
+                guarded_path, json=body, headers=self._auth_header()
+            )
         )
-        response.raise_for_status()
         return response.json() if response.content else {}
 
     def _put(self, path: str, body: dict) -> None:
         """Issue an authenticated PUT."""
-        response = self._client.put(
-            self._guard_path(path), json=body, headers=self._auth_header()
+        guarded_path = self._guard_path(path)
+        self._send_with_reauth(
+            lambda: self._client.put(
+                guarded_path, json=body, headers=self._auth_header()
+            )
         )
-        response.raise_for_status()
 
     def _delete(self, path: str, body=None) -> None:
         """Issue an authenticated DELETE with an optional JSON body."""
-        request = self._client.build_request(
-            "DELETE", self._guard_path(path), json=body, headers=self._auth_header()
-        )
-        response = self._client.send(request)
-        response.raise_for_status()
+        guarded_path = self._guard_path(path)
+
+        def send_delete():
+            request = self._client.build_request(
+                "DELETE", guarded_path, json=body, headers=self._auth_header()
+            )
+            return self._client.send(request)
+
+        self._send_with_reauth(send_delete)
 
     def close(self) -> None:
         """Close the underlying HTTP connection pool."""
