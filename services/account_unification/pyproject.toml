@@ -22,7 +22,7 @@ dev = [
     "httpx2>=2.5.0",
     "interrogate==1.7.0",
     "pytest==9.1.1",
-    "ruff==0.15.21",
+    "ruff==0.16.0",
 ]
 
 [tool.setuptools]
