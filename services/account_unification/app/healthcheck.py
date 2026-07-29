@@ -7,14 +7,25 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.parse
 import urllib.request
 
 DEFAULT_URL = "http://127.0.0.1:8099/healthz"
+_ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 
 def main(url: str = DEFAULT_URL) -> int:
     """Check the configured health endpoint and return a shell status code."""
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in _ALLOWED_SCHEMES:
+        # Reject non-HTTP(S) schemes so a stray value can never coerce urlopen into
+        # reading a local ``file://`` path or reaching another protocol handler.
+        print(f"healthcheck failed: unsupported URL scheme {scheme!r}", file=sys.stderr)
+        return 1
     try:
+        # Internal container self-probe; the scheme is allow-listed to http/https
+        # above, so this urlopen cannot be redirected to a file:// path or other handler.
+        # nosemgrep: dynamic-urllib-use-detected
         with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             body = json.loads(response.read().decode("utf-8"))
     except Exception as exc:  # pragma: no cover - network failure path

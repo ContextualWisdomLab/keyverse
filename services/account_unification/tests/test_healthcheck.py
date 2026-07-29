@@ -48,3 +48,14 @@ def test_healthcheck_returns_one_for_request_error(monkeypatch, capsys):
 
     assert healthcheck.main("http://service/healthz") == 1
     assert "healthcheck failed: connection refused" in capsys.readouterr().err
+
+
+def test_healthcheck_rejects_non_http_scheme(monkeypatch, capsys):
+    """A non-HTTP(S) URL is rejected before urllib ever opens it."""
+    def fail_urlopen(*args: object, **kwargs: object) -> _Response:
+        raise AssertionError("urlopen must not run for a rejected scheme")
+
+    monkeypatch.setattr(healthcheck.urllib.request, "urlopen", fail_urlopen)
+
+    assert healthcheck.main("file:///etc/passwd") == 1
+    assert "unsupported URL scheme 'file'" in capsys.readouterr().err
