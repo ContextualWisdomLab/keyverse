@@ -148,3 +148,7 @@ class MockKeycloakAdminApi:
             self.users[user_id] = self.users[user_id].model_copy(
                 update={"external_id": value}
             )
+
+    def get_user_attribute(self, user_id: str, key: str) -> str | None:
+        self.calls.append(f"get_user_attribute:{user_id}:{key}")
+        return self.attributes.get((user_id, key))

@@ -82,6 +82,28 @@ def test_scim_replace_updates_user(client, api):
     assert api.get_user(created["id"]).email == "jane.doe@corp.com"
 
 
+def test_scim_replace_refuses_to_resurrect_a_tombstoned_duplicate(client, api):
+    """A merged-away (tombstoned) duplicate must not be re-enabled via SCIM PUT.
+
+    After a merge the duplicate is disabled and carries a merged_into_user_id
+    pointer. A routine upstream full-sync PUT (``active`` defaults to true) must
+    be refused with 409, leaving the duplicate disabled with its survivor pointer
+    intact -- never silently reactivated.
+    """
+    created = client.post("/scim/v2/Users", json=_scim_user()).json()
+    dup_id = created["id"]
+    # Simulate the post-merge tombstone state (service._tombstone does exactly this).
+    api.set_user_attribute(dup_id, "merged_into_user_id", "survivor-id")
+    api.deactivate_user(dup_id)
+
+    response = client.put(f"/scim/v2/Users/{dup_id}", json=_scim_user())
+
+    assert response.status_code == 409
+    assert dup_id in api.deactivated
+    assert api.get_user(dup_id).state == "disabled"
+    assert api.get_user_attribute(dup_id, "merged_into_user_id") == "survivor-id"
+
+
 def test_scim_patch_deactivates_user(client, api):
     created = client.post("/scim/v2/Users", json=_scim_user()).json()
     response = client.patch(

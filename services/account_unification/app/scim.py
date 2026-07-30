@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from .keycloak_client import AdminApi
 from .models import UserAccount
+from .service import TOMBSTONE_ATTRIBUTE_KEY
 
 SCIM_USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
 SCIM_LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
@@ -192,6 +193,18 @@ def replace_user(
         provisioner.get_user(user_id)
     except KeyError as exc:
         raise _scim_error(404, f"user '{user_id}' not found") from exc
+    # A merged-away duplicate is tombstoned (disabled + a merged_into_user_id
+    # pointer) so it can never authenticate again. SCIM PUT is the only
+    # reactivation vector -- create guards uniqueness, and patch/delete only
+    # ever disable -- and a live Keycloak PUT would also overwrite the whole
+    # user representation, wiping the survivor pointer. Refuse it outright so a
+    # routine upstream full-sync cannot resurrect a decommissioned identity.
+    if provisioner.get_user_attribute(user_id, TOMBSTONE_ATTRIBUTE_KEY):
+        raise _scim_error(
+            409,
+            f"user '{user_id}' has been merged into another account "
+            "and cannot be modified",
+        )
     account = _to_user_account(resource, user_id=user_id)
     provisioner.replace_user(user_id, account)
     return _scim_response(_to_scim_resource(provisioner.get_user(user_id)))
