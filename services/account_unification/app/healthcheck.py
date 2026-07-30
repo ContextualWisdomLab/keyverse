@@ -15,6 +15,7 @@ DEFAULT_URL = "http://127.0.0.1:8099/healthz"
 def main(url: str = DEFAULT_URL) -> int:
     """Check the configured health endpoint and return a shell status code."""
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected - CLI healthcheck; url defaults to the fixed localhost DEFAULT_URL, no untrusted input reaches urlopen.
         with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             body = json.loads(response.read().decode("utf-8"))
     except Exception as exc:  # pragma: no cover - network failure path
