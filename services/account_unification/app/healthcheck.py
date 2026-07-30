@@ -15,6 +15,7 @@ DEFAULT_URL = "http://127.0.0.1:8099/healthz"
 def main(url: str = DEFAULT_URL) -> int:
     """Check the configured health endpoint and return a shell status code."""
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected -- container healthcheck against a hardcoded loopback default (127.0.0.1); any override is a deployment-controlled target, not user input.
         with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             body = json.loads(response.read().decode("utf-8"))
     except Exception as exc:  # pragma: no cover - network failure path
