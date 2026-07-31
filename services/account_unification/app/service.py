@@ -27,6 +27,7 @@ from .keycloak_client import AdminApi
 from .matching import decide_match, have_matching_verified_email
 from .models import (
     FederatedIdentity,
+    MatchReason,
     MergeConflict,
     MergeRequest,
     MergeResult,
@@ -85,19 +86,27 @@ class UnificationService:
         decision = decide_match(
             survivor, duplicate, explicit_link=request.explicit_link
         )
-        # Guard: refuse when the accounts only coincide on an unverified email.
-        # (decide_match already refuses to *call* that a verified match; here we
-        # produce the precise error for the operator + audit trail.)
-        if not decision.matched:
+        # Guard: refuse whenever the ONLY shared tie is an unverified email --
+        # even when an operator asserts an explicit link. This is the
+        # account-takeover vector the hard rule blocks (an attacker registers a
+        # duplicate holding the victim's unverified email). A verified-email or
+        # exact (idp, subject) match is a genuine tie and is exempt, so the guard
+        # runs for every other decision reason (explicit link and no-match alike)
+        # rather than only when decide_match found no rule.
+        if decision.reason not in (
+            MatchReason.EXACT_IDP_SUBJECT,
+            MatchReason.VERIFIED_EMAIL,
+        ):
             same_email = (
-                (survivor.email or "").strip().lower()
+                bool((survivor.email or "").strip())
+                and (survivor.email or "").strip().lower()
                 == (duplicate.email or "").strip().lower()
-                and bool(survivor.email)
             )
             if same_email and not have_matching_verified_email(survivor, duplicate):
                 raise UnverifiedEmailMergeError(
                     "refusing merge: accounts share only an UNVERIFIED email"
                 )
+        if not decision.matched:
             raise NoMatchError(decision.detail or "no matching rule satisfied")
 
         audit_id = self._audit.new_correlation_id()
