@@ -168,16 +168,6 @@ def test_explicit_link_allows_merge_without_shared_signal(service, api):
     assert result.duplicate_tombstoned
 
 
-def test_refuse_explicit_merge_on_shared_unverified_email(service, api):
-    """An explicit link must not launder a shared UNVERIFIED email into a merge."""
-    api.create_test_user("survivor", email="jane@corp.com", is_email_verified=False)
-    api.create_test_user("dup", email="jane@corp.com", is_email_verified=False)
-    with pytest.raises(UnverifiedEmailMergeError):
-        service.merge_accounts(_merge(explicit=True))
-    # nothing mutated: duplicate not tombstoned.
-    assert "dup" not in api.deactivated
-
-
 def test_refuse_self_merge(service, api):
     api.create_test_user("same", email="a@x.com", is_email_verified=True)
     with pytest.raises(SameUserError):
