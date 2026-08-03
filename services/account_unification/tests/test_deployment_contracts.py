@@ -11,6 +11,17 @@ def _repository_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _seed_tool_source() -> str:
+    """Return the local configuration seed tool source."""
+    return (
+        _repository_root()
+        / "services"
+        / "account_unification"
+        / "tools"
+        / "seed_config_store.py"
+    ).read_text(encoding="utf-8")
+
+
 def test_compose_persists_account_unification_state() -> None:
     """Standalone restarts retain audit and user-operation lock databases."""
     compose = yaml.safe_load(
@@ -67,12 +78,14 @@ def test_helm_mounts_durable_account_unification_storage() -> None:
 
 def test_local_seed_avoids_global_temporary_audit_storage() -> None:
     """Development defaults stay inside the project bootstrap directory."""
-    seed_tool = (
-        _repository_root()
-        / "services"
-        / "account_unification"
-        / "tools"
-        / "seed_config_store.py"
-    ).read_text(encoding="utf-8")
+    seed_tool = _seed_tool_source()
     assert "/tmp/keyverse-account-audit.sqlite3" not in seed_tool
     assert "account_unification_audit.sqlite3" in seed_tool
+
+
+def test_local_seed_keeps_registration_disabled_by_default() -> None:
+    """A developer must explicitly supply the dedicated signup credential."""
+    seed_tool = _seed_tool_source()
+    assert '"--registration-token"' in seed_tool
+    assert 'default=""' in seed_tool
+    assert "if not args.registration_token" in seed_tool
