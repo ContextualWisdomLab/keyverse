@@ -38,4 +38,4 @@ target-version = "py311"
 
 [tool.interrogate]
 exclude = ["tests", ".venv"]
-fail-under = 80
+fail-under = 100
