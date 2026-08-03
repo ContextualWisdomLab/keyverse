@@ -29,7 +29,7 @@ Per-service, matching what CI runs (from `services/account_unification/`):
 ```bash
 uv sync --locked --extra dev       # install locked deps
 uv run ruff check app tests tools  # lint
-uv run interrogate .               # docstring coverage gate (fail-under 80)
+uv run interrogate .               # docstring coverage gate (fail-under 100)
 uv run pytest -q                   # all tests
 uv run pytest tests/test_merge.py -q                       # one file
 uv run pytest tests/test_merge.py::test_name -q            # one test
@@ -79,4 +79,4 @@ Tests run entirely against an in-memory Keycloak fake (`tests/mock_keycloak.py`)
 - **Permissive OSS only** — no GPL/AGPL dependencies (this is why the SCIM shim is in-repo rather than ZITADEL or the commercial scim-for-keycloak plugin).
 - Container images are pinned by tag **and** digest (compose and Helm values).
 - Database objects use two-word snake_case names (`idp_config_entries`, `account_merge_audit`).
-- Python: ruff (line-length 100, target py311), pytest, and interrogate docstring coverage ≥80% (docstrings are required on modules/functions). Dependencies are locked with `uv` (`uv.lock`); CI installs with `uv sync --locked`, so update the lockfile when changing `pyproject.toml`.
+- Python: ruff (line-length 100, target py311), pytest, and interrogate docstring coverage 100% (docstrings are required on modules/functions). Dependencies are locked with `uv` (`uv.lock`); CI installs with `uv sync --locked`, so update the lockfile when changing `pyproject.toml`.
