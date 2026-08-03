@@ -9,6 +9,7 @@ snake_case names (``idp_config_entries`` with columns ``entry_key`` /
 from __future__ import annotations
 
 import sqlite3
+import threading
 from typing import Protocol
 
 
@@ -57,6 +58,12 @@ class SqliteKvStore:
     Table ``idp_config_entries`` is keyed by (``config_namespace``,
     ``entry_key``). Values are stored as text; secret handling (encryption at
     rest, rotation) is delegated to the platform for the postgres backend.
+
+    FastAPI executes synchronous handlers in worker threads. The store is built
+    during application startup and then reused by those handlers, so its SQLite
+    connection explicitly permits cross-thread use and every operation is
+    serialized with a re-entrant lock. This also preserves ``:memory:`` support,
+    which a connection-per-operation implementation would lose.
     """
 
     _SCHEMA = """
@@ -71,38 +78,49 @@ class SqliteKvStore:
     def __init__(self, database_path: str) -> None:
         """Open the SQLite store and ensure the config table exists."""
         self._database_path = database_path
-        self._connection = sqlite3.connect(database_path)
+        self._connection_lock = threading.RLock()
+        self._connection = sqlite3.connect(
+            database_path,
+            timeout=5.0,
+            check_same_thread=False,
+        )
+        self._connection.execute("PRAGMA busy_timeout = 5000")
         self._connection.execute(self._SCHEMA)
         self._connection.commit()
 
     def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
         """Upsert one config value."""
-        self._connection.execute(
-            "INSERT INTO idp_config_entries (config_namespace, entry_key, entry_value) "
-            "VALUES (?, ?, ?) ON CONFLICT(config_namespace, entry_key) "
-            "DO UPDATE SET entry_value = excluded.entry_value",
-            (namespace, entry_key, entry_value),
-        )
-        self._connection.commit()
+        with self._connection_lock:
+            self._connection.execute(
+                "INSERT INTO idp_config_entries "
+                "(config_namespace, entry_key, entry_value) "
+                "VALUES (?, ?, ?) ON CONFLICT(config_namespace, entry_key) "
+                "DO UPDATE SET entry_value = excluded.entry_value",
+                (namespace, entry_key, entry_value),
+            )
+            self._connection.commit()
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one config value, if present."""
-        row = self._connection.execute(
-            "SELECT entry_value FROM idp_config_entries "
-            "WHERE config_namespace = ? AND entry_key = ?",
-            (namespace, entry_key),
-        ).fetchone()
+        with self._connection_lock:
+            row = self._connection.execute(
+                "SELECT entry_value FROM idp_config_entries "
+                "WHERE config_namespace = ? AND entry_key = ?",
+                (namespace, entry_key),
+            ).fetchone()
         return row[0] if row else None
 
     def get_all(self, namespace: str) -> dict[str, str]:
         """Return every config value in one namespace."""
-        rows = self._connection.execute(
-            "SELECT entry_key, entry_value FROM idp_config_entries "
-            "WHERE config_namespace = ?",
-            (namespace,),
-        ).fetchall()
+        with self._connection_lock:
+            rows = self._connection.execute(
+                "SELECT entry_key, entry_value FROM idp_config_entries "
+                "WHERE config_namespace = ?",
+                (namespace,),
+            ).fetchall()
         return {entry_key: entry_value for entry_key, entry_value in rows}
 
     def close(self) -> None:
-        """Close the SQLite connection."""
-        self._connection.close()
+        """Close the SQLite connection after all in-flight operations finish."""
+        with self._connection_lock:
+            self._connection.close()
