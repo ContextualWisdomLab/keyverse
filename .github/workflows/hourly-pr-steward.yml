@@ -1,0 +1,105 @@
+name: Hourly PR steward
+
+on:
+  schedule:
+    # Avoid the top-of-hour congestion window. Scheduled runs use UTC and the
+    # latest commit on the default branch.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+# Keep the workflow token read-only by default. Only the single steward job
+# receives the narrowly scoped writes required to update trusted branches and
+# arm GitHub-native auto-merge after protected evidence is complete.
+permissions:
+  contents: read
+
+concurrency:
+  group: hourly-pr-steward
+  cancel-in-progress: false
+
+jobs:
+  advance-approved-pull-requests:
+    name: Advance approved pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+    steps:
+      - name: Update, verify, and arm trusted pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh pr list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --limit 100 \
+            --json number,isDraft,author,headRepositoryOwner,headRefOid,mergeStateStatus,reviewDecision \
+            > "$RUNNER_TEMP/open-pull-requests.json"
+
+          jq -c '.[]' "$RUNNER_TEMP/open-pull-requests.json" | while IFS= read -r pull_request; do
+            number="$(jq -r '.number' <<<"$pull_request")"
+            is_draft="$(jq -r '.isDraft' <<<"$pull_request")"
+            author="$(jq -r '.author.login // ""' <<<"$pull_request")"
+            head_owner="$(jq -r '.headRepositoryOwner.login // ""' <<<"$pull_request")"
+            head_sha="$(jq -r '.headRefOid' <<<"$pull_request")"
+            merge_state="$(jq -r '.mergeStateStatus // "UNKNOWN"' <<<"$pull_request")"
+            review_decision="$(jq -r '.reviewDecision // ""' <<<"$pull_request")"
+
+            if [[ "$is_draft" != "false" || "$head_owner" != "ContextualWisdomLab" ]]; then
+              continue
+            fi
+
+            trusted_author=false
+            for allowed_author in \
+              seonghobae \
+              dependabot \
+              'dependabot[bot]' \
+              app/dependabot \
+              github-actions \
+              'github-actions[bot]' \
+              app/github-actions \
+              opencode-agent
+            do
+              if [[ "$author" == "$allowed_author" ]]; then
+                trusted_author=true
+                break
+              fi
+            done
+            if [[ "$trusted_author" != "true" ]]; then
+              continue
+            fi
+
+            # Keep trusted branches current. A successful update invalidates the
+            # old check evidence, so the steward waits for the next hourly pass.
+            if [[ "$merge_state" == "BEHIND" ]]; then
+              gh pr update-branch "$number" --repo "$REPOSITORY" || true
+              continue
+            fi
+
+            if [[ "$review_decision" != "APPROVED" ]]; then
+              continue
+            fi
+
+            # Never infer safety from optional checks. The repository's required
+            # check set remains the source of truth. `gh pr checks` exits nonzero
+            # for failed checks and uses exit code 8 for pending checks, so either
+            # condition leaves the PR untouched.
+            if ! gh pr checks "$number" --repo "$REPOSITORY" --required; then
+              continue
+            fi
+
+            # Arm GitHub's native auto-merge service rather than creating the
+            # merge commit directly with GITHUB_TOKEN. Rulesets remain final,
+            # and the exact reviewed/check head must still match.
+            gh pr merge "$number" \
+              --repo "$REPOSITORY" \
+              --auto \
+              --squash \
+              --match-head-commit "$head_sha"
+          done

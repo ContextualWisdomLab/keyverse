@@ -1,12 +1,14 @@
-"""Append-only audit log for link/merge operations.
+"""Append-only, thread-safe audit logging for identity merge operations.
 
-Every mutating action is recorded. The default sink writes to the KV/DB store
-under the two-word snake_case object ``account_merge_audit``. An in-memory sink
-is used by tests. Records are immutable once written.
+Every mutating merge action is recorded. The standalone sink writes to the
+two-word snake_case table ``account_merge_audit``. SQLite access is serialized
+inside the process and configured for bounded cross-process contention.
 """
 from __future__ import annotations
 
 import json
+import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -27,11 +29,7 @@ class AuditEvent:
 
 
 class AuditSink(Protocol):
-    """Persistence contract for append-only audit events.
-
-    The ellipsis bodies declare the Protocol contract only. Concrete
-    implementations are :class:`InMemoryAuditSink` and :class:`SqliteAuditSink`.
-    """
+    """Persistence contract for append-only audit events."""
 
     def record(self, event: AuditEvent) -> None:
         """Append one immutable audit event."""
@@ -41,24 +39,36 @@ class AuditSink(Protocol):
         """Return events for one correlation id in write order."""
         ...
 
+    def close(self) -> None:
+        """Release resources held by the sink."""
+        ...
+
 
 @dataclass
 class InMemoryAuditSink:
-    """Test/dev sink keeping events in a list."""
+    """Thread-safe test/dev sink keeping events in a list."""
 
     events: list[AuditEvent] = field(default_factory=list)
+    _lock: threading.RLock = field(
+        default_factory=threading.RLock, init=False, repr=False
+    )
 
     def record(self, event: AuditEvent) -> None:
         """Append an event to the in-memory list."""
-        self.events.append(event)
+        with self._lock:
+            self.events.append(event)
 
     def events_for(self, audit_id: str) -> list[AuditEvent]:
         """Return recorded events for one correlation id."""
-        return [event for event in self.events if event.audit_id == audit_id]
+        with self._lock:
+            return [event for event in self.events if event.audit_id == audit_id]
+
+    def close(self) -> None:
+        """Release no-op in-memory resources."""
 
 
 class SqliteAuditSink:
-    """Durable append-only sink backed by the ``account_merge_audit`` table."""
+    """Durable append-only sink backed by ``account_merge_audit``."""
 
     _SCHEMA = """
     CREATE TABLE IF NOT EXISTS account_merge_audit (
@@ -75,39 +85,48 @@ class SqliteAuditSink:
 
     def __init__(self, database_path: str) -> None:
         """Open the audit database and ensure the audit table exists."""
-        import sqlite3
-
-        self._connection = sqlite3.connect(database_path)
-        self._connection.execute(self._SCHEMA)
-        self._connection.commit()
+        self._lock = threading.RLock()
+        self._connection = sqlite3.connect(
+            database_path,
+            timeout=10.0,
+            check_same_thread=False,
+        )
+        with self._lock:
+            self._connection.execute("PRAGMA busy_timeout = 10000")
+            self._connection.execute("PRAGMA journal_mode = WAL")
+            self._connection.execute("PRAGMA synchronous = NORMAL")
+            self._connection.execute(self._SCHEMA)
+            self._connection.commit()
 
     def record(self, event: AuditEvent) -> None:
         """Persist one event row and commit immediately."""
-        self._connection.execute(
-            "INSERT INTO account_merge_audit "
-            "(audit_id, event_type, actor_name, survivor_user_id, "
-            " duplicate_user_id, payload_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                event.audit_id,
-                event.event_type,
-                event.actor,
-                event.survivor_user_id,
-                event.duplicate_user_id,
-                event.payload_json,
-                event.created_at,
-            ),
-        )
-        self._connection.commit()
+        with self._lock, self._connection:
+            self._connection.execute(
+                "INSERT INTO account_merge_audit "
+                "(audit_id, event_type, actor_name, survivor_user_id, "
+                " duplicate_user_id, payload_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event.audit_id,
+                    event.event_type,
+                    event.actor,
+                    event.survivor_user_id,
+                    event.duplicate_user_id,
+                    event.payload_json,
+                    event.created_at,
+                ),
+            )
 
     def events_for(self, audit_id: str) -> list[AuditEvent]:
         """Load events for one correlation id in event sequence order."""
-        rows = self._connection.execute(
-            "SELECT audit_id, event_type, actor_name, survivor_user_id, "
-            "duplicate_user_id, payload_json, created_at "
-            "FROM account_merge_audit WHERE audit_id = ? ORDER BY event_sequence",
-            (audit_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT audit_id, event_type, actor_name, survivor_user_id, "
+                "duplicate_user_id, payload_json, created_at "
+                "FROM account_merge_audit "
+                "WHERE audit_id = ? ORDER BY event_sequence",
+                (audit_id,),
+            ).fetchall()
         return [
             AuditEvent(
                 audit_id=row[0],
@@ -123,11 +142,12 @@ class SqliteAuditSink:
 
     def close(self) -> None:
         """Close the SQLite connection."""
-        self._connection.close()
+        with self._lock:
+            self._connection.close()
 
 
 class AuditLogger:
-    """Builds and persists audit events; returns a stable correlation id."""
+    """Build and persist audit events behind a stable correlation id."""
 
     def __init__(self, sink: AuditSink) -> None:
         """Create an audit logger around one sink implementation."""
@@ -163,3 +183,7 @@ class AuditLogger:
     def events_for(self, audit_id: str) -> list[AuditEvent]:
         """Return the audit trail for one merge correlation id."""
         return self._sink.events_for(audit_id)
+
+    def close(self) -> None:
+        """Close the underlying audit sink."""
+        self._sink.close()

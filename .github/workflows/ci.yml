@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel superseded evidence for the same pull request or branch. This keeps the
+# runner queue bounded during review-fix loops while preserving the newest head.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # Least-privilege default token (OSSF Scorecard: Token-Permissions).
 permissions:
   contents: read

@@ -20,6 +20,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from .keycloak_client import AdminApi
 from .models import UserAccount
+from .service import TOMBSTONE_ATTRIBUTE_KEY
+from .user_locks import (
+    UserOperationLocks,
+    UserOperationLockTimeout,
+)
 
 SCIM_USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
 SCIM_LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
@@ -36,6 +41,14 @@ def get_provisioner(request: Request) -> AdminApi:
     if api is None:  # pragma: no cover - only when misconfigured / test wiring
         raise HTTPException(status_code=503, detail="keycloak provisioner not wired")
     return api
+
+
+def get_user_operation_locks(request: Request) -> UserOperationLocks:
+    """Return the shared lock manager used by both SCIM and merge paths."""
+    locks = getattr(request.app.state, "user_operation_locks", None)
+    if locks is None:  # pragma: no cover - only when misconfigured / test wiring
+        raise HTTPException(status_code=503, detail="user operation locks not wired")
+    return locks
 
 
 def _scim_error(status: int, detail: str) -> HTTPException:
@@ -186,15 +199,35 @@ def replace_user(
     user_id: str,
     resource: dict[str, Any],
     provisioner: AdminApi = Depends(get_provisioner),
+    user_operation_locks: UserOperationLocks = Depends(get_user_operation_locks),
 ) -> Response:
     """Replace a provisioned user from a SCIM PUT request."""
     try:
-        provisioner.get_user(user_id)
-    except KeyError as exc:
-        raise _scim_error(404, f"user '{user_id}' not found") from exc
-    account = _to_user_account(resource, user_id=user_id)
-    provisioner.replace_user(user_id, account)
-    return _scim_response(_to_scim_resource(provisioner.get_user(user_id)))
+        with user_operation_locks.hold(user_id):
+            try:
+                provisioner.get_user(user_id)
+            except KeyError as exc:
+                raise _scim_error(404, f"user '{user_id}' not found") from exc
+            # A merged-away duplicate is tombstoned (disabled + a
+            # merged_into_user_id pointer) so it can never authenticate again.
+            # Keep the check and the full replacement PUT under the same lock
+            # used by merge_accounts; otherwise merge can create the tombstone
+            # between these two Admin API calls and SCIM can wipe it again.
+            if provisioner.get_user_attribute(user_id, TOMBSTONE_ATTRIBUTE_KEY):
+                raise _scim_error(
+                    409,
+                    f"user '{user_id}' has been merged into another account "
+                    "and cannot be modified",
+                )
+            account = _to_user_account(resource, user_id=user_id)
+            provisioner.replace_user(user_id, account)
+            replaced = provisioner.get_user(user_id)
+    except UserOperationLockTimeout as exc:
+        raise _scim_error(
+            503,
+            f"user '{user_id}' is being modified; retry the request",
+        ) from exc
+    return _scim_response(_to_scim_resource(replaced))
 
 
 @scim_router.patch("/Users/{user_id}")

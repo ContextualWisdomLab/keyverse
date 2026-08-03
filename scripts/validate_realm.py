@@ -4,14 +4,14 @@
 Parses the realm JSON and asserts the ecosystem-policy invariants hold, so a
 broken realm export is caught in CI before it ever reaches Keycloak:
 
-  * valid JSON, realm named and enabled;
-  * a passwordless browser flow is bound and contains NO password authenticator
-    but DOES use the WebAuthn passwordless authenticator (passkey-first);
-  * self-service password registration + reset are OFF;
-  * the employer ADFS is registered as an INBOUND SAML IdP with trustEmail;
-  * an LDAP/AD user-federation source is present;
-  * an OIDC/OAuth2.1 RP client template and the account-unification service
-    account client exist; no committed client secret is a real value.
+* the named realm is enabled;
+* the bound browser flow contains WebAuthn passwordless and no password form;
+* self-service password registration and reset are disabled;
+* external federation remains runtime desired state, not committed realm code;
+* RP and service-account clients exist without committed real secrets;
+* Keycloak 26 import compatibility excludes ``$`` annotation keys;
+* the ``basic`` scope provides ``sub`` and is a realm default;
+* ``naruon-web`` is a bounded-token public PKCE client with required claims.
 
 Usage: python scripts/validate_realm.py [path-to-realm.json]
 Exit 0 = valid, 1 = invalid (prints the failing checks).
@@ -30,6 +30,7 @@ DISALLOWED_CREDENTIAL_AUTHENTICATORS = {
 }
 PASSKEY_AUTHENTICATOR = f"webauthn-authenticator-{_CREDENTIAL_FACTOR}less"
 SECRET_PLACEHOLDER = "__set_from_kv__"
+MAX_PUBLIC_TOKEN_LIFESPAN = 900
 
 
 def _executions(realm: dict, alias: str) -> list[dict]:
@@ -40,8 +41,12 @@ def _executions(realm: dict, alias: str) -> list[dict]:
     return []
 
 
-def _all_authenticators(realm: dict, alias: str, seen: set[str] | None = None) -> set[str]:
-    """Collect authenticator ids reachable from a flow, following subflows."""
+def _all_authenticators(
+    realm: dict,
+    alias: str,
+    seen: set[str] | None = None,
+) -> set[str]:
+    """Collect authenticator IDs reachable from a flow, following subflows."""
     seen = seen if seen is not None else set()
     if alias in seen:
         return set()
@@ -56,6 +61,18 @@ def _all_authenticators(realm: dict, alias: str, seen: set[str] | None = None) -
     return found
 
 
+def _public_token_lifespan(client: dict) -> int | None:
+    """Parse one optional client access-token lifespan as a positive integer."""
+    raw_value = client.get("attributes", {}).get("access.token.lifespan")
+    if raw_value is None:
+        return None
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return -1
+    return value if str(value) == str(raw_value).strip() else -1
+
+
 def validate(realm: dict) -> list[str]:
     """Return human-readable policy violations for a realm export."""
     errors: list[str] = []
@@ -65,7 +82,6 @@ def validate(realm: dict) -> list[str]:
     if not realm.get("enabled", False):
         errors.append("realm must be enabled")
 
-    # Passwordless-first browser flow.
     browser_flow = realm.get("browserFlow")
     if not browser_flow:
         errors.append("browserFlow must be set")
@@ -73,8 +89,7 @@ def validate(realm: dict) -> list[str]:
         authenticators = _all_authenticators(realm, browser_flow)
         if not authenticators:
             errors.append(f"browserFlow '{browser_flow}' has no executions defined")
-        disallowed_credential_used = authenticators & DISALLOWED_CREDENTIAL_AUTHENTICATORS
-        if disallowed_credential_used:
+        if authenticators & DISALLOWED_CREDENTIAL_AUTHENTICATORS:
             errors.append(
                 "browserFlow includes a disallowed credential-form authenticator; "
                 "ecosystem policy requires passkeys"
@@ -85,31 +100,47 @@ def validate(realm: dict) -> list[str]:
                 "ecosystem policy"
             )
 
+    # Signup is headless. Keycloak sends a one-time verification and WebAuthn
+    # required-action link; the bound browser flow remains passwordless.
     if realm.get("registrationAllowed", False):
-        errors.append("registrationAllowed must be false")
+        errors.append(
+            "IdP-hosted registration must remain disabled; use the headless "
+            "registration API"
+        )
+    if not realm.get("registrationEmailAsUsername", False):
+        errors.append("registrationEmailAsUsername must remain true")
+    passkey_enrollment_is_available = any(
+        action.get("providerId") == "webauthn-register-passwordless"
+        and action.get("enabled", False)
+        for action in realm.get("requiredActions", [])
+    )
+    if not passkey_enrollment_is_available:
+        errors.append(
+            "passkey enrollment required action must remain enabled for "
+            "action-email enrollment"
+        )
+    if realm.get("verifyEmail", False) and not realm.get("smtpServer"):
+        errors.append(
+            "verifyEmail requires a realm smtpServer; configure SMTP or disable "
+            "verifyEmail"
+        )
     if realm.get("resetPasswordAllowed", False):
         errors.append("credential reset self-service must be false")
 
-    # Employer ADFS inbound SAML IdP.
-    idps = {i.get("alias"): i for i in realm.get("identityProviders", [])}
-    adfs = idps.get("employer-adfs")
-    if adfs is None:
-        errors.append("identity provider 'employer-adfs' is missing")
-    else:
-        if adfs.get("providerId") != "saml":
-            errors.append("employer-adfs must be a SAML identity provider")
-        if not adfs.get("trustEmail", False):
-            errors.append("employer-adfs must set trustEmail (verified-email auto-link)")
+    if realm.get("identityProviders"):
+        errors.append(
+            "identityProviders must not be committed; register external IdPs at "
+            "runtime via the federation registry API"
+        )
+    if realm.get("components", {}).get(
+        "org.keycloak.storage.UserStorageProvider"
+    ):
+        errors.append(
+            "user-storage federation must not be committed; register LDAP/AD "
+            "sources at runtime via the federation registry API"
+        )
 
-    # LDAP/AD federation.
-    storage = realm.get("components", {}).get(
-        "org.keycloak.storage.UserStorageProvider", []
-    )
-    if not any(c.get("providerId") == "ldap" for c in storage):
-        errors.append("an LDAP user-storage provider is required")
-
-    # Clients: RP template + service account, no committed real secret.
-    clients = {c.get("clientId"): c for c in realm.get("clients", [])}
+    clients = {client.get("clientId"): client for client in realm.get("clients", [])}
     if "ecosystem-rp-template" not in clients:
         errors.append("OIDC RP client template 'ecosystem-rp-template' is missing")
     else:
@@ -118,10 +149,11 @@ def validate(realm: dict) -> list[str]:
             errors.append("RP template must not enable the implicit flow (OAuth 2.1)")
         if rp.get("attributes", {}).get("pkce.code.challenge.method") != "S256":
             errors.append("RP template must require PKCE S256")
-    svc = clients.get("account-unification-svc")
-    if svc is None:
+
+    service_client = clients.get("account-unification-svc")
+    if service_client is None:
         errors.append("service-account client 'account-unification-svc' is missing")
-    elif not svc.get("serviceAccountsEnabled", False):
+    elif not service_client.get("serviceAccountsEnabled", False):
         errors.append("account-unification-svc must enable service accounts")
 
     for client_id, client in clients.items():
@@ -129,12 +161,87 @@ def validate(realm: dict) -> list[str]:
         if secret is not None and secret != SECRET_PLACEHOLDER:
             errors.append(f"client '{client_id}' commits a non-placeholder secret")
 
+    for key_path in _dollar_keys(realm):
+        errors.append(
+            f"'$'-annotation key '{key_path}' breaks Keycloak 26 realm import"
+        )
+
+    scopes = {scope.get("name"): scope for scope in realm.get("clientScopes", [])}
+    basic = scopes.get("basic")
+    if basic is None:
+        errors.append("client scope 'basic' is required (sub claim source)")
+    elif not any(
+        mapper.get("protocolMapper") == "oidc-sub-mapper"
+        for mapper in basic.get("protocolMappers", [])
+    ):
+        errors.append("client scope 'basic' must include the oidc-sub-mapper")
+    if "basic" not in realm.get("defaultDefaultClientScopes", []):
+        errors.append("'basic' must be a realm default client scope")
+
+    naruon = clients.get("naruon-web")
+    if naruon is None:
+        errors.append("concrete RP client 'naruon-web' is missing")
+    else:
+        if not naruon.get("publicClient", False):
+            errors.append("naruon-web must be a public (PKCE) client")
+        if naruon.get("implicitFlowEnabled", False):
+            errors.append("naruon-web must not enable the implicit flow")
+        if naruon.get("attributes", {}).get("pkce.code.challenge.method") != "S256":
+            errors.append("naruon-web must require PKCE S256")
+        token_lifespan = _public_token_lifespan(naruon)
+        if (
+            token_lifespan is not None
+            and not 0 < token_lifespan <= MAX_PUBLIC_TOKEN_LIFESPAN
+        ):
+            errors.append(
+                "naruon-web access.token.lifespan must be an integer at or below "
+                f"{MAX_PUBLIC_TOKEN_LIFESPAN} seconds"
+            )
+        naruon_mappers = {
+            mapper.get("protocolMapper")
+            for mapper in naruon.get("protocolMappers", [])
+        }
+        if "oidc-audience-mapper" not in naruon_mappers:
+            errors.append("naruon-web must include an audience mapper")
+        hardcoded_claims = {
+            mapper.get("config", {}).get("claim.name")
+            for mapper in naruon.get("protocolMappers", [])
+            if mapper.get("protocolMapper") == "oidc-hardcoded-claim-mapper"
+        }
+        for claim_name in ("role", "org", "workspace"):
+            if claim_name not in hardcoded_claims:
+                errors.append(
+                    f"naruon-web must carry the hardcoded '{claim_name}' claim "
+                    "naruon's session contract requires"
+                )
+        if "basic" not in naruon.get("defaultClientScopes", []):
+            errors.append("naruon-web must assign the 'basic' default scope")
+
     return errors
+
+
+def _dollar_keys(node: object, prefix: str = "") -> list[str]:
+    """Collect every ``$``-prefixed object key with its JSON path."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            key_path = f"{prefix}.{key}" if prefix else str(key)
+            if str(key).startswith("$"):
+                found.append(key_path)
+            found.extend(_dollar_keys(value, key_path))
+    elif isinstance(node, list):
+        for index, item in enumerate(node):
+            found.extend(_dollar_keys(item, f"{prefix}[{index}]"))
+    return found
 
 
 def main(argv: list[str]) -> int:
     """Run realm validation as a command-line check."""
-    path = Path(argv[1]) if len(argv) > 1 else Path("deploy/keycloak/realm-cwl.json")
+    path = (
+        Path(argv[1])
+        if len(argv) > 1
+        else Path("deploy/keycloak/realm-cwl.json")
+    )
     try:
         realm = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -147,7 +254,10 @@ def main(argv: list[str]) -> int:
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
-    print(f"OK: {path} is a valid cwl-idp realm (passkey, ADFS, LDAP, OIDC RP).")
+    print(
+        f"OK: {path} is a valid cwl-idp realm "
+        "(passwordless, runtime federation, OIDC RPs)."
+    )
     return 0
 
 
