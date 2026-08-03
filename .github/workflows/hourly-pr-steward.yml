@@ -7,8 +7,8 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
 
-# The steward can update trusted same-repository branches and merge only after
-# GitHub reports an approved review and every required check has passed.
+# The steward can update trusted same-repository branches and arm auto-merge
+# only after GitHub reports an approved review and clean required checks.
 permissions:
   contents: write
   pull-requests: write
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Update, verify, and merge trusted pull requests
+      - name: Update, verify, and arm trusted pull requests
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -52,13 +52,25 @@ jobs:
               continue
             fi
 
-            case "$author" in
-              seonghobae|dependabot|app/dependabot|github-actions|app/github-actions|opencode-agent)
-                ;;
-              *)
-                continue
-                ;;
-            esac
+            trusted_author=false
+            for allowed_author in \
+              seonghobae \
+              dependabot \
+              'dependabot[bot]' \
+              app/dependabot \
+              github-actions \
+              'github-actions[bot]' \
+              app/github-actions \
+              opencode-agent
+            do
+              if [[ "$author" == "$allowed_author" ]]; then
+                trusted_author=true
+                break
+              fi
+            done
+            if [[ "$trusted_author" != "true" ]]; then
+              continue
+            fi
 
             # Keep trusted branches current. A successful update invalidates the
             # old check evidence, so the steward waits for the next hourly pass.
@@ -78,12 +90,12 @@ jobs:
               continue
             fi
 
-            # Bind the merge to the reviewed and checked head SHA. GitHub still
-            # enforces rulesets, required checks, and review requirements.
-            gh api \
-              --method PUT \
-              "repos/$REPOSITORY/pulls/$number/merge" \
-              -f merge_method=squash \
-              -f sha="$head_sha" \
-              >/dev/null
+            # Arm GitHub's native auto-merge service rather than creating the
+            # merge commit directly with GITHUB_TOKEN. Rulesets remain final,
+            # and the exact reviewed/check head must still match.
+            gh pr merge "$number" \
+              --repo "$REPOSITORY" \
+              --auto \
+              --squash \
+              --match-head-commit "$head_sha"
           done
