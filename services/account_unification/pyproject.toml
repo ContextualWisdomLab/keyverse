@@ -44,4 +44,4 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.interrogate]
 exclude = ["tests", ".venv"]
-fail-under = 80
+fail-under = 100
