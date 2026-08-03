@@ -21,8 +21,10 @@ from app.config import (  # noqa: E402
     KEY_KEYCLOAK_SERVER_URL,
     KEY_MERGE_CONFLICT_POLICY,
     KEY_OPERATOR_API_TOKEN,
-    KEY_PASSWORD_JANITOR_INTERVAL_SECONDS,
+    KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS,
     KEY_REGISTRATION_API_TOKEN,
+    KEY_REGISTRATION_CLIENT_ID,
+    KEY_REGISTRATION_REDIRECT_URI,
 )
 from app.kv_store import SqliteKvStore  # noqa: E402
 
@@ -36,12 +38,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "--db",
         default="../../deploy/bootstrap/idp_config_store.db",
     )
-    parser.add_argument(
-        "--namespace", default="account_unification"
-    )
-    parser.add_argument(
-        "--server-url", default="http://localhost:8080"
-    )
+    parser.add_argument("--namespace", default="account_unification")
+    parser.add_argument("--server-url", default="http://localhost:8080")
     parser.add_argument("--realm", default="cwl")
     parser.add_argument(
         "--client-id", default="account-unification-svc"
@@ -50,20 +48,26 @@ def _build_parser() -> argparse.ArgumentParser:
         "--client-secret",
         default="dev-placeholder-secret",
     )
-    parser.add_argument(
-        "--operator-token", default="dev-operator-token"
-    )
+    parser.add_argument("--operator-token", default="dev-operator-token")
     parser.add_argument(
         "--registration-token",
         default="dev-registration-token",
     )
     parser.add_argument(
-        "--audit-database-path",
-        default="/tmp/keyverse-account-audit.sqlite3",
+        "--registration-client-id",
+        default="naruon-web",
     )
     parser.add_argument(
-        "--password-janitor-interval-seconds",
-        default="300",
+        "--registration-redirect-uri",
+        default="https://naruon.example/auth/passkey-complete",
+    )
+    parser.add_argument(
+        "--registration-action-lifespan-seconds",
+        default="900",
+    )
+    parser.add_argument(
+        "--audit-database-path",
+        default="../../deploy/bootstrap/account_unification_audit.sqlite3",
     )
     return parser
 
@@ -81,22 +85,19 @@ def main() -> int:
             KEY_MERGE_CONFLICT_POLICY: "survivor_wins",
             KEY_ALLOW_UNVERIFIED_LINK: "false",
             KEY_OPERATOR_API_TOKEN: args.operator_token,
-            KEY_REGISTRATION_API_TOKEN:
-                args.registration_token,
-            KEY_AUDIT_DATABASE_PATH:
-                args.audit_database_path,
-            KEY_PASSWORD_JANITOR_INTERVAL_SECONDS:
-                args.password_janitor_interval_seconds,
+            KEY_REGISTRATION_API_TOKEN: args.registration_token,
+            KEY_REGISTRATION_CLIENT_ID: args.registration_client_id,
+            KEY_REGISTRATION_REDIRECT_URI: args.registration_redirect_uri,
+            KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS: (
+                args.registration_action_lifespan_seconds
+            ),
+            KEY_AUDIT_DATABASE_PATH: args.audit_database_path,
         }
         for entry_key, entry_value in entries.items():
-            store.put(
-                args.namespace, entry_key, entry_value
-            )
+            store.put(args.namespace, entry_key, entry_value)
     finally:
         store.close()
-    print(
-        f"seeded {args.db} namespace={args.namespace}"
-    )
+    print(f"seeded {args.db} namespace={args.namespace}")
     return 0
 
 
