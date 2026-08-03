@@ -6,7 +6,9 @@ namespaceOverride: cwl-idp
 accountUnification:
   image:
     repository: cwl-idp/account-unification
-    tag: "0.2.0"
+    # Keep the chart aligned with the currently published package metadata.
+    # The release workflow bumps both together after exact-head verification.
+    tag: "0.1.0"
     # Development may render a local tag. Production values must set
     # requireDigest=true and provide the built image's sha256 digest.
     digest: ""
