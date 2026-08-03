@@ -1,3 +1,25 @@
+{{- if and .Values.accountUnification.image.requireDigest (not .Values.accountUnification.image.digest) -}}
+{{- fail "accountUnification.image.digest is required when accountUnification.image.requireDigest=true" -}}
+{{- end -}}
+{{- if .Values.accountUnification.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "cwl-idp.fullname" . }}-account-unification-data
+  namespace: {{ include "cwl-idp.namespace" . }}
+  labels:
+    {{- include "cwl-idp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: account-unification
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.accountUnification.persistence.storageClassName }}
+  storageClassName: {{ .Values.accountUnification.persistence.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.accountUnification.persistence.size }}
+---
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,14 +65,14 @@ spec:
             - name: http
               containerPort: 8099
           env:
-            # ONLY bootstrap transport; real config comes from the KV store.
             - name: CWL_IDP_BOOTSTRAP
               value: "{{ .Values.accountUnification.bootstrap.mountPath }}/{{ .Values.accountUnification.bootstrap.fileName }}"
           volumeMounts:
             - name: bootstrap
               mountPath: {{ .Values.accountUnification.bootstrap.mountPath }}
               readOnly: true
-            # Writable scratch dir since the root filesystem is read-only.
+            - name: account-unification-data
+              mountPath: /var/lib/account-unification
             - name: tmp
               mountPath: /tmp
           readinessProbe:
@@ -71,6 +93,13 @@ spec:
         - name: bootstrap
           secret:
             secretName: {{ .Values.accountUnification.bootstrap.secretName }}
+        - name: account-unification-data
+          {{- if .Values.accountUnification.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "cwl-idp.fullname" . }}-account-unification-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
         - name: tmp
           emptyDir: {}
 ---
