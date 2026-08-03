@@ -1,9 +1,9 @@
-"""Headless self-registration and bootstrap-credential retirement.
+"""Headless passwordless self-registration through one-time action email.
 
 First-party product backends submit accounts through a dedicated bearer-token
-surface. The account starts with a bounded bootstrap password and a mandatory
-passkey enrollment action. A janitor removes the password after passkey
-enrollment, leaving the steady state passwordless.
+surface. The service creates a password-free account, then asks Keycloak to send
+a bounded verification and passkey-enrollment link. A failed email request
+rolls the account back so no unusable orphan remains.
 """
 from __future__ import annotations
 
@@ -12,23 +12,19 @@ import re
 import threading
 import time
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .models import UserAccount
 from .product_keycloak_client import ProductAdminApi
 
-registration_router = APIRouter(
-    prefix="/registration", tags=["registration"]
-)
+registration_router = APIRouter(prefix="/registration", tags=["registration"])
 
+VERIFY_EMAIL_REQUIRED_ACTION = "VERIFY_EMAIL"
 PASSKEY_ENROLL_REQUIRED_ACTION = "webauthn-register-passwordless"
-PASSWORD_CREDENTIAL_TYPE = "password"  # noqa: S105 - credential type name
-PASSKEY_CREDENTIAL_TYPE = "webauthn-passwordless"  # noqa: S105
 
 EMAIL_MAX_LENGTH = 254
-PASSWORD_MIN_LENGTH = 10
-PASSWORD_MAX_LENGTH = 128
 NAME_MAX_LENGTH = 100
 CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x1f\x7f]")
 _LOCAL_ATOM_PUNCTUATION = frozenset("!#$%&'*+-/=?^_`{|}~.")
@@ -36,43 +32,24 @@ _LOCAL_ATOM_PUNCTUATION = frozenset("!#$%&'*+-/=?^_`{|}~.")
 REGISTRATION_RATE_LIMIT_WINDOW_SECONDS = 300.0
 REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS = 30
 _registration_attempt_lock = threading.Lock()
-_registration_attempt_window_start = 0.0
-_registration_attempt_count = 0
-
-JANITOR_PAGE_SIZE = 100
-JANITOR_MAX_PAGES = 50
+_registration_attempt_windows: dict[str, tuple[float, int]] = {}
 
 
 class RegistrationRequest(BaseModel):
-    """One self-registration submission from a product signup page."""
+    """One password-free registration submission from a product signup page."""
 
-    email_address: str = Field(
-        min_length=3, max_length=EMAIL_MAX_LENGTH
-    )
-    initial_password: str = Field(
-        min_length=PASSWORD_MIN_LENGTH,
-        max_length=PASSWORD_MAX_LENGTH,
-    )
-    first_name: str | None = Field(
-        default=None, max_length=NAME_MAX_LENGTH
-    )
-    last_name: str | None = Field(
-        default=None, max_length=NAME_MAX_LENGTH
-    )
+    model_config = ConfigDict(extra="forbid")
+
+    email_address: str = Field(min_length=3, max_length=EMAIL_MAX_LENGTH)
+    first_name: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    last_name: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
 
 
 class RegistrationResult(BaseModel):
-    """Public outcome of a registration without internal details."""
+    """Public outcome after a passkey-enrollment email has been accepted."""
 
     account_id: str
     email_address: str
-
-
-class JanitorResult(BaseModel):
-    """Outcome of one bounded bootstrap-credential janitor pass."""
-
-    scanned_users: int
-    removed_bootstrap_credentials: int
 
 
 def require_registration_token(
@@ -94,9 +71,7 @@ def require_registration_token(
         )
     presented = authorization[len("Bearer ") :].strip()
     if not hmac.compare_digest(presented, expected):
-        raise HTTPException(
-            status_code=403, detail="invalid registration token"
-        )
+        raise HTTPException(status_code=403, detail="invalid registration token")
 
 
 registration_auth_dependency = Depends(require_registration_token)
@@ -106,32 +81,62 @@ def get_admin_api(request: Request) -> ProductAdminApi:
     """Return the wired product Keycloak API from application state."""
     api = getattr(request.app.state, "keycloak_api", None)
     if api is None:
-        raise HTTPException(
-            status_code=503, detail="keycloak api unavailable"
-        )
+        raise HTTPException(status_code=503, detail="keycloak api unavailable")
     return api
 
 
-def _record_registration_attempt() -> None:
-    """Enforce a bounded process-local fixed-window registration limit."""
-    global _registration_attempt_window_start, _registration_attempt_count
+def reset_rate_limit_state() -> None:
+    """Clear process-local registration counters for deterministic tests."""
+    with _registration_attempt_lock:
+        _registration_attempt_windows.clear()
+
+
+def _registration_client_key(request: Request) -> str:
+    """Return the direct peer address used for process-local throttling."""
+    return request.client.host if request.client is not None else "unknown-client"
+
+
+def _record_registration_attempt(client_key: str) -> None:
+    """Enforce an independent fixed-window registration limit per caller."""
     now = time.monotonic()
     with _registration_attempt_lock:
-        if (
-            now - _registration_attempt_window_start
-            > REGISTRATION_RATE_LIMIT_WINDOW_SECONDS
-        ):
-            _registration_attempt_window_start = now
-            _registration_attempt_count = 0
-        _registration_attempt_count += 1
-        if (
-            _registration_attempt_count
-            > REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS
-        ):
+        window_start, attempt_count = _registration_attempt_windows.get(
+            client_key, (now, 0)
+        )
+        if now - window_start > REGISTRATION_RATE_LIMIT_WINDOW_SECONDS:
+            window_start, attempt_count = now, 0
+        attempt_count += 1
+        _registration_attempt_windows[client_key] = (
+            window_start,
+            attempt_count,
+        )
+        if attempt_count > REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS:
             raise HTTPException(
                 status_code=429,
                 detail="registration temporarily rate limited",
             )
+
+
+def _registration_settings(request: Request) -> tuple[str, str, int]:
+    """Return complete passwordless enrollment settings or fail closed."""
+    client_id = getattr(request.app.state, "registration_client_id", None)
+    redirect_uri = getattr(request.app.state, "registration_redirect_uri", None)
+    lifespan_seconds = getattr(
+        request.app.state,
+        "registration_action_lifespan_seconds",
+        None,
+    )
+    if (
+        not client_id
+        or not redirect_uri
+        or not isinstance(lifespan_seconds, int)
+        or lifespan_seconds <= 0
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="registration enrollment unavailable",
+        )
+    return client_id, redirect_uri, lifespan_seconds
 
 
 def _has_valid_email_shape(email_address: str) -> bool:
@@ -147,8 +152,7 @@ def _has_valid_email_shape(email_address: str) -> bool:
         or local_part.endswith(".")
         or ".." in local_part
         or not all(
-            character.isalnum()
-            or character in _LOCAL_ATOM_PUNCTUATION
+            character.isalnum() or character in _LOCAL_ATOM_PUNCTUATION
             for character in local_part
         )
     ):
@@ -166,10 +170,7 @@ def _has_valid_email_shape(email_address: str) -> bool:
         1 <= len(label) <= 63
         and not label.startswith("-")
         and not label.endswith("-")
-        and all(
-            character.isalnum() or character == "-"
-            for character in label
-        )
+        and all(character.isalnum() or character == "-" for character in label)
         for label in labels
     )
 
@@ -182,9 +183,7 @@ def _validated_email(raw_email: str) -> str:
         or CONTROL_CHARACTER_PATTERN.search(email_address)
         or not _has_valid_email_shape(email_address)
     ):
-        raise HTTPException(
-            status_code=422, detail="invalid_email_address"
-        )
+        raise HTTPException(status_code=422, detail="invalid_email_address")
     return email_address
 
 
@@ -203,17 +202,22 @@ def _validated_name(raw_name: str | None) -> str | None:
 def _initialize_account(
     api: ProductAdminApi,
     account_id: str,
-    initial_password: str,
+    *,
+    client_id: str,
+    redirect_uri: str,
+    lifespan_seconds: int,
 ) -> None:
-    """Install the bootstrap credential and passkey enrollment action.
-
-    A partial initialization is rolled back by deleting the newly created
-    account, preventing orphaned accounts that cannot complete first login.
-    """
+    """Send verification/passkey actions or roll back the new account."""
     try:
-        api.reset_user_password(account_id, initial_password)
-        api.set_user_required_actions(
-            account_id, [PASSKEY_ENROLL_REQUIRED_ACTION]
+        api.send_execute_actions_email(
+            account_id,
+            [
+                VERIFY_EMAIL_REQUIRED_ACTION,
+                PASSKEY_ENROLL_REQUIRED_ACTION,
+            ],
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+            lifespan_seconds=lifespan_seconds,
         )
     except Exception as initialization_error:
         try:
@@ -236,90 +240,48 @@ def _initialize_account(
 )
 def register_account(
     request_body: RegistrationRequest,
+    request: Request,
     api: ProductAdminApi = Depends(get_admin_api),
 ) -> RegistrationResult:
-    """Create and initialize one Keycloak account atomically."""
-    _record_registration_attempt()
+    """Create a password-free account and send one enrollment email."""
+    client_id, redirect_uri, lifespan_seconds = _registration_settings(request)
+    _record_registration_attempt(_registration_client_key(request))
     email_address = _validated_email(request_body.email_address)
-    if CONTROL_CHARACTER_PATTERN.search(
-        request_body.initial_password
-    ):
-        raise HTTPException(
-            status_code=422, detail="invalid_password"
-        )
     if api.find_users_by_email(email_address):
         raise HTTPException(
-            status_code=409, detail="email_already_registered"
+            status_code=409,
+            detail="email_already_registered",
         )
 
-    account_id = api.create_user(
-        UserAccount(
-            user_id="",
-            user_name=email_address,
-            email=email_address,
-            is_email_verified=False,
-            state="active",
-            first_name=_validated_name(request_body.first_name),
-            last_name=_validated_name(request_body.last_name),
+    try:
+        account_id = api.create_user(
+            UserAccount(
+                user_id="",
+                user_name=email_address,
+                email=email_address,
+                is_email_verified=False,
+                state="active",
+                first_name=_validated_name(request_body.first_name),
+                last_name=_validated_name(request_body.last_name),
+            )
         )
-    )
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code == 409:
+            raise HTTPException(
+                status_code=409,
+                detail="email_already_registered",
+            ) from error
+        raise
     if not account_id:
-        raise HTTPException(
-            status_code=502, detail="account_creation_failed"
-        )
+        raise HTTPException(status_code=502, detail="account_creation_failed")
     _initialize_account(
-        api, account_id, request_body.initial_password
+        api,
+        account_id,
+        client_id=client_id,
+        redirect_uri=redirect_uri,
+        lifespan_seconds=lifespan_seconds,
     )
     return RegistrationResult(
         account_id=account_id,
         email_address=email_address,
     )
-
-
-def revoke_bootstrap_passwords(
-    api: ProductAdminApi,
-) -> JanitorResult:
-    """Delete bootstrap credentials from passkey-holding accounts."""
-    scanned_users = 0
-    removed_bootstrap_credentials = 0
-    for page_index in range(JANITOR_MAX_PAGES):
-        users = api.list_users(
-            page_index * JANITOR_PAGE_SIZE,
-            JANITOR_PAGE_SIZE,
-        )
-        if not users:
-            break
-        for user in users:
-            scanned_users += 1
-            credentials = api.list_user_credentials(user.user_id)
-            credential_types = {
-                item.get("type") for item in credentials
-            }
-            if PASSKEY_CREDENTIAL_TYPE not in credential_types:
-                continue
-            for item in credentials:
-                if (
-                    item.get("type") == PASSWORD_CREDENTIAL_TYPE
-                    and item.get("id")
-                ):
-                    api.delete_user_credential(
-                        user.user_id, item["id"]
-                    )
-                    removed_bootstrap_credentials += 1
-        if len(users) < JANITOR_PAGE_SIZE:
-            break
-    return JanitorResult(
-        scanned_users=scanned_users,
-        removed_bootstrap_credentials=removed_bootstrap_credentials,
-    )
-
-
-@registration_router.post(
-    "/password-janitor:run",
-    response_model=JanitorResult,
-)
-def run_password_janitor(
-    api: ProductAdminApi = Depends(get_admin_api),
-) -> JanitorResult:
-    """Run one bounded janitor pass on demand."""
-    return revoke_bootstrap_passwords(api)
