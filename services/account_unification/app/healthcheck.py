@@ -30,6 +30,10 @@ def _build_http_only_opener() -> urllib.request.OpenerDirector:
     opener.add_handler(urllib.request.HTTPHandler())
     opener.add_handler(urllib.request.HTTPSHandler())
     opener.add_handler(_HttpOnlyRedirectHandler())
+    # OpenerDirector has no implicit default handlers. Register this before the
+    # error processor so non-2xx responses raise HTTPError instead of returning
+    # ``None`` to the context manager below.
+    opener.add_handler(urllib.request.HTTPDefaultErrorHandler())
     opener.add_handler(urllib.request.HTTPErrorProcessor())
     return opener
 
