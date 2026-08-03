@@ -103,6 +103,35 @@ def test_put_retains_desired_state_when_keycloak_is_unavailable(
     assert store.get(FEDERATION_PROVIDER_NAMESPACE, "employer-adfs") is not None
 
 
+def test_stored_status_remains_readable_during_keycloak_outage(
+    store, api, monkeypatch
+) -> None:
+    """Desired state remains observable and redacted when status I/O fails."""
+    registration = _employer_adfs_registration()
+    store.put(
+        FEDERATION_PROVIDER_NAMESPACE,
+        registration.provider_alias,
+        registration.model_dump_json(),
+    )
+    federation = FederationService(store, api)
+
+    def fail_status(*args, **kwargs):
+        """Simulate Keycloak being unavailable during a status read."""
+        raise RuntimeError("keycloak unavailable")
+
+    monkeypatch.setattr(api, "get_identity_provider", fail_status)
+
+    statuses = federation.list_registrations()
+
+    assert len(statuses) == 1
+    assert statuses[0].applied_to_keycloak is False
+    assert statuses[0].registration.provider_config["clientSecret"] == "<redacted>"
+    assert (
+        statuses[0].registration.provider_config["unclassifiedValue"]
+        == "<redacted>"
+    )
+
+
 def test_status_network_call_does_not_hold_desired_state_lock(
     store, api, monkeypatch
 ) -> None:
