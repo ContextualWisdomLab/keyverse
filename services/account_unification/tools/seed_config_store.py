@@ -2,7 +2,8 @@
 
 The tool writes the same two-word snake_case entries consumed by the service.
 Values are development placeholders; production deployments populate the
-platform KV and provide only the bootstrap pointer to the process.
+platform KV and provide only the bootstrap pointer to the process. Registration
+remains disabled unless its dedicated token is supplied explicitly.
 """
 from __future__ import annotations
 
@@ -51,7 +52,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--operator-token", default="dev-operator-token")
     parser.add_argument(
         "--registration-token",
-        default="dev-registration-token",
+        default="",
+        help="Enable local registration only when a dedicated token is supplied.",
     )
     parser.add_argument(
         "--registration-client-id",
@@ -72,6 +74,20 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _registration_entries(args: argparse.Namespace) -> dict[str, str]:
+    """Return complete registration settings only when signup is enabled."""
+    if not args.registration_token:
+        return {}
+    return {
+        KEY_REGISTRATION_API_TOKEN: args.registration_token,
+        KEY_REGISTRATION_CLIENT_ID: args.registration_client_id,
+        KEY_REGISTRATION_REDIRECT_URI: args.registration_redirect_uri,
+        KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS: (
+            args.registration_action_lifespan_seconds
+        ),
+    }
+
+
 def main() -> int:
     """Write development Keycloak settings into a local SQLite KV store."""
     args = _build_parser().parse_args()
@@ -85,13 +101,8 @@ def main() -> int:
             KEY_MERGE_CONFLICT_POLICY: "survivor_wins",
             KEY_ALLOW_UNVERIFIED_LINK: "false",
             KEY_OPERATOR_API_TOKEN: args.operator_token,
-            KEY_REGISTRATION_API_TOKEN: args.registration_token,
-            KEY_REGISTRATION_CLIENT_ID: args.registration_client_id,
-            KEY_REGISTRATION_REDIRECT_URI: args.registration_redirect_uri,
-            KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS: (
-                args.registration_action_lifespan_seconds
-            ),
             KEY_AUDIT_DATABASE_PATH: args.audit_database_path,
+            **_registration_entries(args),
         }
         for entry_key, entry_value in entries.items():
             store.put(args.namespace, entry_key, entry_value)
