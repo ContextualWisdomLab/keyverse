@@ -84,9 +84,10 @@ jobs:
             fi
 
             # Never infer safety from optional checks. The repository's required
-            # check set remains the source of truth; pending or failed checks make
-            # this command non-zero and the PR is left untouched.
-            if ! gh pr checks "$number" --repo "$REPOSITORY" --required --fail-fast; then
+            # check set remains the source of truth. `gh pr checks` exits nonzero
+            # for failed checks and uses exit code 8 for pending checks, so either
+            # condition leaves the PR untouched.
+            if ! gh pr checks "$number" --repo "$REPOSITORY" --required; then
               continue
             fi
 
