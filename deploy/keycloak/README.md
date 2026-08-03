@@ -1,12 +1,13 @@
 # Keycloak config-as-code
 
-cwl-idp runs on **Keycloak** (Apache-2.0). The realm is declared as-code and
-imported at container start; secrets are patched afterwards from the KV store.
+cwl-idp runs on **Keycloak** (Apache-2.0). The portable realm shape is declared
+as code and imported at container start. Deployment-specific secrets and
+federation desired state remain outside the repository.
 
 | File | What |
 | --- | --- |
-| `realm-cwl.json` | The `cwl` realm: passkey-first passwordless browser flow, OIDC/OAuth2.1 RP client template, employer ADFS SAML IdP (inbound), LDAP/AD federation, and the account-unification service-account client. Imported via `start --import-realm`. |
-| `kcadm-bootstrap.sh` | Post-import patch: injects secrets/URLs (ADFS metadata, LDAP bind credential, service-account client secret) from KV using `kcadm.sh`, and grants the service account `realm-management` view-users/manage-users. |
+| `realm-cwl.json` | The portable `cwl` realm: passkey-first browser flow, standard client scopes, OIDC/OAuth 2.1 RP templates, the concrete `naruon-web` public PKCE client, and the account-unification service-account client. Imported via `start --import-realm`. |
+| `kcadm-bootstrap.sh` | Idempotent post-import convergence: reads the service-account client secret from KV without placing it in process arguments, grants the minimum `realm-management` roles, and reconciles the client scope/protocol mapper required to emit them. |
 
 ## Passwordless-first (passkeys)
 
@@ -16,23 +17,34 @@ authenticator**, and binds it as the realm `browserFlow`. Combined with
 `resetPasswordAllowed:false` and a default
 `webauthn-register-passwordless` required action, ecosystem-local accounts
 authenticate with a **passkey (FIDO2/WebAuthn)** in the steady state.
-Self-service signup is **headless**: product frontends (e.g. Naruon) own the
+Self-service signup is **headless**: product frontends such as Naruon own the
 signup page and create accounts through the account-unification service's
 `/registration/accounts` API (`registrationAllowed` stays `false`, so the
 IdP-hosted registration form never appears). API-registered accounts carry a
 bootstrap password that the `browser-passwordless-credentials` subflow offers
-ONLY while no passkey exists; the first session enrolls a passkey and the
-registration password janitor then revokes the password credential.
-`verifyEmail` stays `false` until a realm `smtpServer` is configured (the
-validator enforces that pairing). See
+only while no passkey exists; the first session enrolls a passkey and the
+credential janitor then removes the bootstrap credential. `verifyEmail` stays
+`false` until a realm `smtpServer` is configured; the validator enforces that
+pairing. See
 [`../../docs/passwordless-policy.md`](../../docs/passwordless-policy.md).
 
-## What is committed vs. patched from KV
+## What is committed, bootstrapped, and registered at runtime
 
-Committed (non-secret shape): realm, flows, client template, IdP + LDAP
-*structure*, mappers. Patched from KV at bootstrap (never committed): ADFS
-metadata URL, LDAP connection URL / bind DN / bind credential, and every client
-secret. Placeholders read `__set_from_kv__`.
+**Committed portable shape:** realm settings, browser flows, standard client
+scopes, RP client structure, protocol mappers, and the account-unification
+service-account client. Any committed secret field remains a non-deployable
+placeholder such as `__set_from_kv__`.
+
+**Converged by `kcadm-bootstrap.sh`:** the account-unification client secret,
+its least-privilege `realm-management` grants, the client scope mappings, and a
+single named protocol mapper. The script is safe to repeat: it updates the
+existing mapper, removes historical duplicates, and keeps the reusable admin
+password and client secret out of child-process arguments.
+
+**Registered at runtime:** employer ADFS, LDAP-fronting brokers, optional OIDC
+providers, and their credentials. The account-unification federation API stores
+desired state in KV/DB and converges Keycloak through the Admin REST API. This
+keeps employer-specific topology out of reusable realm source code.
 
 ## Apply
 
@@ -41,15 +53,18 @@ secret. Placeholders read `__set_from_kv__`.
 #    (docker-compose mounts it at /opt/keycloak/data/import).
 docker compose up -d
 
-# 2. Once Keycloak is READY, patch secrets from KV:
+# 2. Once Keycloak is READY, converge the service account from KV:
 KC_SERVER=http://localhost:8080 deploy/keycloak/kcadm-bootstrap.sh
+
+# 3. Register or re-apply deployment-specific federation desired state:
+# POST /federation/identity-providers:apply
 ```
 
-## Federation & client registration templates
+## Federation and client-registration templates
 
-Additional Admin-API request bodies for registering more RPs / IdPs live in
-[`../templates/`](../templates/) (Keycloak client / SAML IdP / LDAP component
-representations).
+Admin-API request bodies for registering additional RPs and external identity
+providers live in [`../templates/`](../templates/). These are payload
+references, not resources imported into the committed realm.
 
 ## Realm-file rules Keycloak 26 enforces
 
@@ -63,38 +78,33 @@ back (`scripts/validate_realm.py` guards both):
   JSON annotations.
 - **No committed external federation.** SAML IdP URL fields are URL-validated
   at import (a bare `__set_from_kv__` aborts it) and an enabled LDAP source
-  with placeholder DNs breaks every realm user operation (`Invalid DN`). The
-  deeper problem is that employer-specific federation (ADFS, corporate LDAP)
-  is deployment data, so the realm commits **none of it**: register external
-  IdPs at runtime through the account-unification service's
-  `/federation/identity-providers` API. Desired state persists in the KV/DB
-  config store and is converged into Keycloak over the Admin REST API, so a
-  realm rebuild is re-converged with one `POST
-  /federation/identity-providers:apply`. `../templates/` holds ready-made
-  payloads (ADFS SAML, LDAP component, OIDC RP).
+  with placeholder DNs breaks realm user operations (`Invalid DN`). Employer
+  ADFS and corporate LDAP are deployment data, so the realm commits none of
+  them. Register providers through `/federation/identity-providers`; desired
+  state persists in KV/DB and a rebuilt realm is re-converged with
+  `POST /federation/identity-providers:apply`.
 
 ## Client scopes and the Keycloak 26 lightweight-token pitfall
 
 Imported realms do **not** get the standard client scopes auto-created, and
-without the `basic` scope Keycloak 26 access tokens omit the `sub` claim —
-which breaks any RP that authenticates by subject (naruon returns 401 for
-every request). The realm therefore commits `basic` (Subject + auth_time),
-`profile`, and `email` scopes and assigns them as realm defaults plus explicit
-`defaultClientScopes` on each RP client.
+without the `basic` scope Keycloak 26 access tokens omit the `sub` claim. That
+breaks RPs that authenticate by subject. The realm therefore commits `basic`
+(Subject + auth_time), `profile`, and `email` scopes and assigns them as realm
+defaults plus explicit `defaultClientScopes` on each RP client.
 
-## RP clients: template + naruon
+## RP clients: template + Naruon
 
 `ecosystem-rp-template` stays the confidential-client blueprint (OAuth 2.1:
-code + PKCE S256, no implicit, exact redirect URIs, secret from KV). Clones
+code + PKCE S256, no implicit flow, exact redirect URIs, secret from KV). Clones
 must rename the audience mapper's `included.client.audience` to the new
-clientId.
+`clientId`.
 
-`naruon-web` is the first concrete RP, committed as-code as a **public** PKCE
-client because the naruon browser flow cannot hold a client secret. It carries
-the claims naruon's backend session contract requires: `sub` (via `basic`),
-an `aud` containing `naruon-web`, and hardcoded `role=member` /
-`org` / `workspace` claims. The committed `org`/`workspace` values
-(`org-cwl` / `workspace-org-cwl`) and the `https://naruon.example` redirect
-URIs are deployment placeholders — patch them per environment with `kcadm.sh`
-(see `../templates/`). `access.token.lifespan` is 43200s to fit naruon's 12h
-session ceiling; admin roles are never asserted from IdP claims by design.
+`naruon-web` is the first concrete RP, committed as a **public** PKCE client
+because a browser cannot hold a client secret. It carries the claims Naruon's
+backend session contract requires: `sub` (via `basic`), an `aud` containing
+`naruon-web`, and hardcoded `role=member`, `org`, and `workspace` claims. The
+committed `org`/`workspace` values (`org-cwl` / `workspace-org-cwl`) and
+`https://naruon.example` redirect URIs are deployment placeholders and must be
+replaced per environment through an operator-managed Admin API payload.
+`access.token.lifespan` is 43200 seconds to fit Naruon's 12-hour session ceiling;
+admin roles are never asserted from external IdP claims by design.
