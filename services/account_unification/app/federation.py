@@ -7,6 +7,7 @@ non-secret provider fields are disclosed to operators.
 """
 from __future__ import annotations
 
+import logging
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -14,6 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .kv_store import KvStore
 from .product_keycloak_client import ProductAdminApi
+
+logger = logging.getLogger(__name__)
 
 FEDERATION_PROVIDER_NAMESPACE = "federation_identity_providers"
 _SUPPORTED_PROVIDER_IDS = {"saml", "oidc", "keycloak-oidc"}
@@ -230,6 +233,10 @@ class FederationService:
         try:
             self._apply(registration)
         except Exception:
+            logger.exception(
+                "identity-provider convergence failed alias=%s",
+                registration.provider_alias,
+            )
             return False
         return True
 
@@ -239,12 +246,22 @@ class FederationService:
         *,
         applied: bool | None = None,
     ) -> IdentityProviderStatus:
-        """Build a redacted status from desired and applied state."""
+        """Build a redacted status, tolerating temporary Keycloak outages."""
         if applied is None:
-            applied = (
-                self._api.get_identity_provider(registration.provider_alias)
-                is not None
-            )
+            try:
+                applied = (
+                    self._api.get_identity_provider(
+                        registration.provider_alias
+                    )
+                    is not None
+                )
+            except Exception:
+                logger.warning(
+                    "identity-provider status unavailable alias=%s",
+                    registration.provider_alias,
+                    exc_info=True,
+                )
+                applied = False
         return IdentityProviderStatus(
             registration=IdentityProviderView.from_registration(registration),
             applied_to_keycloak=applied,
