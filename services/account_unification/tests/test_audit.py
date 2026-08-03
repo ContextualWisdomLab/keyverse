@@ -7,6 +7,7 @@ from app.audit import AuditLogger, AuditSink, InMemoryAuditSink, SqliteAuditSink
 from app.config import ServiceConfig
 from app.models import FederatedIdentity, MergeRequest, RoleMapping
 from app.service import UnificationService
+from app.user_locks import InMemoryUserOperationLocks
 
 from .mock_keycloak import MockKeycloakAdminApi
 
@@ -70,7 +71,12 @@ def test_sqlite_audit_sink_persists(tmp_path):
             keycloak_client_id="svc",
             keycloak_client_secret="secret",
         )
-        service = UnificationService(api, audit, config)
+        service = UnificationService(
+            api,
+            audit,
+            config,
+            InMemoryUserOperationLocks(),
+        )
         result = service.merge_accounts(
             MergeRequest(
                 survivor_user_id="survivor",
