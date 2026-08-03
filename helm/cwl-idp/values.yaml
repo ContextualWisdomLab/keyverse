@@ -7,6 +7,12 @@ accountUnification:
   image:
     repository: cwl-idp/account-unification
     tag: "0.2.0"
+    # Pin an immutable digest in production so a mutable-tag replacement of this
+    # privileged (realm-management) service is impossible. The keycloak and
+    # postgres images below already pin one; set this to the built image's
+    # sha256 digest (rendered as repository:tag@sha256:...). Left empty here
+    # because the image is built locally in dev/CI; deployments must set it.
+    digest: ""
     pullPolicy: IfNotPresent
   replicaCount: 1
   service:

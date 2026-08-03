@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: account-unification
-          image: "{{ .Values.accountUnification.image.repository }}:{{ .Values.accountUnification.image.tag }}"
+          image: "{{ .Values.accountUnification.image.repository }}:{{ .Values.accountUnification.image.tag }}{{ if .Values.accountUnification.image.digest }}@{{ .Values.accountUnification.image.digest }}{{ end }}"
           imagePullPolicy: {{ .Values.accountUnification.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false

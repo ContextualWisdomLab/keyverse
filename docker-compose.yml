@@ -74,6 +74,12 @@ services:
       KC_HOSTNAME: ${IDP_EXTERNAL_HOSTNAME:-http://localhost:8080}
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
+      # ---- Cache. This compose file is the STANDALONE single-node bring-up,
+      # so the Infinispan cluster stack is disabled by default: the jdbc-ping
+      # stack crash-loops single-node restarts (each aborted boot leaves a
+      # stale jgroups_ping coordinator row the next boot fatally tries to
+      # join). Clustered deployments (Helm) set IDP_CACHE_MODE=ispn.
+      KC_CACHE: ${IDP_CACHE_MODE:-local}
     volumes:
       # Realm config-as-code imported on first start.
       - ./deploy/keycloak/realm-cwl.json:/opt/keycloak/data/import/realm-cwl.json:ro

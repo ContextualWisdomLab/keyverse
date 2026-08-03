@@ -1,38 +1,46 @@
-"""Config/secret store abstraction (KV/DB), the ONLY source of runtime config.
+"""Thread-safe config/secret store abstraction, the runtime source of truth.
 
-The service never calls ``os.getenv`` for real configuration or secrets. It
-reads a single bootstrap pointer (see :mod:`app.bootstrap`) that names one of
-these backends, then loads everything else from here. DB objects use two-word
-snake_case names (``idp_config_entries`` with columns ``entry_key`` /
-``entry_value``).
+The service never reads scattered environment variables for real configuration
+or secrets. Database objects use two-word snake_case names, including
+``idp_config_entries`` and its ``entry_key`` / ``entry_value`` columns.
 """
 from __future__ import annotations
 
 import sqlite3
+import threading
 from typing import Protocol
 
 
 class KvStore(Protocol):
-    """Read interface for the config/secret store.
+    """Read/write interface for the configuration and secret store."""
 
-    The ellipsis bodies declare the Protocol contract only. Concrete
-    implementations are :class:`InMemoryKvStore` and :class:`SqliteKvStore`.
-    """
+    def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
+        """Store one value in one namespace."""
+        ...
 
     def get(self, namespace: str, entry_key: str) -> str | None:
-        """Return the value for ``entry_key`` in ``namespace`` or ``None``."""
+        """Return a value or ``None`` when it is absent."""
         ...
 
     def get_all(self, namespace: str) -> dict[str, str]:
-        """Return every entry in ``namespace`` as a dict."""
+        """Return every entry in one namespace."""
+        ...
+
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Remove one entry if present."""
+        ...
+
+    def close(self) -> None:
+        """Release resources held by the store."""
         ...
 
 
 class InMemoryKvStore:
-    """Dict-backed store for tests and ephemeral bootstrap shims."""
+    """Thread-safe dict-backed store for tests and ephemeral bootstrap shims."""
 
     def __init__(self, seed: dict[str, dict[str, str]] | None = None) -> None:
         """Create a store seeded by namespace and entry key."""
+        self._lock = threading.RLock()
         self._data: dict[str, dict[str, str]] = {}
         if seed:
             for namespace, entries in seed.items():
@@ -40,24 +48,30 @@ class InMemoryKvStore:
 
     def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
         """Store one value in one namespace."""
-        self._data.setdefault(namespace, {})[entry_key] = entry_value
+        with self._lock:
+            self._data.setdefault(namespace, {})[entry_key] = entry_value
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one value from one namespace, if present."""
-        return self._data.get(namespace, {}).get(entry_key)
+        with self._lock:
+            return self._data.get(namespace, {}).get(entry_key)
 
     def get_all(self, namespace: str) -> dict[str, str]:
         """Return a copy of every value in one namespace."""
-        return dict(self._data.get(namespace, {}))
+        with self._lock:
+            return dict(self._data.get(namespace, {}))
+
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Remove one value from one namespace if present."""
+        with self._lock:
+            self._data.get(namespace, {}).pop(entry_key, None)
+
+    def close(self) -> None:
+        """Release no-op in-memory resources."""
 
 
 class SqliteKvStore:
-    """SQLite-backed store for standalone / dev deployments.
-
-    Table ``idp_config_entries`` is keyed by (``config_namespace``,
-    ``entry_key``). Values are stored as text; secret handling (encryption at
-    rest, rotation) is delegated to the platform for the postgres backend.
-    """
+    """SQLite-backed store for standalone and development deployments."""
 
     _SCHEMA = """
     CREATE TABLE IF NOT EXISTS idp_config_entries (
@@ -70,39 +84,61 @@ class SqliteKvStore:
 
     def __init__(self, database_path: str) -> None:
         """Open the SQLite store and ensure the config table exists."""
-        self._database_path = database_path
-        self._connection = sqlite3.connect(database_path)
-        self._connection.execute(self._SCHEMA)
-        self._connection.commit()
+        self._lock = threading.RLock()
+        self._connection = sqlite3.connect(
+            database_path,
+            timeout=10.0,
+            check_same_thread=False,
+        )
+        with self._lock:
+            self._connection.execute("PRAGMA busy_timeout = 10000")
+            self._connection.execute("PRAGMA journal_mode = WAL")
+            self._connection.execute("PRAGMA synchronous = NORMAL")
+            self._connection.execute(self._SCHEMA)
+            self._connection.commit()
 
     def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
         """Upsert one config value."""
-        self._connection.execute(
-            "INSERT INTO idp_config_entries (config_namespace, entry_key, entry_value) "
-            "VALUES (?, ?, ?) ON CONFLICT(config_namespace, entry_key) "
-            "DO UPDATE SET entry_value = excluded.entry_value",
-            (namespace, entry_key, entry_value),
-        )
-        self._connection.commit()
+        with self._lock, self._connection:
+            self._connection.execute(
+                "INSERT INTO idp_config_entries "
+                "(config_namespace, entry_key, entry_value) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(config_namespace, entry_key) "
+                "DO UPDATE SET entry_value = excluded.entry_value",
+                (namespace, entry_key, entry_value),
+            )
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one config value, if present."""
-        row = self._connection.execute(
-            "SELECT entry_value FROM idp_config_entries "
-            "WHERE config_namespace = ? AND entry_key = ?",
-            (namespace, entry_key),
-        ).fetchone()
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT entry_value FROM idp_config_entries "
+                "WHERE config_namespace = ? AND entry_key = ?",
+                (namespace, entry_key),
+            ).fetchone()
         return row[0] if row else None
 
     def get_all(self, namespace: str) -> dict[str, str]:
         """Return every config value in one namespace."""
-        rows = self._connection.execute(
-            "SELECT entry_key, entry_value FROM idp_config_entries "
-            "WHERE config_namespace = ?",
-            (namespace,),
-        ).fetchall()
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT entry_key, entry_value FROM idp_config_entries "
+                "WHERE config_namespace = ?",
+                (namespace,),
+            ).fetchall()
         return {entry_key: entry_value for entry_key, entry_value in rows}
+
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Remove one config value from one namespace if present."""
+        with self._lock, self._connection:
+            self._connection.execute(
+                "DELETE FROM idp_config_entries "
+                "WHERE config_namespace = ? AND entry_key = ?",
+                (namespace, entry_key),
+            )
 
     def close(self) -> None:
         """Close the SQLite connection."""
-        self._connection.close()
+        with self._lock:
+            self._connection.close()
