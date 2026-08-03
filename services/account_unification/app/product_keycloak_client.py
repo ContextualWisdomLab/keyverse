@@ -12,7 +12,10 @@ from typing import Protocol
 
 import httpx
 
-from .identifiers import InvalidIdentifierError
+from .identifiers import (
+    InvalidIdentifierError,
+    validate_path_segment,
+)
 from .keycloak_client import (
     AdminApi,
     HttpAdminApi,
@@ -20,6 +23,27 @@ from .keycloak_client import (
     _to_keycloak_user,
 )
 from .models import UserAccount
+
+# ``None`` marks exactly one validated, caller-controlled path segment. Keeping
+# the complete route grammar here makes path handling fail closed: a value that
+# injects an extra slash can no longer turn one intended Admin REST operation
+# into a different valid endpoint.
+_ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
+    ("users",),
+    ("users", None),
+    ("users", None, "federated-identity"),
+    ("users", None, "federated-identity", None),
+    ("users", None, "role-mappings"),
+    ("users", None, "role-mappings", "realm"),
+    ("users", None, "role-mappings", "clients", None),
+    ("users", None, "groups"),
+    ("users", None, "groups", None),
+    ("users", None, "reset-password"),
+    ("users", None, "credentials"),
+    ("users", None, "credentials", None),
+    ("identity-provider", "instances"),
+    ("identity-provider", "instances", None),
+)
 
 
 class ProductAdminApi(AdminApi, Protocol):
@@ -73,29 +97,82 @@ class ProductAdminApi(AdminApi, Protocol):
 class ProductHttpAdminApi(HttpAdminApi):
     """Keycloak client with registration, federation, and hardened transport."""
 
+    def __init__(
+        self,
+        server_url: str,
+        realm: str,
+        client_id: str,
+        client_secret: str,
+        token_realm: str | None = None,
+        timeout_seconds: float = 10.0,
+        transport=None,
+    ) -> None:
+        """Create a product adapter after validating all configured realms."""
+        validate_path_segment(realm, field_name="keycloak_realm")
+        if token_realm is not None:
+            validate_path_segment(token_realm, field_name="token_realm")
+        super().__init__(
+            server_url=server_url,
+            realm=realm,
+            client_id=client_id,
+            client_secret=client_secret,
+            token_realm=token_realm,
+            timeout_seconds=timeout_seconds,
+            transport=transport,
+        )
+
     @staticmethod
-    def _guard_path(path: str) -> str:
-        """Reject encoded, navigational, malformed, or non-absolute paths."""
+    def _validate_admin_suffix(path_segments: tuple[str, ...]) -> None:
+        """Require one known Admin REST suffix and validate dynamic segments."""
+        for pattern in _ADMIN_PATH_PATTERNS:
+            if len(path_segments) != len(pattern):
+                continue
+            if not all(
+                expected is None or expected == actual
+                for expected, actual in zip(pattern, path_segments, strict=True)
+            ):
+                continue
+            for index, (expected, actual) in enumerate(
+                zip(pattern, path_segments, strict=True)
+            ):
+                if expected is None:
+                    validate_path_segment(
+                        actual,
+                        field_name=f"admin_path_segment_{index}",
+                    )
+            return
+        raise InvalidIdentifierError(
+            "request path is not an allowed Keycloak Admin REST route"
+        )
+
+    def _guard_path(self, path: str) -> str:
+        """Accept only known Admin REST routes with opaque dynamic segments."""
         if not path.startswith("/"):
             raise InvalidIdentifierError("request path must be absolute")
-        if "%" in path or "\\" in path:
+        if any(character in path for character in ("%", "\\", "?", "#")):
             raise InvalidIdentifierError(
-                "request path must not contain encoding or backslashes"
+                "request path must not contain encoding or URI delimiters"
             )
         segments = path.split("/")
-        for index, segment in enumerate(segments):
-            if segment in {".", ".."}:
-                raise InvalidIdentifierError(
-                    "request path must not navigate directories"
-                )
-            if segment == "" and 0 < index < len(segments) - 1:
-                raise InvalidIdentifierError(
-                    "request path must not contain empty segments"
-                )
-            if any(ord(character) < 0x20 or ord(character) == 0x7F for character in segment):
-                raise InvalidIdentifierError(
-                    "request path must not contain control characters"
-                )
+        if segments[0] != "" or any(segment == "" for segment in segments[1:]):
+            raise InvalidIdentifierError(
+                "request path must not contain empty segments"
+            )
+        if any(
+            ord(character) < 0x20 or ord(character) == 0x7F
+            for segment in segments
+            for character in segment
+        ):
+            raise InvalidIdentifierError(
+                "request path must not contain control characters"
+            )
+        prefix = ("admin", "realms", self._realm)
+        path_segments = tuple(segments[1:])
+        if path_segments[:3] != prefix:
+            raise InvalidIdentifierError(
+                "request path must target the configured Keycloak realm"
+            )
+        self._validate_admin_suffix(path_segments[3:])
         return path
 
     def _send_with_reauth(
@@ -163,9 +240,18 @@ class ProductHttpAdminApi(HttpAdminApi):
         )
         location = response.headers.get("Location", "")
         if location:
-            return location.rstrip("/").rsplit("/", 1)[-1]
+            created_user_id = location.rstrip("/").rsplit("/", 1)[-1]
+            return validate_path_segment(
+                created_user_id,
+                field_name="created_user_id",
+            )
         found = self.find_user_by_username(user.user_name or "")
-        return found.user_id if found else ""
+        if found is None:
+            return ""
+        return validate_path_segment(
+            found.user_id,
+            field_name="created_user_id",
+        )
 
     def list_users(self, first_result: int, max_results: int) -> list[UserAccount]:
         """Return one page of realm users."""
