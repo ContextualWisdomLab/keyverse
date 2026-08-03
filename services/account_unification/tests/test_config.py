@@ -1,6 +1,7 @@
 """Config comes only from the KV store; bootstrap points at it."""
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 
 import pytest
@@ -77,6 +78,26 @@ def test_bootstrap_points_at_sqlite_store(tmp_path):
     with closing(open_config_store(descriptor)) as store:
         config = load_service_config(store, descriptor.namespace)
         assert config.keycloak_realm == "cwl"
+
+
+def test_sqlite_kv_store_supports_fastapi_worker_threads(tmp_path):
+    """A store created during startup remains usable from request workers."""
+    db = tmp_path / "threaded-store.db"
+    with closing(SqliteKvStore(str(db))) as store:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            executor.submit(
+                store.put,
+                "account_unification",
+                "operator_api_token",
+                "opaque-test-value",
+            ).result(timeout=5)
+            stored = executor.submit(
+                store.get,
+                "account_unification",
+                "operator_api_token",
+            ).result(timeout=5)
+
+        assert stored == "opaque-test-value"
 
 
 def test_unsupported_standalone_backend_fails_loudly():
