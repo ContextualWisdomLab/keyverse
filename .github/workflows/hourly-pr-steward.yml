@@ -7,12 +7,11 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
 
-# The steward can update trusted same-repository branches and arm auto-merge
-# only after GitHub reports an approved review and clean required checks.
+# Keep the workflow token read-only by default. Only the single steward job
+# receives the narrowly scoped writes required to update trusted branches and
+# arm GitHub-native auto-merge after protected evidence is complete.
 permissions:
-  contents: write
-  pull-requests: write
-  checks: read
+  contents: read
 
 concurrency:
   group: hourly-pr-steward
@@ -23,6 +22,10 @@ jobs:
     name: Advance approved pull requests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
     steps:
       - name: Update, verify, and arm trusted pull requests
         env:
