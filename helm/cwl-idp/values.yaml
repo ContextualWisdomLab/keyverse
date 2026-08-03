@@ -7,23 +7,22 @@ accountUnification:
   image:
     repository: cwl-idp/account-unification
     tag: "0.2.0"
-    # Pin an immutable digest in production so a mutable-tag replacement of this
-    # privileged (realm-management) service is impossible. The keycloak and
-    # postgres images below already pin one; set this to the built image's
-    # sha256 digest (rendered as repository:tag@sha256:...). Left empty here
-    # because the image is built locally in dev/CI; deployments must set it.
+    # Development may render a local tag. Production values must set
+    # requireDigest=true and provide the built image's sha256 digest.
     digest: ""
+    requireDigest: false
     pullPolicy: IfNotPresent
   replicaCount: 1
   service:
     port: 8099
-  # Bootstrap transport ONLY: a pointer to the KV/DB config store. Real config
-  # + secrets are read from that store at runtime. Mount the bootstrap file via
-  # a secret and set the path here.
   bootstrap:
     secretName: cwl-idp-bootstrap
     mountPath: /bootstrap
     fileName: bootstrap.yaml
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClassName: ""
   resources:
     requests:
       cpu: 50m
@@ -32,9 +31,6 @@ accountUnification:
       cpu: 250m
       memory: 256Mi
 
-# Keycloak engine (Apache-2.0), templated by this chart. Set enabled=false to
-# federate an externally-managed Keycloak. The passwordless-first realm is
-# imported as-code from a ConfigMap built from deploy/keycloak/realm-cwl.json.
 keycloak:
   enabled: true
   image:
@@ -43,17 +39,13 @@ keycloak:
     digest: "sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2"
     pullPolicy: IfNotPresent
   replicaCount: 1
-  # Public base URL Keycloak advertises (behind the WAF in prod).
   hostname: "http://localhost:8080"
   hostnameStrict: false
   httpEnabled: true
   service:
     httpPort: 8080
     managementPort: 9000
-  # Bootstrap admin + DB credentials are read from this pre-created secret
-  # (populated from your KV). Keys: admin-username, admin-password, db-password.
   existingSecret: cwl-idp-keycloak
-  # Realm import ConfigMap (kubectl create configmap ... --from-file=realm-cwl.json).
   realmImport:
     configMapName: cwl-idp-realm
     fileName: realm-cwl.json
@@ -65,8 +57,6 @@ keycloak:
       cpu: "2"
       memory: 2Gi
 
-# Bundled Postgres (MIT) for Keycloak. Point Keycloak at a managed Postgres by
-# setting postgres.enabled=false and keycloak DB env from your own secret.
 postgres:
   enabled: true
   image:
@@ -76,7 +66,6 @@ postgres:
     pullPolicy: IfNotPresent
   database: keycloak
   username: keycloak
-  # DB password is read from the keycloak.existingSecret key 'db-password'.
   storage:
     size: 8Gi
   resources:
