@@ -72,7 +72,7 @@ class JanitorResult(BaseModel):
     """Outcome of one bounded bootstrap-credential janitor pass."""
 
     scanned_users: int
-    revoked_passwords: int
+    removed_bootstrap_credentials: int
 
 
 def require_registration_token(
@@ -279,9 +279,9 @@ def register_account(
 def revoke_bootstrap_passwords(
     api: ProductAdminApi,
 ) -> JanitorResult:
-    """Delete password credentials from passkey-holding accounts."""
+    """Delete bootstrap credentials from passkey-holding accounts."""
     scanned_users = 0
-    revoked_passwords = 0
+    removed_bootstrap_credentials = 0
     for page_index in range(JANITOR_MAX_PAGES):
         users = api.list_users(
             page_index * JANITOR_PAGE_SIZE,
@@ -305,12 +305,12 @@ def revoke_bootstrap_passwords(
                     api.delete_user_credential(
                         user.user_id, item["id"]
                     )
-                    revoked_passwords += 1
+                    removed_bootstrap_credentials += 1
         if len(users) < JANITOR_PAGE_SIZE:
             break
     return JanitorResult(
         scanned_users=scanned_users,
-        revoked_passwords=revoked_passwords,
+        removed_bootstrap_credentials=removed_bootstrap_credentials,
     )
 
 
