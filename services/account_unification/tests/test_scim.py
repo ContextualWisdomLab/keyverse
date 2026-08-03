@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,7 +24,6 @@ class _BlockingReplaceApi(MockProductKeycloakAdminApi):
         super().__init__()
         self.replace_started = threading.Event()
         self.allow_replace = threading.Event()
-        self.tombstone_started = threading.Event()
 
     def replace_user(self, user_id, user) -> None:
         """Block the full representation PUT until released."""
@@ -37,14 +37,6 @@ class _BlockingReplaceApi(MockProductKeycloakAdminApi):
             if attribute[0] != user_id
         }
         self.deactivated.discard(user_id)
-
-    def set_user_attribute(
-        self, user_id: str, key: str, value: str
-    ) -> None:
-        """Signal when merge starts writing the duplicate tombstone."""
-        if user_id == "dup" and key == TOMBSTONE_ATTRIBUTE_KEY:
-            self.tombstone_started.set()
-        super().set_user_attribute(user_id, key, value)
 
 
 @pytest.fixture
@@ -166,11 +158,23 @@ def test_scim_replace_refuses_tombstone_resurrection(client, api) -> None:
 
 
 def test_scim_replace_is_serialized_with_merge(
-    config, audit, auth_header
+    config, audit, auth_header, monkeypatch
 ) -> None:
     """The production lock manager closes the SCIM/merge TOCTOU window."""
     api = _BlockingReplaceApi()
     locks = InMemoryUserOperationLocks()
+    merge_lock_attempted = threading.Event()
+    original_hold = locks.hold
+
+    @contextmanager
+    def observed_hold(*user_ids: str):
+        """Record the merge's lock attempt while delegating to production code."""
+        if set(user_ids) == {"survivor", "dup"}:
+            merge_lock_attempted.set()
+        with original_hold(*user_ids):
+            yield
+
+    monkeypatch.setattr(locks, "hold", observed_hold)
     service = UnificationService(api, audit, config, locks)
     app = create_app(wire=False)
     app.state.keycloak_api = api
@@ -188,11 +192,9 @@ def test_scim_replace_is_serialized_with_merge(
         email="jane@corp.com",
         is_email_verified=True,
     )
-    merge_invoked = threading.Event()
 
     def run_merge():
         """Start one merge that contends on the duplicate-user lock."""
-        merge_invoked.set()
         return service.merge_accounts(
             MergeRequest(
                 survivor_user_id="survivor",
@@ -210,17 +212,17 @@ def test_scim_replace_is_serialized_with_merge(
             "/scim/v2/Users/dup",
             json=_scim_user(username="dup"),
         )
-        # replace_user is called after SCIM has acquired the production lock.
+        # replace_user is called only after SCIM has acquired the production lock.
         assert api.replace_started.wait(timeout=2)
         merge_future = executor.submit(run_merge)
-        assert merge_invoked.wait(timeout=2)
+        # The hook fires immediately before the same production hold blocks on dup.
+        assert merge_lock_attempted.wait(timeout=2)
+        assert not merge_future.done()
 
-        serialized = not api.tombstone_started.wait(timeout=0.25)
         api.allow_replace.set()
         response = scim_future.result(timeout=5)
         merge_result = merge_future.result(timeout=5)
 
-    assert serialized
     assert response.status_code == 200
     assert merge_result.duplicate_tombstoned is True
     assert api.get_user("dup").state == "disabled"
