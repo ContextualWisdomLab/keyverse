@@ -53,7 +53,7 @@ jobs:
             fi
 
             case "$author" in
-              seonghobae|dependabot|dependabot[bot]|github-actions|github-actions[bot]|opencode-agent)
+              seonghobae|dependabot|app/dependabot|github-actions|app/github-actions|opencode-agent)
                 ;;
               *)
                 continue
