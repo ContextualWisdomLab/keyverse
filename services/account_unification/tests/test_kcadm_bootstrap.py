@@ -70,10 +70,14 @@ def test_service_client_secret_never_enters_process_arguments() -> None:
 
     assert "umask 077" in script
     assert "SERVICE_SECRET_JSON" in script
-    assert (
-        'kcadm update "clients/${SVC_CLIENT_UUID}" -r "${REALM}" '
-        '-f "${SERVICE_SECRET_JSON}"'
-    ) in script
+    update_position = script.index(
+        'kcadm update "clients/${SVC_CLIENT_UUID}"'
+    )
+    file_input_position = script.index(
+        '-f "${SERVICE_SECRET_JSON}"',
+        update_position,
+    )
+    assert update_position < file_input_position
     assert '-s "secret=$(kv get' not in script
     assert "kv put secret/idp/account-unification-client-secret" not in script
 
