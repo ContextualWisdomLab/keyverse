@@ -1,0 +1,89 @@
+name: Hourly PR steward
+
+on:
+  schedule:
+    # Avoid the top-of-hour congestion window. Scheduled runs use UTC and the
+    # latest commit on the default branch.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+# The steward can update trusted same-repository branches and merge only after
+# GitHub reports an approved review and every required check has passed.
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+concurrency:
+  group: hourly-pr-steward
+  cancel-in-progress: false
+
+jobs:
+  advance-approved-pull-requests:
+    name: Advance approved pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Update, verify, and merge trusted pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh pr list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --limit 100 \
+            --json number,isDraft,author,headRepositoryOwner,headRefOid,mergeStateStatus,reviewDecision \
+            > "$RUNNER_TEMP/open-pull-requests.json"
+
+          jq -c '.[]' "$RUNNER_TEMP/open-pull-requests.json" | while IFS= read -r pull_request; do
+            number="$(jq -r '.number' <<<"$pull_request")"
+            is_draft="$(jq -r '.isDraft' <<<"$pull_request")"
+            author="$(jq -r '.author.login // ""' <<<"$pull_request")"
+            head_owner="$(jq -r '.headRepositoryOwner.login // ""' <<<"$pull_request")"
+            head_sha="$(jq -r '.headRefOid' <<<"$pull_request")"
+            merge_state="$(jq -r '.mergeStateStatus // "UNKNOWN"' <<<"$pull_request")"
+            review_decision="$(jq -r '.reviewDecision // ""' <<<"$pull_request")"
+
+            if [[ "$is_draft" != "false" || "$head_owner" != "ContextualWisdomLab" ]]; then
+              continue
+            fi
+
+            case "$author" in
+              seonghobae|dependabot|dependabot[bot]|github-actions|github-actions[bot]|opencode-agent)
+                ;;
+              *)
+                continue
+                ;;
+            esac
+
+            # Keep trusted branches current. A successful update invalidates the
+            # old check evidence, so the steward waits for the next hourly pass.
+            if [[ "$merge_state" == "BEHIND" ]]; then
+              gh pr update-branch "$number" --repo "$REPOSITORY" || true
+              continue
+            fi
+
+            if [[ "$review_decision" != "APPROVED" ]]; then
+              continue
+            fi
+
+            # Never infer safety from optional checks. The repository's required
+            # check set remains the source of truth; pending or failed checks make
+            # this command non-zero and the PR is left untouched.
+            if ! gh pr checks "$number" --repo "$REPOSITORY" --required --fail-fast; then
+              continue
+            fi
+
+            # Bind the merge to the reviewed and checked head SHA. GitHub still
+            # enforces rulesets, required checks, and review requirements.
+            gh api \
+              --method PUT \
+              "repos/$REPOSITORY/pulls/$number/merge" \
+              -f merge_method=squash \
+              -f sha="$head_sha" \
+              >/dev/null
+          done
