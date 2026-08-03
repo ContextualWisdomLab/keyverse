@@ -1,12 +1,21 @@
 # Keyverse Review Remediation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Resolve every valid current-head review blocker without weakening Keyverse's passwordless, audit, security, or modularity contracts.
+**Goal:** Resolve every valid current-head review blocker without weakening
+Keyverse's passwordless, audit, security, or modularity contracts.
 
-**Architecture:** Replace the bound-flow bootstrap password with Keycloak's action-email passkey enrollment path; keep registration and operator privileges separate; move network calls outside process locks; return protocol-native errors; and fail closed on unknown secrets, aliases, paths, and deployment configuration.
+**Architecture:** Replace the bound-flow bootstrap password with Keycloak's
+action-email passkey enrollment path; keep registration and operator privileges
+separate; move network calls outside storage locks; return protocol-native
+errors; and fail closed on unknown secrets, aliases, paths, and deployment
+configuration.
 
-**Tech Stack:** Python 3.11+, FastAPI, Pydantic 2, httpx, SQLite, Keycloak Admin REST API, pytest, Ruff, Interrogate, Helm, Docker Compose.
+**Tech Stack:** Python 3.11+, FastAPI, Pydantic 2, httpx, SQLite, Keycloak Admin
+REST API, pytest, Ruff, Interrogate, Helm, Docker Compose.
 
 ## Global Constraints
 
@@ -33,14 +42,20 @@
 - Modify: `services/account_unification/tests/mock_product_keycloak.py`
 
 **Interfaces:**
-- Produces: `ProductAdminApi.send_execute_actions_email(user_id, action_aliases, client_id, redirect_uri, lifespan_seconds) -> None`
-- Produces: registration configuration for client ID, redirect URI, and finite positive action-link lifespan.
+- Produces: `ProductAdminApi.send_execute_actions_email(user_id, action_aliases,
+  client_id, redirect_uri, lifespan_seconds) -> None`
+- Produces: registration configuration for client ID, redirect URI, and finite
+  positive action-link lifespan.
 
-- [ ] Write failing tests proving the bound browser flow rejects `auth-password-form`, public-client access tokens are capped, registration creates no password, and passkey action-email failure rolls the account back.
-- [ ] Run focused tests and confirm they fail for the expected missing behavior.
-- [ ] Remove the password execution and validator exception; set `naruon-web` access-token lifespan to 300 seconds and validate a 900-second maximum.
-- [ ] Replace `initial_password` with action-email enrollment and add the Keycloak Admin REST adapter method.
-- [ ] Remove the credential janitor, its configuration, background task, and privileged endpoint.
+- [x] Write regression tests proving the bound browser flow rejects
+  `auth-password-form`, public-client access tokens are capped, registration
+  creates no password, and passkey action-email failure rolls the account back.
+- [x] Remove the password execution and validator exception; set `naruon-web`
+  access-token lifespan to 300 seconds and validate a 900-second maximum.
+- [x] Replace `initial_password` with action-email enrollment and add the
+  Keycloak Admin REST adapter method.
+- [x] Remove the credential janitor, its configuration, background task, and
+  privileged endpoint.
 - [ ] Run focused registration, adapter, config, realm, and lifecycle tests.
 
 ### Task 2: Registration abuse and race boundaries
@@ -53,10 +68,12 @@
 - Produces: `reset_rate_limit_state() -> None`
 - Produces: caller-keyed fixed-window registration limiting.
 
-- [ ] Write failing tests proving one client cannot exhaust another client's quota and Keycloak 409 maps to `email_already_registered`.
-- [ ] Run the focused tests and confirm the expected failures.
-- [ ] Store rate-limit windows per client address under one lock and expose a test reset helper.
-- [ ] Catch only `httpx.HTTPStatusError` with status 409; re-raise every other transport error.
+- [x] Write regression tests proving one client cannot exhaust another client's
+  quota and Keycloak 409 maps to `email_already_registered`.
+- [x] Store rate-limit windows per client address under one lock and expose a
+  test reset helper.
+- [x] Catch only `httpx.HTTPStatusError` with status 409; re-raise every other
+  transport error.
 - [ ] Run the focused registration suite.
 
 ### Task 3: Federation reconciliation and secret safety
@@ -67,13 +84,17 @@
 
 **Interfaces:**
 - Preserves: `IdentityProviderStatus`
-- Produces: safe-key allowlist redaction in which unknown config keys are redacted.
+- Produces: safe-key allowlist redaction in which unknown config keys are
+  redacted.
 
-- [ ] Write failing tests for non-ASCII aliases, unknown-key redaction, persisted-but-unapplied status, and network calls outside `RLock`.
-- [ ] Run the focused tests and confirm the expected failures.
-- [ ] Snapshot stored registrations under the lock, then perform Keycloak calls after releasing it.
-- [ ] Return `applied_to_keycloak=False` when desired state was stored but convergence failed.
-- [ ] Validate aliases against explicit ASCII alphabets and redact every config key not explicitly classified safe.
+- [x] Write regressions for non-ASCII aliases, unknown-key redaction,
+  persisted-but-unapplied status, and storage-lock-free network calls.
+- [x] Snapshot stored registrations under the storage lock, then perform
+  Keycloak calls after releasing it.
+- [x] Return `applied_to_keycloak=False` when desired state was stored but
+  convergence failed.
+- [x] Validate aliases against explicit ASCII alphabets and redact every config
+  key not explicitly classified safe.
 - [ ] Run the federation suite.
 
 ### Task 4: Protocol and runtime correctness
@@ -85,14 +106,20 @@
 - Modify: `services/account_unification/tests/test_healthcheck.py`
 - Modify: `services/account_unification/tests/test_path_security.py`
 - Modify: `services/account_unification/tests/test_user_locks.py`
+- Create: `services/account_unification/tests/test_lifecycle.py`
 
 **Interfaces:**
-- Produces: `ScimPathValidationError` and `scim_path_validation_exception_handler`.
+- Produces: `ScimPathValidationError` and
+  `scim_path_validation_exception_handler`.
 
-- [ ] Write failing tests for HTTP 503 probe handling, root-level SCIM error envelopes with `application/scim+json`, and `:memory:` lock wiring.
-- [ ] Run focused tests and confirm the expected failures.
-- [ ] Register `HTTPDefaultErrorHandler`, add the SCIM-specific exception handler, and use an explicit temporary lock file for in-memory audit configurations.
-- [ ] Add missing function docstrings and run the focused suites.
+- [x] Write regressions for HTTP error handling, root-level SCIM error envelopes
+  with `application/scim+json`, and `:memory:` lock wiring.
+- [x] Register `HTTPDefaultErrorHandler`, add the SCIM-specific exception
+  handler, and use an explicit temporary lock file for in-memory audit
+  configurations.
+- [x] Add missing function docstrings and deterministic temporary-resource
+  cleanup.
+- [ ] Run the focused health, path, and lifecycle suites.
 
 ### Task 5: Deployment durability and review hygiene
 
@@ -107,14 +134,18 @@
 - Modify: `services/account_unification/tests/test_federation.py`
 - Modify: `services/account_unification/tests/test_kcadm_bootstrap.py`
 - Modify: `services/account_unification/tests/test_storage_concurrency.py`
+- Create: `services/account_unification/tests/test_deployment_contracts.py`
 
 **Interfaces:**
-- Produces: persistent Compose audit volume and optional Helm digest enforcement.
+- Produces: persistent Compose/Helm audit volume and optional Helm digest
+  enforcement.
 
-- [ ] Add contract tests or static assertions for persistent audit storage, digest enforcement, non-temporary seed defaults, and stable bootstrap markers.
-- [ ] Run focused tests and confirm the expected failures.
-- [ ] Add the named volume, `requireDigest` render guard, project-local seed path, fixture-safe tests, context-managed SQLite test resources, and truthful documentation.
-- [ ] Run focused tests and configuration rendering checks.
+- [x] Add contract tests for persistent audit storage, digest enforcement,
+  non-temporary seed defaults, and stable bootstrap markers.
+- [x] Add the named volume, `requireDigest` render guard, project-local seed
+  path, fixture-safe tests, context-managed SQLite test resources, and truthful
+  documentation.
+- [ ] Run focused tests and Compose/Helm rendering checks.
 
 ### Task 6: Protected completion
 
@@ -122,11 +153,15 @@
 - Modify: `CHANGELOG.md`
 - Modify: `docs/superpowers/plans/2026-08-03-keyverse-review-remediation.md`
 
+- [x] Resolve the prior review threads after implementing the corresponding
+  findings; all old threads are currently resolved/outdated.
 - [ ] Run `uv sync --locked --extra dev`.
 - [ ] Run `uv run ruff check app tests tools`.
 - [ ] Run `uv run interrogate .` and require 100%.
 - [ ] Run `uv run pytest -q` with 100% production statement and branch coverage.
-- [ ] Run realm, Compose, Helm, CodeQL, Semgrep, security, and central coverage checks on the exact head.
-- [ ] Resolve only review threads whose findings are demonstrably addressed.
+- [ ] Run realm, Compose, Helm, CodeQL, Semgrep, security, and central coverage
+  checks on the exact head.
+- [ ] Obtain independent approval on the exact head.
 - [ ] Merge only after the repository's protected policy is satisfied.
-- [ ] Re-list open PRs and continue until the queue is zero or an external approval/runner blocker remains.
+- [ ] Re-list open PRs and continue until the queue is zero or an external
+  approval/runner blocker remains.
