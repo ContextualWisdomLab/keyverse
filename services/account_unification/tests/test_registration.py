@@ -221,7 +221,7 @@ def test_operator_token_does_not_open_registration(api):
     assert response.status_code == 403
 
 
-def test_janitor_revokes_only_after_passkey_enrollment(
+def test_janitor_removes_only_after_passkey_enrollment(
     client, api
 ):
     """Bootstrap credentials survive until a passkey exists."""
@@ -241,7 +241,7 @@ def test_janitor_revokes_only_after_passkey_enrollment(
 
     result = revoke_bootstrap_passwords(api)
 
-    assert result.revoked_passwords == 1
+    assert result.removed_bootstrap_credentials == 1
     enrolled_types = {
         item["type"]
         for item in api.list_user_credentials(enrolled)
@@ -270,4 +270,4 @@ def test_janitor_endpoint_runs_one_pass(client, api):
     )
 
     assert response.status_code == 200
-    assert response.json()["revoked_passwords"] == 1
+    assert response.json()["removed_bootstrap_credentials"] == 1
