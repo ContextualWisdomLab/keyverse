@@ -22,7 +22,7 @@ def _client() -> TestClient:
 def test_admin_router_rejects_encoded_identifier() -> None:
     """Encoded path material is rejected before endpoint dependencies."""
     with _client() as client:
-        response = client.get("/users/bad%252fidentifier/identities")
+        response = client.get("/users/bad%2525identifier/identities")
     assert response.status_code == 400
     assert "encoding" in response.json()["detail"]
 
@@ -39,7 +39,7 @@ def test_federation_router_rejects_traversal_alias() -> None:
 def test_scim_router_returns_protocol_native_error_for_unsafe_id() -> None:
     """SCIM path validation returns an RFC 7644 body and media type."""
     with _client() as client:
-        response = client.get("/scim/v2/Users/bad%252fidentifier")
+        response = client.get("/scim/v2/Users/bad%2525identifier")
 
     assert response.status_code == 400
     assert response.headers["content-type"].startswith("application/scim+json")
