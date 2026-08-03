@@ -12,6 +12,13 @@ def _workflow_source() -> str:
     ).read_text(encoding="utf-8")
 
 
+def _permissions_block(source: str, marker: str, terminator: str) -> str:
+    """Return one indentation-sensitive workflow permissions block."""
+    block_start = source.index(marker)
+    block_end = source.index(terminator, block_start)
+    return source[block_start:block_end]
+
+
 def test_hourly_steward_runs_once_per_hour_with_bounded_concurrency() -> None:
     """The schedule is hourly and overlapping steward runs are serialized."""
     workflow = _workflow_source()
@@ -21,12 +28,25 @@ def test_hourly_steward_runs_once_per_hour_with_bounded_concurrency() -> None:
     assert "timeout-minutes: 10" in workflow
 
 
-def test_hourly_steward_uses_least_required_repository_permissions() -> None:
-    """The workflow grants only the scopes needed to update and arm PRs."""
+def test_hourly_steward_uses_read_only_workflow_token_defaults() -> None:
+    """Only the steward job receives its narrowly required write scopes."""
     workflow = _workflow_source()
-    assert "contents: write" in workflow
-    assert "pull-requests: write" in workflow
-    assert "checks: read" in workflow
+    top_level_permissions = _permissions_block(
+        workflow,
+        "permissions:\n",
+        "\nconcurrency:",
+    )
+    job_permissions = _permissions_block(
+        workflow,
+        "    permissions:\n",
+        "    steps:",
+    )
+
+    assert "contents: read" in top_level_permissions
+    assert "write" not in top_level_permissions
+    assert "contents: write" in job_permissions
+    assert "pull-requests: write" in job_permissions
+    assert "checks: read" in job_permissions
     assert "security-events: write" not in workflow
     assert "actions: write" not in workflow
 
