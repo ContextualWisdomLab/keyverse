@@ -51,7 +51,7 @@
   "authenticationFlows": [
     {
       "alias": "browser-passwordless",
-      "description": "Passkey-first passwordless browser flow (no password authenticator).",
+      "description": "Passkey-only browser flow with no password authenticator.",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,
@@ -84,7 +84,7 @@
     },
     {
       "alias": "browser-passwordless-forms",
-      "description": "Username identification then a passkey assertion, with a password form offered only to bootstrap accounts that have not enrolled a passkey yet.",
+      "description": "Username identification followed only by a passwordless WebAuthn assertion.",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -109,7 +109,7 @@
     },
     {
       "alias": "browser-passwordless-credentials",
-      "description": "Passkey (steady state) or the bootstrap password (only while the account has no passkey; the janitor revokes it after enrollment).",
+      "description": "Passwordless WebAuthn assertion; enrollment occurs through a one-time action-email link.",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -117,16 +117,8 @@
         {
           "authenticator": "webauthn-authenticator-passwordless",
           "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
+          "requirement": "REQUIRED",
           "priority": 10,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-password-form",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 20,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         }
@@ -270,7 +262,7 @@
       "serviceAccountsEnabled": false,
       "secret": "__set_from_kv__",
       "redirectUris": [
-        "https://naruon.example/auth/callback"
+        "https://rp.example.invalid/auth/callback"
       ],
       "webOrigins": [
         "+"
@@ -283,7 +275,7 @@
       "optionalClientScopes": [],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "https://naruon.example/",
+        "post.logout.redirect.uris": "https://rp.example.invalid/",
         "access.token.lifespan": "300"
       },
       "protocolMappers": [
@@ -313,7 +305,8 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "https://naruon.example/auth/callback"
+        "https://naruon.example/auth/callback",
+        "https://naruon.example/auth/passkey-complete"
       ],
       "webOrigins": [
         "https://naruon.example"
@@ -327,7 +320,7 @@
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "https://naruon.example/",
-        "access.token.lifespan": "43200"
+        "access.token.lifespan": "300"
       },
       "protocolMappers": [
         {
