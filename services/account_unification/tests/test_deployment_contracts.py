@@ -1,6 +1,7 @@
 """Static deployment contract tests for Compose and Helm packaging."""
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -9,6 +10,15 @@ import yaml
 def _repository_root() -> Path:
     """Return the repository root from the account-unification tests."""
     return Path(__file__).resolve().parents[3]
+
+
+def _helm_values() -> dict:
+    """Return parsed Helm values for the cwl-idp chart."""
+    return yaml.safe_load(
+        (_repository_root() / "helm" / "cwl-idp" / "values.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
 
 
 def _seed_tool_source() -> str:
@@ -37,12 +47,7 @@ def test_compose_persists_account_unification_state() -> None:
 
 def test_helm_can_fail_closed_on_missing_account_image_digest() -> None:
     """Production values can require an immutable account-service image."""
-    values = yaml.safe_load(
-        (_repository_root() / "helm" / "cwl-idp" / "values.yaml").read_text(
-            encoding="utf-8"
-        )
-    )
-    image = values["accountUnification"]["image"]
+    image = _helm_values()["accountUnification"]["image"]
     assert image["requireDigest"] is False
     template = (
         _repository_root()
@@ -57,12 +62,7 @@ def test_helm_can_fail_closed_on_missing_account_image_digest() -> None:
 
 def test_helm_mounts_durable_account_unification_storage() -> None:
     """The chart mounts deployment-owned state at the service data path."""
-    values = yaml.safe_load(
-        (_repository_root() / "helm" / "cwl-idp" / "values.yaml").read_text(
-            encoding="utf-8"
-        )
-    )
-    persistence = values["accountUnification"]["persistence"]
+    persistence = _helm_values()["accountUnification"]["persistence"]
     assert persistence["enabled"] is True
     assert persistence["size"]
     template = (
@@ -74,6 +74,19 @@ def test_helm_mounts_durable_account_unification_storage() -> None:
     ).read_text(encoding="utf-8")
     assert "kind: PersistentVolumeClaim" in template
     assert "mountPath: /var/lib/account-unification" in template
+
+
+def test_helm_image_tag_matches_package_version() -> None:
+    """Unreleased chart metadata cannot advertise an unbuilt package version."""
+    pyproject_path = (
+        _repository_root()
+        / "services"
+        / "account_unification"
+        / "pyproject.toml"
+    )
+    project = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))["project"]
+    helm_tag = _helm_values()["accountUnification"]["image"]["tag"]
+    assert helm_tag == project["version"]
 
 
 def test_local_seed_avoids_global_temporary_audit_storage() -> None:
