@@ -14,16 +14,19 @@ from app.user_locks import (
 
 
 def _assert_overlapping_operation_waits(first_manager, second_manager) -> None:
+    """Assert a second overlapping mutation waits for the first lock holder."""
     first_entered = threading.Event()
     release_first = threading.Event()
     second_entered = threading.Event()
 
     def hold_first() -> None:
+        """Hold the first lock until the test releases it."""
         with first_manager.hold("survivor", "dup"):
             first_entered.set()
             assert release_first.wait(timeout=5)
 
     def hold_second() -> None:
+        """Attempt to enter the overlapping critical section."""
         assert first_entered.wait(timeout=5)
         with second_manager.hold("dup"):
             second_entered.set()
@@ -41,22 +44,27 @@ def _assert_overlapping_operation_waits(first_manager, second_manager) -> None:
     assert second_entered.is_set()
 
 
-def test_in_memory_locks_serialize_overlapping_user_ids():
+def test_in_memory_locks_serialize_overlapping_user_ids() -> None:
+    """The process-local manager serializes intersecting user ID sets."""
     manager = InMemoryUserOperationLocks()
     _assert_overlapping_operation_waits(manager, manager)
 
 
-def test_sqlite_locks_serialize_distinct_manager_instances(tmp_path):
+def test_sqlite_locks_serialize_distinct_manager_instances(tmp_path) -> None:
+    """Separate managers sharing a sidecar database serialize mutations."""
     database_path = str(tmp_path / "user-operation-locks.sqlite3")
     first_manager = SqliteUserOperationLocks(database_path)
     second_manager = SqliteUserOperationLocks(database_path)
     _assert_overlapping_operation_waits(first_manager, second_manager)
 
 
-def test_sqlite_lock_timeout_is_explicit_and_retryable(tmp_path):
+def test_sqlite_lock_timeout_is_explicit_and_retryable(tmp_path) -> None:
+    """Contention exceeding the timeout raises the retryable domain error."""
     database_path = str(tmp_path / "user-operation-locks.sqlite3")
     first_manager = SqliteUserOperationLocks(database_path)
-    impatient_manager = SqliteUserOperationLocks(database_path, timeout_seconds=0.05)
+    impatient_manager = SqliteUserOperationLocks(
+        database_path, timeout_seconds=0.05
+    )
 
     with first_manager.hold("dup"):
         with pytest.raises(UserOperationLockTimeout):
@@ -64,7 +72,8 @@ def test_sqlite_lock_timeout_is_explicit_and_retryable(tmp_path):
                 pytest.fail("contending operation unexpectedly acquired the lock")
 
 
-def test_lock_manager_rejects_empty_user_ids():
+def test_lock_manager_rejects_empty_user_ids() -> None:
+    """Empty identifiers never create an unscoped mutation lock."""
     manager = InMemoryUserOperationLocks()
     with pytest.raises(ValueError):
         with manager.hold(""):
