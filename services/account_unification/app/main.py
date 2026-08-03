@@ -77,11 +77,11 @@ async def _password_janitor_loop(app: FastAPI, interval_seconds: float) -> None:
             )
             if result.revoked_passwords:
                 logger.info(
-                    "password janitor revoked %d bootstrap password(s)",
+                    "credential janitor revoked %d bootstrap credential(s)",
                     result.revoked_passwords,
                 )
         except Exception:
-            logger.exception("password janitor pass failed; will retry")
+            logger.exception("credential janitor pass failed; will retry")
 
 
 @asynccontextmanager

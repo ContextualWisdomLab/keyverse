@@ -33,15 +33,14 @@ PASSKEY_ENROLL_REQUIRED_ACTION = "webauthn-register-passwordless"
 PASSWORD_CREDENTIAL_TYPE = "password"  # noqa: S105 - credential type name, not a secret
 PASSKEY_CREDENTIAL_TYPE = "webauthn-passwordless"  # noqa: S105
 
-# Registration input bounds. The email pattern intentionally checks shape only
-# (one @, a dotted domain, no whitespace/control characters); ownership proof
-# is verifyEmail's job once the realm has SMTP.
+# Registration input bounds. Email validation intentionally checks deterministic
+# syntax only; ownership proof is verifyEmail's job once the realm has SMTP.
 EMAIL_MAX_LENGTH = 254
-EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PASSWORD_MIN_LENGTH = 10
 PASSWORD_MAX_LENGTH = 128
 NAME_MAX_LENGTH = 100
 CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x1f\x7f]")
+_LOCAL_ATOM_PUNCTUATION = frozenset("!#$%&'*+-/=?^_`{|}~.")
 
 # Simple fixed-window rate limit for account creation attempts.
 REGISTRATION_RATE_LIMIT_WINDOW_SECONDS = 300.0
@@ -128,13 +127,54 @@ def _record_registration_attempt() -> None:
             )
 
 
+def _has_valid_email_shape(email_address: str) -> bool:
+    """Return whether an email has bounded, non-ambiguous address syntax.
+
+    This deterministic parser avoids a backtracking regular expression on
+    caller-controlled text. It deliberately validates syntax rather than
+    mailbox ownership; Keycloak's verification flow supplies ownership proof.
+    """
+    if email_address.count("@") != 1 or any(
+        character.isspace() for character in email_address
+    ):
+        return False
+    local_part, domain_part = email_address.split("@", 1)
+    if (
+        not local_part
+        or local_part.startswith(".")
+        or local_part.endswith(".")
+        or ".." in local_part
+        or not all(
+            character.isalnum() or character in _LOCAL_ATOM_PUNCTUATION
+            for character in local_part
+        )
+    ):
+        return False
+    if (
+        not domain_part
+        or "." not in domain_part
+        or domain_part.startswith(".")
+        or domain_part.endswith(".")
+        or ".." in domain_part
+    ):
+        return False
+    labels = domain_part.split(".")
+    return all(
+        1 <= len(label) <= 63
+        and not label.startswith("-")
+        and not label.endswith("-")
+        and all(character.isalnum() or character == "-" for character in label)
+        for label in labels
+    )
+
+
 def _validated_email(raw_email: str) -> str:
     """Normalize and shape-check the registration email."""
     email_address = raw_email.strip().lower()
     if (
         len(email_address) > EMAIL_MAX_LENGTH
         or CONTROL_CHARACTER_PATTERN.search(email_address)
-        or not EMAIL_PATTERN.match(email_address)
+        or not _has_valid_email_shape(email_address)
     ):
         raise HTTPException(status_code=422, detail="invalid_email_address")
     return email_address
