@@ -1,15 +1,14 @@
 """FastAPI application factory, dependency wiring, and resource lifecycle.
 
-Startup reads one bootstrap pointer, opens the KV/DB configuration store, builds
-the Keycloak-backed services, and starts the bounded credential janitor. The
-privileged routers are authenticated and path-validated; ``/healthz`` remains
-open for orchestrator probes.
+Startup reads one bootstrap pointer, opens the KV/DB configuration store, and
+builds the Keycloak-backed services. Privileged routers are authenticated and
+path-validated; ``/healthz`` remains open for orchestrator probes.
 """
 from __future__ import annotations
 
-import asyncio
-import logging
-from contextlib import asynccontextmanager, suppress
+import os
+import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -26,16 +25,10 @@ from .path_security import (
     scim_path_security_dependency,
 )
 from .product_keycloak_client import ProductHttpAdminApi
-from .registration import (
-    registration_auth_dependency,
-    registration_router,
-    revoke_bootstrap_passwords,
-)
+from .registration import registration_auth_dependency, registration_router
 from .scim import scim_router
 from .service import UnificationService
 from .user_locks import SqliteUserOperationLocks
-
-logger = logging.getLogger(__name__)
 
 
 def _ensure_parent_directory(database_path: str) -> None:
@@ -45,6 +38,18 @@ def _ensure_parent_directory(database_path: str) -> None:
     Path(database_path).expanduser().resolve().parent.mkdir(
         parents=True, exist_ok=True
     )
+
+
+def _user_operation_lock_path(audit_database_path: str) -> tuple[str, bool]:
+    """Return a durable sidecar path or one secure temporary test path."""
+    if audit_database_path != ":memory:":
+        return f"{audit_database_path}.user-operation-locks.sqlite3", False
+    descriptor, temporary_path = tempfile.mkstemp(
+        prefix="keyverse-user-operation-locks-",
+        suffix=".sqlite3",
+    )
+    os.close(descriptor)
+    return temporary_path, True
 
 
 def build_service(app: FastAPI) -> None:
@@ -62,9 +67,10 @@ def build_service(app: FastAPI) -> None:
         timeout_seconds=config.request_timeout_seconds,
     )
     audit = AuditLogger(SqliteAuditSink(config.audit_database_path))
-    user_operation_locks = SqliteUserOperationLocks(
-        f"{config.audit_database_path}.user-operation-locks.sqlite3"
+    lock_database_path, temporary_lock_database = _user_operation_lock_path(
+        config.audit_database_path
     )
+    user_operation_locks = SqliteUserOperationLocks(lock_database_path)
 
     app.state.config_store = store
     app.state.unification_service = UnificationService(
@@ -76,34 +82,17 @@ def build_service(app: FastAPI) -> None:
     app.state.audit_logger = audit
     app.state.keycloak_api = api
     app.state.user_operation_locks = user_operation_locks
+    app.state.user_operation_lock_database_path = lock_database_path
+    app.state.temporary_user_operation_lock_database = temporary_lock_database
     app.state.federation_service = FederationService(store, api)
     app.state.operator_api_token = config.operator_api_token
     app.state.registration_api_token = config.registration_api_token
-    app.state.password_janitor_interval_seconds = (
-        config.password_janitor_interval_seconds
+    app.state.registration_client_id = config.registration_client_id
+    app.state.registration_redirect_uri = config.registration_redirect_uri
+    app.state.registration_action_lifespan_seconds = (
+        config.registration_action_lifespan_seconds
     )
     app.state.ready = True
-
-
-async def _credential_janitor_loop(
-    app: FastAPI, interval_seconds: float
-) -> None:
-    """Periodically remove bootstrap credentials from passkey accounts."""
-    while True:
-        await asyncio.sleep(interval_seconds)
-        try:
-            result = await asyncio.to_thread(
-                revoke_bootstrap_passwords, app.state.keycloak_api
-            )
-            if result.removed_bootstrap_credentials:
-                # Log only an aggregate count. No credential material, user ID,
-                # email address, or other account-linked value enters the log.
-                logger.info(
-                    "credential janitor removed %d bootstrap credential(s)",
-                    result.removed_bootstrap_credentials,
-                )
-        except Exception:
-            logger.exception("credential janitor pass failed; will retry")
 
 
 def _close_resource(resource) -> None:
@@ -113,33 +102,32 @@ def _close_resource(resource) -> None:
         close()
 
 
+def _remove_temporary_lock_database(app: FastAPI) -> None:
+    """Remove the secure sidecar used only with an in-memory audit database."""
+    if not getattr(app.state, "temporary_user_operation_lock_database", False):
+        return
+    lock_database_path = getattr(
+        app.state,
+        "user_operation_lock_database_path",
+        None,
+    )
+    if lock_database_path:
+        Path(lock_database_path).unlink(missing_ok=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Build live dependencies and release them on application shutdown."""
     app.state.ready = False
     build_service(app)
-    janitor_interval = getattr(
-        app.state, "password_janitor_interval_seconds", 0.0
-    )
-    janitor_task = (
-        asyncio.create_task(
-            _credential_janitor_loop(app, janitor_interval),
-            name="credential-janitor",
-        )
-        if janitor_interval > 0
-        else None
-    )
     try:
         yield
     finally:
         app.state.ready = False
-        if janitor_task is not None:
-            janitor_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await janitor_task
         _close_resource(getattr(app.state, "keycloak_api", None))
         _close_resource(getattr(app.state, "audit_logger", None))
         _close_resource(getattr(app.state, "config_store", None))
+        _remove_temporary_lock_database(app)
 
 
 def create_app(*, wire: bool = True) -> FastAPI:
