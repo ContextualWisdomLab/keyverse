@@ -15,43 +15,28 @@ set -euo pipefail
 
 REALM="${KC_REALM:-cwl}"
 KC_SERVER="${KC_SERVER:-http://localhost:8080}"
-# Bootstrap transport only: the admin credentials come from KV, used once to
-# obtain an admin session, then discarded.
+# Bootstrap transport only: the admin credentials come from KV, are used once
+# to create an Admin CLI session, and are then discarded.
 ADMIN_USER="$(kv get secret/idp/bootstrap-admin-username)"
 ADMIN_PASS="$(kv get secret/idp/bootstrap-admin-password)"
 
-# Do NOT pass the admin password on the kcadm.sh command line: argv is visible
-# to any same-host process via /proc/<pid>/cmdline. Obtain a short-lived admin
-# token by handing the password to curl through a restricted temp file
-# (--data-urlencode "@file", never argv), then configure kcadm with that
-# bearer token. The reusable password never appears in any process's argv.
-_pass_file="$(mktemp)"
-chmod 600 "${_pass_file}"
-_kcadm_token=""
+# Use Keycloak's documented sensitive-option environment variable rather than
+# placing the reusable password in process arguments. Keep the resulting access
+# and refresh tokens in a private, short-lived HOME so no Admin CLI session
+# survives this bootstrap process.
+_kcadm_home="$(mktemp -d)"
+chmod 700 "${_kcadm_home}"
 cleanup() {
-  rm -f "${_pass_file}"
-  unset ADMIN_PASS _kcadm_token
+  rm -rf "${_kcadm_home}"
+  unset ADMIN_PASS
 }
 trap cleanup EXIT
-printf '%s' "${ADMIN_PASS}" > "${_pass_file}"
-unset ADMIN_PASS
+export HOME="${_kcadm_home}"
 
-_kcadm_token="$(curl -sf \
-  --data-urlencode "grant_type=password" \
-  --data-urlencode "client_id=admin-cli" \
-  --data-urlencode "username=${ADMIN_USER}" \
-  --data-urlencode "password@${_pass_file}" \
-  "${KC_SERVER}/realms/master/protocol/openid-connect/token" \
-  | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')"
-rm -f "${_pass_file}"
-if [ -z "${_kcadm_token}" ]; then
-  echo "ERROR: failed to obtain a bootstrap admin token" >&2
-  exit 1
-fi
-
-kcadm.sh config credentials \
+KC_CLI_PASSWORD="${ADMIN_PASS}" kcadm.sh config credentials \
   --server "${KC_SERVER}" --realm master \
-  --token "${_kcadm_token}"
+  --user "${ADMIN_USER}"
+unset ADMIN_PASS
 
 # NOTE: external federation (the employer ADFS SAML IdP, corporate LDAP/AD)
 # is deliberately NOT part of this bootstrap. Those are deployment data, not
