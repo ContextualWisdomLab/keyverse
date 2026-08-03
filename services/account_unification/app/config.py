@@ -2,10 +2,11 @@
 
 Nothing here reads process environment. :func:`load_service_config` takes an
 opened :class:`~app.kv_store.KvStore` (from :mod:`app.bootstrap`) and returns a
-frozen config object. Missing required keys fail loudly at startup.
+frozen config object. Missing or unsafe values fail loudly at startup.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from .kv_store import KvStore
@@ -27,32 +28,24 @@ KEY_PASSWORD_JANITOR_INTERVAL_SECONDS = "password_janitor_interval_seconds"
 
 @dataclass(frozen=True)
 class ServiceConfig:
-    """Runtime settings loaded from the config store."""
+    """Validated runtime settings loaded from the config store."""
 
     # Keycloak Admin REST API wiring. The service authenticates to the realm
-    # token endpoint with a confidential service-account client (client
-    # credentials) that holds realm-management view-users/manage-users roles.
+    # token endpoint with a confidential service-account client.
     keycloak_server_url: str
     keycloak_realm: str
     keycloak_client_id: str
     keycloak_client_secret: str
-    # Shared operator bearer token gating the privileged admin API surface
-    # (merge, SCIM, federation, identity reads). Required: the service must not
-    # start with an open privileged surface.
+    # Privileged and product registration surfaces deliberately use different
+    # bearer credentials so relying products never acquire operator authority.
     operator_api_token: str
-    # Bearer token for the headless self-registration surface, held by product
-    # frontend backends (e.g. Naruon). Optional: deployments without
-    # self-signup leave it unset and the surface answers 503, never open.
     registration_api_token: str | None = None
-    # Seconds between bootstrap-password janitor passes; 0 disables the
-    # periodic task (the operator endpoint still runs passes on demand).
+    # Zero disables the periodic task; a manual janitor endpoint remains.
     password_janitor_interval_seconds: float = 300.0
-    # Audit sink location. Must NOT live inside the read-only /bootstrap
-    # mount: the config store and the audit trail have different write needs.
     audit_database_path: str = "/var/lib/account-unification/audit.db"
     merge_conflict_policy: str = "survivor_wins"
-    # Hard default False: the ecosystem policy forbids linking/merging on an
-    # unverified email. Present as config only so audits can prove it is off.
+    # This is an invariant, not a deployer-selectable feature. The field remains
+    # so audit/config evidence can prove it was explicitly disabled.
     allow_unverified_email_link: bool = False
     request_timeout_seconds: float = 10.0
 
@@ -67,33 +60,101 @@ def _require(store: KvStore, namespace: str, entry_key: str) -> str:
     return value
 
 
-def _as_bool(raw: str | None, default: bool) -> bool:
-    """Parse a store value as a permissive boolean."""
-    if raw is None:
+def _as_bool(
+    raw: str | None,
+    default: bool,
+    *,
+    entry_key: str,
+) -> bool:
+    """Parse one explicit boolean or fail startup on ambiguous text."""
+    if raw is None or raw == "":
         return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"config '{entry_key}' must be a boolean")
+
+
+def _as_finite_float(
+    raw: str | None,
+    default: float,
+    *,
+    entry_key: str,
+    allow_zero: bool,
+) -> float:
+    """Parse a runtime duration and reject negative, NaN, or infinite values."""
+    candidate = str(default) if raw is None or raw == "" else raw
+    try:
+        value = float(candidate)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"config '{entry_key}' must be a finite number"
+        ) from exc
+    if not math.isfinite(value) or value < 0 or (value == 0 and not allow_zero):
+        qualifier = "non-negative" if allow_zero else "positive"
+        raise RuntimeError(
+            f"config '{entry_key}' must be a finite {qualifier} number"
+        )
+    return value
 
 
 def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
-    """Build the :class:`ServiceConfig` from the KV store."""
+    """Build and validate the :class:`ServiceConfig` from the KV store."""
+    operator_api_token = _require(store, namespace, KEY_OPERATOR_API_TOKEN)
+    registration_api_token = (
+        store.get(namespace, KEY_REGISTRATION_API_TOKEN) or None
+    )
+    if registration_api_token == operator_api_token:
+        raise RuntimeError(
+            "config 'registration_api_token' must differ from "
+            "'operator_api_token'"
+        )
+
+    allow_unverified_email_link = _as_bool(
+        store.get(namespace, KEY_ALLOW_UNVERIFIED_LINK),
+        default=False,
+        entry_key=KEY_ALLOW_UNVERIFIED_LINK,
+    )
+    if allow_unverified_email_link:
+        raise RuntimeError(
+            "config 'allow_unverified_email_link' must remain false"
+        )
+
+    merge_conflict_policy = (
+        store.get(namespace, KEY_MERGE_CONFLICT_POLICY) or "survivor_wins"
+    )
+    if merge_conflict_policy != "survivor_wins":
+        raise RuntimeError(
+            "config 'merge_conflict_policy' must be 'survivor_wins'"
+        )
+
     return ServiceConfig(
         keycloak_server_url=_require(store, namespace, KEY_KEYCLOAK_SERVER_URL),
         keycloak_realm=_require(store, namespace, KEY_KEYCLOAK_REALM),
         keycloak_client_id=_require(store, namespace, KEY_KEYCLOAK_CLIENT_ID),
-        keycloak_client_secret=_require(store, namespace, KEY_KEYCLOAK_CLIENT_SECRET),
-        operator_api_token=_require(store, namespace, KEY_OPERATOR_API_TOKEN),
-        registration_api_token=store.get(namespace, KEY_REGISTRATION_API_TOKEN) or None,
-        password_janitor_interval_seconds=float(
-            store.get(namespace, KEY_PASSWORD_JANITOR_INTERVAL_SECONDS) or "300"
+        keycloak_client_secret=_require(
+            store, namespace, KEY_KEYCLOAK_CLIENT_SECRET
         ),
-        audit_database_path=store.get(namespace, KEY_AUDIT_DATABASE_PATH)
-        or "/var/lib/account-unification/audit.db",
-        merge_conflict_policy=store.get(namespace, KEY_MERGE_CONFLICT_POLICY)
-        or "survivor_wins",
-        allow_unverified_email_link=_as_bool(
-            store.get(namespace, KEY_ALLOW_UNVERIFIED_LINK), default=False
+        operator_api_token=operator_api_token,
+        registration_api_token=registration_api_token,
+        password_janitor_interval_seconds=_as_finite_float(
+            store.get(namespace, KEY_PASSWORD_JANITOR_INTERVAL_SECONDS),
+            300.0,
+            entry_key=KEY_PASSWORD_JANITOR_INTERVAL_SECONDS,
+            allow_zero=True,
         ),
-        request_timeout_seconds=float(
-            store.get(namespace, KEY_REQUEST_TIMEOUT_SECONDS) or "10.0"
+        audit_database_path=(
+            store.get(namespace, KEY_AUDIT_DATABASE_PATH)
+            or "/var/lib/account-unification/audit.db"
+        ),
+        merge_conflict_policy=merge_conflict_policy,
+        allow_unverified_email_link=allow_unverified_email_link,
+        request_timeout_seconds=_as_finite_float(
+            store.get(namespace, KEY_REQUEST_TIMEOUT_SECONDS),
+            10.0,
+            entry_key=KEY_REQUEST_TIMEOUT_SECONDS,
+            allow_zero=False,
         ),
     )
