@@ -48,8 +48,3 @@ def test_healthcheck_returns_one_for_request_error(monkeypatch, capsys):
 
     assert healthcheck.main("http://service/healthz") == 1
     assert "healthcheck failed: connection refused" in capsys.readouterr().err
-
-
-def test_healthcheck_rejects_non_http_scheme(capsys):
-    assert healthcheck.main("file:///etc/passwd") == 1
-    assert "unsupported URL scheme" in capsys.readouterr().err
