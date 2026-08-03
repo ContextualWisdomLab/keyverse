@@ -27,6 +27,7 @@ from .keycloak_client import AdminApi
 from .matching import decide_match, have_matching_verified_email
 from .models import (
     FederatedIdentity,
+    MatchReason,
     MergeConflict,
     MergeRequest,
     MergeResult,
@@ -100,19 +101,28 @@ class UnificationService:
         decision = decide_match(
             survivor, duplicate, explicit_link=request.explicit_link
         )
-        # Guard: refuse when the accounts only coincide on an unverified email.
-        # (decide_match already refuses to *call* that a verified match; here we
-        # produce the precise error for the operator + audit trail.)
-        if not decision.matched:
-            same_email = (
-                (survivor.email or "").strip().lower()
-                == (duplicate.email or "").strip().lower()
-                and bool(survivor.email)
+        # Hard rule (enforced here per docs/merge-unification-flow.md and the
+        # MergeRequest.explicit_link contract): never merge when the only tie is
+        # an UNVERIFIED email. An unverified address is attacker-registerable,
+        # so even an operator's explicit_link assertion must not promote a shared
+        # unverified email into a merge — only a strong tie (exact idp subject or
+        # a mutually verified email) justifies it. This guard therefore runs
+        # regardless of decision.matched, catching the explicit_link path too.
+        shares_unverified_email = (
+            bool((survivor.email or "").strip())
+            and (survivor.email or "").strip().lower()
+            == (duplicate.email or "").strip().lower()
+            and not have_matching_verified_email(survivor, duplicate)
+        )
+        strong_tie = decision.reason in (
+            MatchReason.EXACT_IDP_SUBJECT,
+            MatchReason.VERIFIED_EMAIL,
+        )
+        if shares_unverified_email and not strong_tie:
+            raise UnverifiedEmailMergeError(
+                "refusing merge: accounts share only an UNVERIFIED email"
             )
-            if same_email and not have_matching_verified_email(survivor, duplicate):
-                raise UnverifiedEmailMergeError(
-                    "refusing merge: accounts share only an UNVERIFIED email"
-                )
+        if not decision.matched:
             raise NoMatchError(decision.detail or "no matching rule satisfied")
 
         audit_id = self._audit.new_correlation_id()
@@ -196,8 +206,10 @@ class UnificationService:
                     duplicate.user_id, link.identity_provider
                 )
                 self._audit.emit(
-                    audit_id=audit_id, event_type="federated_identity_conflict",
-                    actor=actor, survivor_user_id=survivor.user_id,
+                    audit_id=audit_id,
+                    event_type="federated_identity_conflict",
+                    actor=actor,
+                    survivor_user_id=survivor.user_id,
                     duplicate_user_id=duplicate.user_id,
                     payload={"identifier": identifier, "resolution": "survivor_wins"},
                 )
@@ -208,8 +220,11 @@ class UnificationService:
             )
             moved.append(identifier)
             self._audit.emit(
-                audit_id=audit_id, event_type="federated_identity_moved", actor=actor,
-                survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
+                audit_id=audit_id,
+                event_type="federated_identity_moved",
+                actor=actor,
+                survivor_user_id=survivor.user_id,
+                duplicate_user_id=duplicate.user_id,
                 payload={"identifier": identifier},
             )
         return moved
@@ -234,7 +249,9 @@ class UnificationService:
                 # survivor-wins: survivor already has it; drop the duplicate's.
                 self._api.remove_role_mapping(duplicate.user_id, role)
                 self._audit.emit(
-                    audit_id=audit_id, event_type="role_mapping_conflict", actor=actor,
+                    audit_id=audit_id,
+                    event_type="role_mapping_conflict",
+                    actor=actor,
                     survivor_user_id=survivor.user_id,
                     duplicate_user_id=duplicate.user_id,
                     payload={"identifier": identifier, "resolution": "survivor_wins"},
@@ -244,10 +261,16 @@ class UnificationService:
             self._api.remove_role_mapping(duplicate.user_id, role)
             moved.append(identifier)
             self._audit.emit(
-                audit_id=audit_id, event_type="role_mapping_moved", actor=actor,
-                survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
-                payload={"identifier": identifier, "role_name": role.role_name,
-                         "client_id": role.client_id},
+                audit_id=audit_id,
+                event_type="role_mapping_moved",
+                actor=actor,
+                survivor_user_id=survivor.user_id,
+                duplicate_user_id=duplicate.user_id,
+                payload={
+                    "identifier": identifier,
+                    "role_name": role.role_name,
+                    "client_id": role.client_id,
+                },
             )
         return moved
 
@@ -267,8 +290,10 @@ class UnificationService:
                 )
                 self._api.remove_group_membership(duplicate.user_id, group)
                 self._audit.emit(
-                    audit_id=audit_id, event_type="group_membership_conflict",
-                    actor=actor, survivor_user_id=survivor.user_id,
+                    audit_id=audit_id,
+                    event_type="group_membership_conflict",
+                    actor=actor,
+                    survivor_user_id=survivor.user_id,
                     duplicate_user_id=duplicate.user_id,
                     payload={"identifier": identifier, "resolution": "survivor_wins"},
                 )
@@ -277,8 +302,11 @@ class UnificationService:
             self._api.remove_group_membership(duplicate.user_id, group)
             moved.append(identifier)
             self._audit.emit(
-                audit_id=audit_id, event_type="group_membership_moved", actor=actor,
-                survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
+                audit_id=audit_id,
+                event_type="group_membership_moved",
+                actor=actor,
+                survivor_user_id=survivor.user_id,
+                duplicate_user_id=duplicate.user_id,
                 payload={"identifier": identifier},
             )
         return moved
@@ -292,8 +320,11 @@ class UnificationService:
         )
         self._api.deactivate_user(duplicate.user_id)
         self._audit.emit(
-            audit_id=audit_id, event_type="duplicate_tombstoned", actor=actor,
-            survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
+            audit_id=audit_id,
+            event_type="duplicate_tombstoned",
+            actor=actor,
+            survivor_user_id=survivor.user_id,
+            duplicate_user_id=duplicate.user_id,
             payload={"attribute_key": TOMBSTONE_ATTRIBUTE_KEY},
         )
 
