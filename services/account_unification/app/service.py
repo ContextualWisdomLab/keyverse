@@ -27,6 +27,7 @@ from .keycloak_client import AdminApi
 from .matching import decide_match, have_matching_verified_email
 from .models import (
     FederatedIdentity,
+    MatchReason,
     MergeConflict,
     MergeRequest,
     MergeResult,
@@ -85,19 +86,28 @@ class UnificationService:
         decision = decide_match(
             survivor, duplicate, explicit_link=request.explicit_link
         )
-        # Guard: refuse when the accounts only coincide on an unverified email.
-        # (decide_match already refuses to *call* that a verified match; here we
-        # produce the precise error for the operator + audit trail.)
-        if not decision.matched:
-            same_email = (
-                (survivor.email or "").strip().lower()
-                == (duplicate.email or "").strip().lower()
-                and bool(survivor.email)
+        # Hard rule (enforced here per docs/merge-unification-flow.md and the
+        # MergeRequest.explicit_link contract): never merge when the only tie is
+        # an UNVERIFIED email. An unverified address is attacker-registerable,
+        # so even an operator's explicit_link assertion must not promote a shared
+        # unverified email into a merge — only a strong tie (exact idp subject or
+        # a mutually verified email) justifies it. This guard therefore runs
+        # regardless of decision.matched, catching the explicit_link path too.
+        shares_unverified_email = (
+            bool((survivor.email or "").strip())
+            and (survivor.email or "").strip().lower()
+            == (duplicate.email or "").strip().lower()
+            and not have_matching_verified_email(survivor, duplicate)
+        )
+        strong_tie = decision.reason in (
+            MatchReason.EXACT_IDP_SUBJECT,
+            MatchReason.VERIFIED_EMAIL,
+        )
+        if shares_unverified_email and not strong_tie:
+            raise UnverifiedEmailMergeError(
+                "refusing merge: accounts share only an UNVERIFIED email"
             )
-            if same_email and not have_matching_verified_email(survivor, duplicate):
-                raise UnverifiedEmailMergeError(
-                    "refusing merge: accounts share only an UNVERIFIED email"
-                )
+        if not decision.matched:
             raise NoMatchError(decision.detail or "no matching rule satisfied")
 
         audit_id = self._audit.new_correlation_id()
