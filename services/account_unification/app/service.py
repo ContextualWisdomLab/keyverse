@@ -32,6 +32,7 @@ from .models import (
     MergeResult,
     UserAccount,
 )
+from .user_locks import UserOperationLocks
 
 # Keycloak user attribute stamped on a tombstoned duplicate (two-word snake_case).
 TOMBSTONE_ATTRIBUTE_KEY = "merged_into_user_id"
@@ -46,11 +47,13 @@ class UnificationService:
         api: AdminApi,
         audit: AuditLogger,
         config: ServiceConfig,
+        user_operation_locks: UserOperationLocks,
     ) -> None:
-        """Create a service around admin API, audit, and config dependencies."""
+        """Create a service around admin, audit, config, and lock dependencies."""
         self._api = api
         self._audit = audit
         self._config = config
+        self._user_operation_locks = user_operation_locks
 
     # -- (a) inspect identities -------------------------------------------
     def get_account(self, user_id: str) -> UserAccount:
@@ -70,6 +73,18 @@ class UnificationService:
         if request.survivor_user_id == request.duplicate_user_id:
             raise SameUserError("survivor and duplicate are the same account")
 
+        # The complete merge, including the final tombstone write, shares the
+        # same duplicate-user lock as SCIM replacement. This closes the TOCTOU
+        # window where SCIM could pass its tombstone check, then overwrite a
+        # concurrently-created tombstone with an active user representation.
+        with self._user_operation_locks.hold(
+            request.survivor_user_id,
+            request.duplicate_user_id,
+        ):
+            return self._merge_accounts_locked(request)
+
+    def _merge_accounts_locked(self, request: MergeRequest) -> MergeResult:
+        """Perform a merge while both participating user IDs are serialized."""
         survivor = self._load_user(request.survivor_user_id)
         duplicate = self._load_user(request.duplicate_user_id)
         survivor.federated_identities = self._api.list_federated_identities(
