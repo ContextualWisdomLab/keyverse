@@ -50,13 +50,16 @@ def test_bootstrap_isolates_kcadm_without_replacing_kv_home() -> None:
 
 
 def test_bootstrap_discards_reusable_admin_password_after_login() -> None:
-    """The reusable bootstrap password is unset immediately after login."""
+    """The reusable bootstrap password is unset before client convergence."""
     script = _bootstrap_script()
     credentials_position = script.index(
         'KC_CLI_PASSWORD="${ADMIN_PASS}" kcadm config credentials'
     )
     unset_position = script.index("unset ADMIN_PASS", credentials_position)
-    next_bootstrap_step = script.index("# NOTE: external federation", unset_position)
+    next_bootstrap_step = script.index(
+        'echo "==> converging account-unification-svc client secret from KV"',
+        unset_position,
+    )
 
     assert credentials_position < unset_position < next_bootstrap_step
 
