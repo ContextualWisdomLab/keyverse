@@ -68,17 +68,19 @@ def build_service(app: FastAPI) -> None:
 
 
 async def _password_janitor_loop(app: FastAPI, interval_seconds: float) -> None:
-    """Periodically revoke bootstrap passwords from passkey-holding accounts."""
+    """Periodically remove bootstrap credentials from passkey-holding accounts."""
     while True:
         await asyncio.sleep(interval_seconds)
         try:
             result = await asyncio.to_thread(
                 revoke_bootstrap_passwords, app.state.keycloak_api
             )
-            if result.revoked_passwords:
+            if result.removed_bootstrap_credentials:
+                # Log only an aggregate count. No credential material, user ID,
+                # email address, or other account-linked value enters the log.
                 logger.info(
-                    "credential janitor revoked %d bootstrap credential(s)",
-                    result.revoked_passwords,
+                    "credential janitor removed %d bootstrap credential(s)",
+                    result.removed_bootstrap_credentials,
                 )
         except Exception:
             logger.exception("credential janitor pass failed; will retry")
