@@ -254,33 +254,41 @@ def test_operator_token_does_not_open_registration(api):
     assert response.status_code == 403
 
 
-def test_registration_rate_limit_isolated_by_client(api, monkeypatch):
-    """One client cannot consume another client's registration allowance."""
+def test_registration_rate_limit_isolated_by_caller(client, monkeypatch):
+    """One caller cannot consume another caller's registration allowance."""
     monkeypatch.setattr(
         registration_module,
         "REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS",
         1,
     )
-    app = _wire_registration_app(api)
-    headers = {"Authorization": f"Bearer {REGISTRATION_TOKEN}"}
+    caller_keys = iter(["caller-a", "caller-a", "caller-b"])
 
-    with TestClient(app, headers=headers, client=("client-a", 50001)) as client_a:
-        assert client_a.post(
-            "/registration/accounts",
-            json=_registration("first@example.com"),
-        ).status_code == 201
-        limited = client_a.post(
-            "/registration/accounts",
-            json=_registration("second@example.com"),
-        )
-        assert limited.status_code == 429
+    def next_caller_key(request) -> str:
+        """Return deterministic caller identities for consecutive requests."""
+        del request
+        return next(caller_keys)
 
-    with TestClient(app, headers=headers, client=("client-b", 50002)) as client_b:
-        independent = client_b.post(
-            "/registration/accounts",
-            json=_registration("third@example.com"),
-        )
-        assert independent.status_code == 201
+    monkeypatch.setattr(
+        registration_module,
+        "_registration_client_key",
+        next_caller_key,
+    )
+
+    assert client.post(
+        "/registration/accounts",
+        json=_registration("first@example.com"),
+    ).status_code == 201
+    limited = client.post(
+        "/registration/accounts",
+        json=_registration("second@example.com"),
+    )
+    independent = client.post(
+        "/registration/accounts",
+        json=_registration("third@example.com"),
+    )
+
+    assert limited.status_code == 429
+    assert independent.status_code == 201
 
 
 def test_registration_router_has_no_realm_wide_janitor_endpoint(client):
