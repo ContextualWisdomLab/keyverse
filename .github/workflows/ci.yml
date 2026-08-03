@@ -21,6 +21,10 @@ jobs:
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # v9 changed this default to false; preserve the existing bounded
+          # GitHub Actions cache behavior and avoid unbounded cache growth.
+          prune-cache: true
       - name: Install locked dependencies
         run: uv sync --locked --extra dev
       - name: Lint
