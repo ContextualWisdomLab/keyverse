@@ -13,6 +13,7 @@ from .errors import (
 )
 from .models import FederatedIdentity, MergeRequest, MergeResult, UserAccount
 from .service import UnificationService
+from .user_locks import UserOperationLockTimeout
 
 router = APIRouter()
 
@@ -75,6 +76,11 @@ def merge_accounts(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except InactiveAccountError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except UserOperationLockTimeout as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="one of the requested accounts is being modified; retry",
+        ) from exc
 
 
 @router.get("/merges/{audit_id}/audit", tags=["merge"])
