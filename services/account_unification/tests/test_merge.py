@@ -168,6 +168,30 @@ def test_explicit_link_allows_merge_without_shared_signal(service, api):
     assert result.duplicate_tombstoned
 
 
+def test_explicit_link_cannot_override_shared_unverified_email(service, api):
+    # Hard rule (CLAUDE.md, docs/merge-unification-flow.md, and the
+    # MergeRequest.explicit_link contract): "Even so, the service refuses if the
+    # only tie is an UNVERIFIED email." An unverified address is
+    # attacker-registerable, so flipping explicit_link=True must NOT promote a
+    # shared unverified email into a merge.
+    api.create_test_user("survivor", email="jane@corp.com", is_email_verified=False)
+    api.create_test_user("dup", email="jane@corp.com", is_email_verified=False)
+    with pytest.raises(UnverifiedEmailMergeError):
+        service.merge_accounts(_merge(explicit=True))
+    # nothing mutated: duplicate not tombstoned.
+    assert "dup" not in api.deactivated
+
+
+def test_explicit_link_cannot_override_case_variant_unverified_email(service, api):
+    # Same rule, exercised through case-insensitive email normalization: one
+    # side verified is not enough — both must be verified for an email tie.
+    api.create_test_user("survivor", email="Jane@Corp.com", is_email_verified=True)
+    api.create_test_user("dup", email="jane@corp.com", is_email_verified=False)
+    with pytest.raises(UnverifiedEmailMergeError):
+        service.merge_accounts(_merge(explicit=True))
+    assert "dup" not in api.deactivated
+
+
 def test_refuse_self_merge(service, api):
     api.create_test_user("same", email="a@x.com", is_email_verified=True)
     with pytest.raises(SameUserError):
