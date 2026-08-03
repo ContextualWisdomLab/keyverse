@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi import HTTPException
@@ -99,6 +101,52 @@ def test_put_retains_desired_state_when_keycloak_is_unavailable(
 
     assert status.applied_to_keycloak is False
     assert store.get(FEDERATION_PROVIDER_NAMESPACE, "employer-adfs") is not None
+
+
+def test_status_network_call_does_not_hold_desired_state_lock(
+    store, api, monkeypatch
+) -> None:
+    """A slow Keycloak status call does not block another stored-state read."""
+    registration = _employer_adfs_registration()
+    store.put(
+        FEDERATION_PROVIDER_NAMESPACE,
+        registration.provider_alias,
+        registration.model_dump_json(),
+    )
+    federation = FederationService(store, api)
+    first_call_started = threading.Event()
+    release_first_call = threading.Event()
+    second_call_started = threading.Event()
+    call_guard = threading.Lock()
+    call_count = 0
+
+    def blocking_status(provider_alias: str):
+        """Block the first network call and signal entry into the second."""
+        nonlocal call_count
+        with call_guard:
+            call_count += 1
+            current_call = call_count
+        if current_call == 1:
+            first_call_started.set()
+            assert release_first_call.wait(timeout=5)
+        else:
+            second_call_started.set()
+        return None
+
+    monkeypatch.setattr(api, "get_identity_provider", blocking_status)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list_future = executor.submit(federation.list_registrations)
+        assert first_call_started.wait(timeout=2)
+        get_future = executor.submit(
+            federation.get_registration, "employer-adfs"
+        )
+        second_reached_network = second_call_started.wait(timeout=0.5)
+        release_first_call.set()
+        list_future.result(timeout=5)
+        get_future.result(timeout=5)
+
+    assert second_reached_network
 
 
 def test_apply_all_reconverges_after_realm_rebuild(federation, api) -> None:
