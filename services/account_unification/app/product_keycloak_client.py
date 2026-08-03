@@ -1,27 +1,20 @@
 """Product-facing extensions for the Keycloak Admin REST API client.
 
 The core merge/SCIM engine depends only on :class:`AdminApi`. Product features
-such as self-registration and runtime federation require a wider surface. This
-module keeps those concerns modular while preserving the same authenticated
-transport, path-safety, and one-shot token refresh behavior.
+such as passwordless registration and runtime federation require a wider
+surface. This module keeps those concerns modular while preserving the same
+authenticated transport, path-safety, and one-shot token refresh behavior.
 """
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
-from .identifiers import (
-    InvalidIdentifierError,
-    validate_path_segment,
-)
-from .keycloak_client import (
-    AdminApi,
-    HttpAdminApi,
-    _parse_user,
-    _to_keycloak_user,
-)
+from .identifiers import InvalidIdentifierError, validate_path_segment
+from .keycloak_client import AdminApi, HttpAdminApi, _to_keycloak_user
 from .models import (
     FederatedIdentity,
     GroupMembership,
@@ -42,9 +35,7 @@ _ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
     ("users", None, "role-mappings", "clients", None),
     ("users", None, "groups"),
     ("users", None, "groups", None),
-    ("users", None, "reset-password"),
-    ("users", None, "credentials"),
-    ("users", None, "credentials", None),
+    ("users", None, "execute-actions-email"),
     ("identity-provider", "instances"),
     ("identity-provider", "instances", None),
 )
@@ -53,26 +44,16 @@ _ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
 class ProductAdminApi(AdminApi, Protocol):
     """Extended Keycloak contract used by registration and federation modules."""
 
-    def list_users(self, first_result: int, max_results: int) -> list[UserAccount]:
-        """Return one page of realm users."""
-        ...
-
-    def reset_user_password(self, user_id: str, password_value: str) -> None:
-        """Set a non-temporary password credential on a user."""
-        ...
-
-    def set_user_required_actions(
-        self, user_id: str, action_aliases: list[str]
+    def send_execute_actions_email(
+        self,
+        user_id: str,
+        action_aliases: list[str],
+        *,
+        client_id: str,
+        redirect_uri: str,
+        lifespan_seconds: int,
     ) -> None:
-        """Replace the pending required actions on a user."""
-        ...
-
-    def list_user_credentials(self, user_id: str) -> list[dict]:
-        """List stored credential representations for a user."""
-        ...
-
-    def delete_user_credential(self, user_id: str, credential_id: str) -> None:
-        """Delete one stored credential from a user."""
+        """Send a one-time email link for verified passkey enrollment."""
         ...
 
     def delete_user(self, user_id: str) -> None:
@@ -152,10 +133,7 @@ class ProductHttpAdminApi(HttpAdminApi):
     ) -> None:
         """Attach an external identity using validated path segments."""
         safe_user_id = self._safe_segment(user_id, "user_id")
-        self._safe_segment(
-            identity.identity_provider,
-            "identity_provider",
-        )
+        self._safe_segment(identity.identity_provider, "identity_provider")
         super().add_federated_identity(safe_user_id, identity)
 
     def remove_federated_identity(
@@ -201,8 +179,7 @@ class ProductHttpAdminApi(HttpAdminApi):
         """Add a group membership using validated path segments."""
         self._safe_segment(group.group_id, "group_id")
         super().add_group_membership(
-            self._safe_segment(user_id, "user_id"),
-            group,
+            self._safe_segment(user_id, "user_id"), group
         )
 
     def remove_group_membership(
@@ -211,8 +188,7 @@ class ProductHttpAdminApi(HttpAdminApi):
         """Remove a group membership using validated path segments."""
         self._safe_segment(group.group_id, "group_id")
         super().remove_group_membership(
-            self._safe_segment(user_id, "user_id"),
-            group,
+            self._safe_segment(user_id, "user_id"), group
         )
 
     def deactivate_user(self, user_id: str) -> None:
@@ -222,16 +198,13 @@ class ProductHttpAdminApi(HttpAdminApi):
     def set_user_attribute(self, user_id: str, key: str, value: str) -> None:
         """Set a user attribute after validating the user id."""
         super().set_user_attribute(
-            self._safe_segment(user_id, "user_id"),
-            key,
-            value,
+            self._safe_segment(user_id, "user_id"), key, value
         )
 
     def get_user_attribute(self, user_id: str, key: str) -> str | None:
         """Read a user attribute after validating the user id."""
         return super().get_user_attribute(
-            self._safe_segment(user_id, "user_id"),
-            key,
+            self._safe_segment(user_id, "user_id"), key
         )
 
     # -- guarded transport -------------------------------------------------
@@ -357,61 +330,60 @@ class ProductHttpAdminApi(HttpAdminApi):
         if location:
             created_user_id = location.rstrip("/").rsplit("/", 1)[-1]
             return validate_path_segment(
-                created_user_id,
-                field_name="created_user_id",
+                created_user_id, field_name="created_user_id"
             )
         found = self.find_user_by_username(user.user_name or "")
         if found is None:
             return ""
         return validate_path_segment(
-            found.user_id,
-            field_name="created_user_id",
+            found.user_id, field_name="created_user_id"
         )
 
-    def list_users(self, first_result: int, max_results: int) -> list[UserAccount]:
-        """Return one page of realm users."""
-        data = self._get(
-            f"/admin/realms/{self._realm}/users",
-            params={"first": first_result, "max": max_results},
-        )
-        return [_parse_user(item) for item in data]
-
-    def reset_user_password(self, user_id: str, password_value: str) -> None:
-        """Set one non-temporary password credential."""
-        safe_user_id = self._safe_segment(user_id, "user_id")
-        self._put(
-            f"/admin/realms/{self._realm}/users/{safe_user_id}/reset-password",
-            {"type": "password", "value": password_value, "temporary": False},
-        )
-
-    def set_user_required_actions(
-        self, user_id: str, action_aliases: list[str]
+    def send_execute_actions_email(
+        self,
+        user_id: str,
+        action_aliases: list[str],
+        *,
+        client_id: str,
+        redirect_uri: str,
+        lifespan_seconds: int,
     ) -> None:
-        """Replace one user's pending required actions."""
+        """Send a bounded one-time email for verification and passkey setup."""
         safe_user_id = self._safe_segment(user_id, "user_id")
-        self._put(
-            f"/admin/realms/{self._realm}/users/{safe_user_id}",
-            {"requiredActions": list(action_aliases)},
+        safe_client_id = self._safe_segment(client_id, "client_id")
+        parsed_redirect = urlsplit(redirect_uri)
+        if (
+            parsed_redirect.scheme != "https"
+            or not parsed_redirect.hostname
+            or parsed_redirect.username is not None
+            or parsed_redirect.password is not None
+            or parsed_redirect.fragment
+        ):
+            raise ValueError("redirect_uri must be an absolute HTTPS URI")
+        if lifespan_seconds <= 0:
+            raise ValueError("lifespan_seconds must be positive")
+        if not action_aliases or any(
+            not alias
+            or len(alias) > 128
+            or any(ord(character) < 0x20 for character in alias)
+            for alias in action_aliases
+        ):
+            raise ValueError("action_aliases must contain bounded action names")
+        path = self._guard_path(
+            f"/admin/realms/{self._realm}/users/{safe_user_id}/"
+            "execute-actions-email"
         )
-
-    def list_user_credentials(self, user_id: str) -> list[dict]:
-        """Return stored credential representations for one user."""
-        safe_user_id = self._safe_segment(user_id, "user_id")
-        data = self._get(
-            f"/admin/realms/{self._realm}/users/{safe_user_id}/credentials"
-        )
-        return [item for item in data if isinstance(item, dict)]
-
-    def delete_user_credential(self, user_id: str, credential_id: str) -> None:
-        """Delete one stored credential from one user."""
-        safe_user_id = self._safe_segment(user_id, "user_id")
-        safe_credential_id = self._safe_segment(
-            credential_id,
-            "credential_id",
-        )
-        self._delete(
-            f"/admin/realms/{self._realm}/users/{safe_user_id}/credentials/"
-            f"{safe_credential_id}"
+        self._send_with_reauth(
+            lambda: self._client.put(
+                path,
+                params={
+                    "client_id": safe_client_id,
+                    "redirect_uri": redirect_uri,
+                    "lifespan": lifespan_seconds,
+                },
+                json=list(action_aliases),
+                headers=self._auth_header(),
+            )
         )
 
     def delete_user(self, user_id: str) -> None:
@@ -435,10 +407,7 @@ class ProductHttpAdminApi(HttpAdminApi):
 
     def create_identity_provider(self, provider_payload: dict) -> None:
         """Create one Keycloak identity-provider instance."""
-        self._safe_segment(
-            provider_payload.get("alias"),
-            "provider_alias",
-        )
+        self._safe_segment(provider_payload.get("alias"), "provider_alias")
         self._post(
             f"/admin/realms/{self._realm}/identity-provider/instances",
             provider_payload,
