@@ -3,65 +3,82 @@
 ## Goal
 
 Eliminate passwords for **ecosystem-local accounts**. Every human either signs
-in through a federated IdP (employer ADFS, corporate LDAP/AD, optional personal
-OIDC) or with a **FIDO2 / passkey** registered on cwl-idp. The password
-authenticator is removed from the browser flow so there is no local password to
-phish, reuse, or leak.
+in through a federated IdP or with a **FIDO2/passkey** registered on cwl-idp.
+The bound browser flow contains no password authenticator, so there is no local
+password to phish, reuse, reset, or leak.
 
-## How it is enforced (as-code)
+## How it is enforced as code
 
-Set once at realm import from `deploy/keycloak/realm-cwl.json`:
+`deploy/keycloak/realm-cwl.json` fixes the following invariants:
 
 | Setting | Value | Effect |
 | --- | --- | --- |
-| `browserFlow` | `browser-passwordless` | Custom flow: username form → **WebAuthn passwordless**, no password authenticator |
-| `authenticationFlows[browser-passwordless-forms]` | `auth-username-form` + `webauthn-authenticator-passwordless` | Passkey is the primary (and only) knowledge-free factor |
-| `registrationAllowed` | `false` | Signup happens on product pages via the account-unification `/registration/accounts` API, never on IdP-hosted forms |
-| `registrationEmailAsUsername` | `true` | The email address is the account identity |
-| `verifyEmail` | `false` (until SMTP) | Must stay `false` while the realm has no `smtpServer`; the validator enforces the pairing |
-| `resetPasswordAllowed` | `false` | No password-reset surface |
-| `authenticationFlows[browser-passwordless-credentials]` | passkey + credential form, both ALTERNATIVE | The credential form is a **bootstrap-only** path: it is offered solely to API-registered accounts that have not enrolled a passkey yet, and the registration password janitor revokes the credential after enrollment |
-| `requiredActions[webauthn-register-passwordless]` | `defaultAction: true` | New users are prompted to enrol a passkey |
-| `webAuthnPolicyPasswordless*` | RP name / ES256,RS256 / resident key / UV required | Passkey relying-party policy |
+| `browserFlow` | `browser-passwordless` | Cookie/federation or username followed by passwordless WebAuthn |
+| `authenticationFlows[browser-passwordless-credentials]` | `webauthn-authenticator-passwordless` only | A password can never authenticate to the `cwl` realm |
+| `registrationAllowed` | `false` | Signup is owned by first-party product backends, not an IdP-hosted form |
+| `registrationEmailAsUsername` | `true` | The normalized email address is the account identity |
+| `resetPasswordAllowed` | `false` | No password-reset surface exists |
+| `requiredActions[webauthn-register-passwordless]` | enabled | Keycloak can execute the passkey enrollment action |
+| `webAuthnPolicyPasswordless*` | resident key and user verification required | Passkeys are discoverable and user-verified |
+| `naruon-web.attributes[access.token.lifespan]` | `300` seconds | Public-client bearer exposure is bounded independently of the longer SSO session |
 
-Because the bound browser flow contains **no** `auth-password-form` /
-`auth-username-password-form` authenticator, a local password is never accepted
-at login even if one existed on the user. `scripts/validate_realm.py` asserts
-this invariant in CI (fails if any password authenticator appears in the bound
-browser flow, or if the passwordless WebAuthn authenticator is missing).
+`scripts/validate_realm.py` follows every nested subflow reachable from
+`browserFlow` and fails CI if it finds `auth-password-form`,
+`auth-username-password-form`, or another password authenticator. It also caps
+public `naruon-web` access tokens at 900 seconds.
 
-The passkey relying-party name is `webAuthnPolicyPasswordlessRpEntityName`; the
-RPID derives from the request host (behind the WAF, the public IdP host), so
-`KC_HOSTNAME` must match the domain the browser sees.
+## Password-free headless registration
 
-## The one exception: the bootstrap admin
+The account-unification service's `POST /registration/accounts` endpoint accepts
+only identity/profile data. It does **not** accept or create a password.
 
-Keycloak requires an initial admin in the `master` realm. It is created **once**
-from `KC_BOOTSTRAP_ADMIN_USERNAME` / `KC_BOOTSTRAP_ADMIN_PASSWORD` (bootstrap
-transport from KV), then that admin registers a passkey and the password is
-retired (operational runbook: switch to passkey-only, rotate/disable the
-bootstrap password). No ecosystem-local account in the `cwl` realm has a
-password.
+After creating the disabled-password account, the service calls Keycloak's
+Admin REST `execute-actions-email` operation with two required actions:
 
-## Verified-email is the linking anchor (NIST SP 800-63C)
+1. `VERIFY_EMAIL`
+2. `webauthn-register-passwordless`
 
-Following NIST SP 800-63C on federated assertions, cwl-idp treats an email as an
-identity-linking anchor **only when the asserting IdP marks it verified**. This
-is enforced in two places:
+Keycloak sends one bounded link associated with the configured relying-party
+client and HTTPS redirect URI. If Keycloak cannot accept the action-email
+request, the service deletes the newly created account; if rollback also fails,
+the API reports a distinct failure so an operator can reconcile it.
 
-1. **Keycloak** federation config: `trustEmail: true` on the employer ADFS SAML
-   IdP and the LDAP/AD source lets the first-broker-login flow auto-link a new
-   external identity to an existing account on a matching **verified** email.
-2. **account-unification service** (`app/matching.py`): the merge engine refuses
-   to treat an unverified-email coincidence as a match, and refuses any merge
-   whose only tie is an unverified email (`UnverifiedEmailMergeError`).
+Enabling this endpoint requires all of these KV entries:
 
-The config key `allow_unverified_email_link` exists solely so an audit can prove
-it is hard-defaulted to `false`.
+- `registration_api_token`, different from `operator_api_token`
+- `registration_client_id`
+- `registration_redirect_uri`, an absolute HTTPS URI without credentials or a fragment
+- `registration_action_lifespan_seconds`, a positive integer no greater than 3600
 
-## Why passwordless here specifically
+The Keycloak realm must also have a working SMTP configuration. A deployment
+without SMTP should omit `registration_api_token`; the endpoint then fails
+closed with HTTP 503 before creating an account.
 
-- Most human logins arrive already authenticated by the employer ADFS or the
-  corporate directory — a local password would be a redundant, weaker factor.
-- Passkeys are phishing-resistant and bind to the origin, which matters when a
-  single IdP fronts many ecosystem RPs.
+Registration throttling is keyed by direct peer address. Operators terminating
+traffic at a WAF or gateway must preserve trustworthy source isolation there;
+the service deliberately does not trust arbitrary forwarded-address headers.
+
+## The one bootstrap exception
+
+Keycloak requires an initial administrator in the `master` realm. It is created
+once from deployment secrets, registers a passkey, and then has its reusable
+bootstrap credential rotated or disabled. This exception is outside the `cwl`
+realm and is governed by the bootstrap runbook.
+
+## Verified email is the linking anchor
+
+An email address authorizes linking only when both accounts hold the same
+verified address or an exact external `(provider, subject)` tie exists. The
+account-unification service rejects an unverified-email coincidence even when a
+caller supplies `explicit_link=true`. The configuration key
+`allow_unverified_email_link` remains solely as audit evidence and startup
+rejects any attempt to set it true.
+
+## Why this boundary matters
+
+- Federated employees already authenticate at their authoritative employer IdP.
+- Passkeys are phishing-resistant and origin-bound.
+- Registration proves control of the submitted address through the same
+  one-time action link that enrolls the passkey.
+- A five-minute access token limits bearer-token exposure while a longer SSO
+  session can still support normal product use through refresh and reissue.
