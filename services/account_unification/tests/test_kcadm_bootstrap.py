@@ -17,7 +17,7 @@ def test_bootstrap_uses_documented_password_environment_variable() -> None:
     script = _bootstrap_script()
 
     credentials_command = (
-        'KC_CLI_PASSWORD="${ADMIN_PASS}" kcadm.sh config credentials'
+        'KC_CLI_PASSWORD="${ADMIN_PASS}" kcadm config credentials'
     )
     assert credentials_command in script
     assert '--user "${ADMIN_USER}"' in script
@@ -26,11 +26,20 @@ def test_bootstrap_uses_documented_password_environment_variable() -> None:
     assert "curl -sf" not in script
 
 
+def test_bootstrap_isolates_kcadm_without_replacing_kv_home() -> None:
+    """Scope the temporary HOME to kcadm so later KV commands keep working."""
+    script = _bootstrap_script()
+
+    assert "kcadm() {" in script
+    assert 'HOME="${_kcadm_home}" kcadm.sh "$@"' in script
+    assert "export HOME=" not in script
+
+
 def test_bootstrap_discards_reusable_admin_password_after_login() -> None:
     """The reusable bootstrap password is unset immediately after login."""
     script = _bootstrap_script()
     credentials_position = script.index(
-        'KC_CLI_PASSWORD="${ADMIN_PASS}" kcadm.sh config credentials'
+        'KC_CLI_PASSWORD="${ADMIN_PASS}" kcadm config credentials'
     )
     unset_position = script.index("unset ADMIN_PASS", credentials_position)
     next_bootstrap_step = script.index("# NOTE: external federation", unset_position)
