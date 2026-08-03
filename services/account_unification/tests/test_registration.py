@@ -1,4 +1,4 @@
-"""Headless self-registration API and bootstrap-password janitor."""
+"""Headless self-registration API and bootstrap-credential janitor."""
 from __future__ import annotations
 
 import pytest
@@ -166,7 +166,9 @@ def test_operator_token_does_not_open_registration(client, api, monkeypatch):
     assert response.status_code == 403
 
 
-def test_janitor_revokes_password_only_after_passkey_enrollment(client, api):
+def test_janitor_removes_bootstrap_credential_only_after_passkey_enrollment(
+    client, api
+):
     """The janitor removes bootstrap credentials only after passkey enrollment."""
     enrolled = client.post(
         "/registration/accounts", json=_registration(email="enrolled@example.com")
@@ -178,7 +180,7 @@ def test_janitor_revokes_password_only_after_passkey_enrollment(client, api):
 
     result = revoke_bootstrap_passwords(api)
 
-    assert result.revoked_passwords == 1
+    assert result.removed_bootstrap_credentials == 1
     enrolled_types = {item["type"] for item in api.list_user_credentials(enrolled)}
     pending_types = {item["type"] for item in api.list_user_credentials(pending)}
     assert "password" not in enrolled_types
@@ -196,4 +198,4 @@ def test_janitor_endpoint_runs_a_pass(client, api):
     response = client.post("/registration/password-janitor:run")
 
     assert response.status_code == 200
-    assert response.json()["revoked_passwords"] == 1
+    assert response.json()["removed_bootstrap_credentials"] == 1
