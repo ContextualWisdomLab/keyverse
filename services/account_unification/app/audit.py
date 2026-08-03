@@ -7,6 +7,8 @@ is used by tests. Records are immutable once written.
 from __future__ import annotations
 
 import json
+import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -58,7 +60,13 @@ class InMemoryAuditSink:
 
 
 class SqliteAuditSink:
-    """Durable append-only sink backed by the ``account_merge_audit`` table."""
+    """Durable append-only sink backed by the ``account_merge_audit`` table.
+
+    The sink is constructed during FastAPI startup and subsequently called from
+    synchronous request-worker threads. SQLite cross-thread access is therefore
+    enabled explicitly and guarded by a re-entrant lock so one transaction can
+    never interleave with another on the shared connection.
+    """
 
     _SCHEMA = """
     CREATE TABLE IF NOT EXISTS account_merge_audit (
@@ -75,39 +83,45 @@ class SqliteAuditSink:
 
     def __init__(self, database_path: str) -> None:
         """Open the audit database and ensure the audit table exists."""
-        import sqlite3
-
-        self._connection = sqlite3.connect(database_path)
+        self._connection_lock = threading.RLock()
+        self._connection = sqlite3.connect(
+            database_path,
+            timeout=5.0,
+            check_same_thread=False,
+        )
+        self._connection.execute("PRAGMA busy_timeout = 5000")
         self._connection.execute(self._SCHEMA)
         self._connection.commit()
 
     def record(self, event: AuditEvent) -> None:
         """Persist one event row and commit immediately."""
-        self._connection.execute(
-            "INSERT INTO account_merge_audit "
-            "(audit_id, event_type, actor_name, survivor_user_id, "
-            " duplicate_user_id, payload_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                event.audit_id,
-                event.event_type,
-                event.actor,
-                event.survivor_user_id,
-                event.duplicate_user_id,
-                event.payload_json,
-                event.created_at,
-            ),
-        )
-        self._connection.commit()
+        with self._connection_lock:
+            self._connection.execute(
+                "INSERT INTO account_merge_audit "
+                "(audit_id, event_type, actor_name, survivor_user_id, "
+                " duplicate_user_id, payload_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event.audit_id,
+                    event.event_type,
+                    event.actor,
+                    event.survivor_user_id,
+                    event.duplicate_user_id,
+                    event.payload_json,
+                    event.created_at,
+                ),
+            )
+            self._connection.commit()
 
     def events_for(self, audit_id: str) -> list[AuditEvent]:
         """Load events for one correlation id in event sequence order."""
-        rows = self._connection.execute(
-            "SELECT audit_id, event_type, actor_name, survivor_user_id, "
-            "duplicate_user_id, payload_json, created_at "
-            "FROM account_merge_audit WHERE audit_id = ? ORDER BY event_sequence",
-            (audit_id,),
-        ).fetchall()
+        with self._connection_lock:
+            rows = self._connection.execute(
+                "SELECT audit_id, event_type, actor_name, survivor_user_id, "
+                "duplicate_user_id, payload_json, created_at "
+                "FROM account_merge_audit WHERE audit_id = ? ORDER BY event_sequence",
+                (audit_id,),
+            ).fetchall()
         return [
             AuditEvent(
                 audit_id=row[0],
@@ -122,8 +136,9 @@ class SqliteAuditSink:
         ]
 
     def close(self) -> None:
-        """Close the SQLite connection."""
-        self._connection.close()
+        """Close the SQLite connection after all in-flight operations finish."""
+        with self._connection_lock:
+            self._connection.close()
 
 
 class AuditLogger:
