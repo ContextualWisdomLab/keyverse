@@ -15,12 +15,8 @@ DEFAULT_URL = "http://127.0.0.1:8099/healthz"
 def main(url: str = DEFAULT_URL) -> int:
     """Check the configured health endpoint and return a shell status code."""
     try:
-        # Verified-safe: ``url`` is not attacker-controlled. It defaults to the
-        # fixed loopback constant ``DEFAULT_URL``; the module entrypoint calls
-        # ``main()`` with no argument, and the parameter exists only for test
-        # injection of trusted URLs. No untrusted/file:// value reaches urlopen,
-        # so Semgrep's dynamic-urllib audit finding is a false positive here.
-        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected -- container healthcheck against a hardcoded loopback default (127.0.0.1); any override is a deployment-controlled target, not user input.
+        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             body = json.loads(response.read().decode("utf-8"))
     except Exception as exc:  # pragma: no cover - network failure path
         print(f"healthcheck failed: {exc}", file=sys.stderr)
