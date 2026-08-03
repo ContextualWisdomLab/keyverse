@@ -21,8 +21,10 @@ from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .federation import FederationService, federation_router
 from .path_security import (
+    ScimPathValidationError,
     admin_path_security_dependency,
     scim_path_security_dependency,
+    scim_path_validation_exception_handler,
 )
 from .product_keycloak_client import ProductHttpAdminApi
 from .registration import registration_auth_dependency, registration_router
@@ -136,6 +138,10 @@ def create_app(*, wire: bool = True) -> FastAPI:
         title="cwl-idp account-unification",
         version=__version__,
         lifespan=lifespan if wire else None,
+    )
+    app.add_exception_handler(
+        ScimPathValidationError,
+        scim_path_validation_exception_handler,
     )
     if not wire:
         app.state.ready = True
