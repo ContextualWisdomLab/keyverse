@@ -10,8 +10,8 @@ operator token so relying products never hold merge/SCIM/federation privileges.
 Bootstrap-credential contract: the account is created with the caller-supplied
 initial password and the ``webauthn-register-passwordless`` required action.
 The realm browser flow offers the password form only while the account has no
-passkey; once the first session enrolls a passkey, the password janitor
-(:func:`revoke_bootstrap_passwords`) deletes the password credential so the
+passkey; once the first session enrolls a passkey, the credential janitor
+(:func:`revoke_bootstrap_passwords`) deletes the bootstrap credential so the
 steady state stays passwordless. See docs/passwordless-policy.md.
 """
 from __future__ import annotations
@@ -74,10 +74,10 @@ class RegistrationResult(BaseModel):
 
 
 class JanitorResult(BaseModel):
-    """Outcome of one bootstrap-password janitor pass."""
+    """Outcome of one bootstrap-credential janitor pass."""
 
     scanned_users: int
-    revoked_passwords: int
+    removed_bootstrap_credentials: int
 
 
 def require_registration_token(
@@ -229,13 +229,13 @@ def register_account(
 
 
 def revoke_bootstrap_passwords(api: AdminApi) -> JanitorResult:
-    """Delete password credentials from accounts that already hold a passkey.
+    """Delete bootstrap credentials from accounts that already hold a passkey.
 
-    Keeps the steady state passwordless: the registration password exists only
+    Keeps the steady state passwordless: the registration credential exists only
     to bridge the gap until the first session enrolls a passkey.
     """
     scanned_users = 0
-    revoked_passwords = 0
+    removed_bootstrap_credentials = 0
     for page_index in range(JANITOR_MAX_PAGES):
         users = api.list_users(page_index * JANITOR_PAGE_SIZE, JANITOR_PAGE_SIZE)
         if not users:
@@ -249,10 +249,13 @@ def revoke_bootstrap_passwords(api: AdminApi) -> JanitorResult:
             for item in credentials:
                 if item.get("type") == PASSWORD_CREDENTIAL_TYPE and item.get("id"):
                     api.delete_user_credential(user.user_id, item["id"])
-                    revoked_passwords += 1
+                    removed_bootstrap_credentials += 1
         if len(users) < JANITOR_PAGE_SIZE:
             break
-    return JanitorResult(scanned_users=scanned_users, revoked_passwords=revoked_passwords)
+    return JanitorResult(
+        scanned_users=scanned_users,
+        removed_bootstrap_credentials=removed_bootstrap_credentials,
+    )
 
 
 @registration_router.post("/password-janitor:run", response_model=JanitorResult)
