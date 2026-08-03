@@ -50,38 +50,24 @@ services:
     image: quay.io/keycloak/keycloak:26.3.2@sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2
     container_name: cwl_idp_engine
     restart: unless-stopped
-    # `start` (production mode) with a runtime build; --import-realm loads the
-    # realm-as-code on first boot. TLS terminates at the WAF edge, so HTTP is
-    # enabled and hostname-strict relaxed for the internal listener.
     command: >
       start
       --import-realm
     environment:
-      # ---- Database wiring (values sourced from KV at deploy time) ----
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://idp_database:5432/${IDP_DB_NAME:-keycloak}
       KC_DB_USERNAME: ${IDP_DB_USER:-keycloak}
       KC_DB_PASSWORD: ${IDP_DB_PASSWORD}
-      # ---- Bootstrap admin. Created ONCE; retire after switching to passkey.
-      # Bootstrap transport only: sourced from KV at deploy time.
       KC_BOOTSTRAP_ADMIN_USERNAME: ${IDP_BOOTSTRAP_ADMIN_USERNAME:-idp-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDP_BOOTSTRAP_ADMIN_PASSWORD}
-      # ---- Health + metrics management endpoints on port 9000 ----
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
-      # ---- HTTP/hostname. TLS terminates at the WAF edge; enable http here. ----
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME: ${IDP_EXTERNAL_HOSTNAME:-http://localhost:8080}
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
-      # ---- Cache. This compose file is the STANDALONE single-node bring-up,
-      # so the Infinispan cluster stack is disabled by default: the jdbc-ping
-      # stack crash-loops single-node restarts (each aborted boot leaves a
-      # stale jgroups_ping coordinator row the next boot fatally tries to
-      # join). Clustered deployments (Helm) set IDP_CACHE_MODE=ispn.
       KC_CACHE: ${IDP_CACHE_MODE:-local}
     volumes:
-      # Realm config-as-code imported on first start.
       - ./deploy/keycloak/realm-cwl.json:/opt/keycloak/data/import/realm-cwl.json:ro
     ports:
       - "${IDP_EXTERNAL_PORT:-8080}:8080"
@@ -89,8 +75,6 @@ services:
       idp_database:
         condition: service_healthy
     healthcheck:
-      # Keycloak's distroless image ships bash; probe the management health
-      # endpoint over a bash /dev/tcp socket (no curl in the image).
       test:
         - CMD-SHELL
         - >-
@@ -123,6 +107,9 @@ services:
       CWL_IDP_BOOTSTRAP: /bootstrap/bootstrap.yaml
     volumes:
       - ./deploy/bootstrap:/bootstrap:ro
+      # Audit events and the user-operation lock sidecar survive container
+      # replacement. The image runs as a non-root user that owns this path.
+      - account_unification_data:/var/lib/account-unification
     ports:
       - "${UNIFICATION_PORT:-8099}:8099"
     depends_on:
@@ -140,11 +127,10 @@ services:
 
 volumes:
   idp_database_data:
+  account_unification_data:
 
 networks:
-  # Internal: DB + engine + admin service. Never routed to the public edge.
   idp_internal_network:
     driver: bridge
-  # Edge: only the engine (OIDC) and admin API are reachable from the WAF.
   idp_edge_network:
     driver: bridge
