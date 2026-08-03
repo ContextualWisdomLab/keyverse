@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.audit import AuditLogger, InMemoryAuditSink  # noqa: E402
 from app.config import ServiceConfig  # noqa: E402
 from app.service import UnificationService  # noqa: E402
+from app.user_locks import InMemoryUserOperationLocks  # noqa: E402
 
 from .mock_keycloak import MockKeycloakAdminApi  # noqa: E402
 
@@ -43,7 +44,15 @@ def config() -> ServiceConfig:
 
 
 @pytest.fixture
+def user_operation_locks() -> InMemoryUserOperationLocks:
+    return InMemoryUserOperationLocks()
+
+
+@pytest.fixture
 def service(
-    api: MockKeycloakAdminApi, audit: AuditLogger, config: ServiceConfig
+    api: MockKeycloakAdminApi,
+    audit: AuditLogger,
+    config: ServiceConfig,
+    user_operation_locks: InMemoryUserOperationLocks,
 ) -> UnificationService:
-    return UnificationService(api, audit, config)
+    return UnificationService(api, audit, config, user_operation_locks)

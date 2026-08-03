@@ -31,6 +31,7 @@ only an unverified email, the merge is refused with `422 Unverified email`.
 ```
 merge(survivor S, duplicate D, actor A):
   reject if S == D                         -> 400 SameUser
+  acquire shared user-operation locks for S and D
   load S, D (must exist)                   -> 404 UserNotFound
   reject if S or D disabled                -> 409 InactiveAccount
   decision = decide_match(S, D, explicit)
@@ -55,6 +56,7 @@ merge(survivor S, duplicate D, actor A):
   disable D                                       # D can never authenticate again
   audit "duplicate_tombstoned"
   audit "merge_completed" {moved_*, conflicts}
+  release shared user-operation locks
   return MergeResult{..., audit_id}
 ```
 
@@ -71,6 +73,25 @@ The duplicate is **not deleted**. Its Keycloak user attribute
 `merged_into_user_id = <survivor>` is set and the user is disabled
 (`enabled: false`). This preserves forensic history and lets any stale reference
 resolve to the survivor.
+
+### SCIM/merge serialization invariant
+
+`PUT /scim/v2/Users/{id}` performs a full Keycloak user-representation write and
+can set `active: true`. Its tombstone check and replacement PUT therefore execute
+inside the **same user-operation lock** used by the complete merge transaction.
+A merge cannot create `merged_into_user_id` between those two Admin API calls,
+and SCIM cannot wipe a newly-created tombstone or reactivate the duplicate.
+
+Standalone deployments use a dedicated SQLite sidecar lock database and hold a
+`BEGIN IMMEDIATE` transaction for the complete critical section. This provides a
+crash-safe mutex shared by every worker/process using the same database path;
+process death closes the connection and releases the lock. The current backend
+serializes all user mutations conservatively rather than risking a multi-user
+deadlock. Lock acquisition waits up to 10 seconds, then returns retryable HTTP
+`503` without performing a partial mutation. A clustered Postgres deployment
+must provide the same `UserOperationLocks` contract (for example, ordered
+advisory locks) and wire one shared instance into both the merge service and SCIM
+router.
 
 ## Audit
 

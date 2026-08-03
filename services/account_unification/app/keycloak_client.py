@@ -108,6 +108,10 @@ class AdminApi(Protocol):
         """Set one single-valued user attribute."""
         ...
 
+    def get_user_attribute(self, user_id: str, key: str) -> str | None:
+        """Return one single-valued user attribute, or ``None`` if unset."""
+        ...
+
 
 class HttpAdminApi:
     """httpx-backed :class:`AdminApi` for a live Keycloak instance.
@@ -338,6 +342,18 @@ class HttpAdminApi:
         self._put(
             f"/admin/realms/{self._realm}/users/{user_id}", {"attributes": attributes}
         )
+
+    def get_user_attribute(self, user_id: str, key: str) -> str | None:
+        """Return one single-valued Keycloak user attribute, or ``None``.
+
+        Keycloak stores attributes as string lists; this returns the first
+        element (or a bare string, defensively), or ``None`` when unset.
+        """
+        data = self._get(f"/admin/realms/{self._realm}/users/{user_id}")
+        value = (data.get("attributes") or {}).get(key)
+        if isinstance(value, list):
+            return value[0] if value else None
+        return value if isinstance(value, str) else None
 
     # -- transport ---------------------------------------------------------
     def _get(self, path: str, params: dict | None = None) -> dict | list:

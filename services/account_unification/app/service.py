@@ -33,6 +33,7 @@ from .models import (
     MergeResult,
     UserAccount,
 )
+from .user_locks import UserOperationLocks
 
 # Keycloak user attribute stamped on a tombstoned duplicate (two-word snake_case).
 TOMBSTONE_ATTRIBUTE_KEY = "merged_into_user_id"
@@ -47,11 +48,13 @@ class UnificationService:
         api: AdminApi,
         audit: AuditLogger,
         config: ServiceConfig,
+        user_operation_locks: UserOperationLocks,
     ) -> None:
-        """Create a service around admin API, audit, and config dependencies."""
+        """Create a service around admin, audit, config, and lock dependencies."""
         self._api = api
         self._audit = audit
         self._config = config
+        self._user_operation_locks = user_operation_locks
 
     # -- (a) inspect identities -------------------------------------------
     def get_account(self, user_id: str) -> UserAccount:
@@ -71,6 +74,18 @@ class UnificationService:
         if request.survivor_user_id == request.duplicate_user_id:
             raise SameUserError("survivor and duplicate are the same account")
 
+        # The complete merge, including the final tombstone write, shares the
+        # same duplicate-user lock as SCIM replacement. This closes the TOCTOU
+        # window where SCIM could pass its tombstone check, then overwrite a
+        # concurrently-created tombstone with an active user representation.
+        with self._user_operation_locks.hold(
+            request.survivor_user_id,
+            request.duplicate_user_id,
+        ):
+            return self._merge_accounts_locked(request)
+
+    def _merge_accounts_locked(self, request: MergeRequest) -> MergeResult:
+        """Perform a merge while both participating user IDs are serialized."""
         survivor = self._load_user(request.survivor_user_id)
         duplicate = self._load_user(request.duplicate_user_id)
         survivor.federated_identities = self._api.list_federated_identities(
@@ -191,8 +206,10 @@ class UnificationService:
                     duplicate.user_id, link.identity_provider
                 )
                 self._audit.emit(
-                    audit_id=audit_id, event_type="federated_identity_conflict",
-                    actor=actor, survivor_user_id=survivor.user_id,
+                    audit_id=audit_id,
+                    event_type="federated_identity_conflict",
+                    actor=actor,
+                    survivor_user_id=survivor.user_id,
                     duplicate_user_id=duplicate.user_id,
                     payload={"identifier": identifier, "resolution": "survivor_wins"},
                 )
@@ -203,8 +220,11 @@ class UnificationService:
             )
             moved.append(identifier)
             self._audit.emit(
-                audit_id=audit_id, event_type="federated_identity_moved", actor=actor,
-                survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
+                audit_id=audit_id,
+                event_type="federated_identity_moved",
+                actor=actor,
+                survivor_user_id=survivor.user_id,
+                duplicate_user_id=duplicate.user_id,
                 payload={"identifier": identifier},
             )
         return moved
@@ -229,7 +249,9 @@ class UnificationService:
                 # survivor-wins: survivor already has it; drop the duplicate's.
                 self._api.remove_role_mapping(duplicate.user_id, role)
                 self._audit.emit(
-                    audit_id=audit_id, event_type="role_mapping_conflict", actor=actor,
+                    audit_id=audit_id,
+                    event_type="role_mapping_conflict",
+                    actor=actor,
                     survivor_user_id=survivor.user_id,
                     duplicate_user_id=duplicate.user_id,
                     payload={"identifier": identifier, "resolution": "survivor_wins"},
@@ -239,10 +261,16 @@ class UnificationService:
             self._api.remove_role_mapping(duplicate.user_id, role)
             moved.append(identifier)
             self._audit.emit(
-                audit_id=audit_id, event_type="role_mapping_moved", actor=actor,
-                survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
-                payload={"identifier": identifier, "role_name": role.role_name,
-                         "client_id": role.client_id},
+                audit_id=audit_id,
+                event_type="role_mapping_moved",
+                actor=actor,
+                survivor_user_id=survivor.user_id,
+                duplicate_user_id=duplicate.user_id,
+                payload={
+                    "identifier": identifier,
+                    "role_name": role.role_name,
+                    "client_id": role.client_id,
+                },
             )
         return moved
 
@@ -262,8 +290,10 @@ class UnificationService:
                 )
                 self._api.remove_group_membership(duplicate.user_id, group)
                 self._audit.emit(
-                    audit_id=audit_id, event_type="group_membership_conflict",
-                    actor=actor, survivor_user_id=survivor.user_id,
+                    audit_id=audit_id,
+                    event_type="group_membership_conflict",
+                    actor=actor,
+                    survivor_user_id=survivor.user_id,
                     duplicate_user_id=duplicate.user_id,
                     payload={"identifier": identifier, "resolution": "survivor_wins"},
                 )
@@ -272,8 +302,11 @@ class UnificationService:
             self._api.remove_group_membership(duplicate.user_id, group)
             moved.append(identifier)
             self._audit.emit(
-                audit_id=audit_id, event_type="group_membership_moved", actor=actor,
-                survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
+                audit_id=audit_id,
+                event_type="group_membership_moved",
+                actor=actor,
+                survivor_user_id=survivor.user_id,
+                duplicate_user_id=duplicate.user_id,
                 payload={"identifier": identifier},
             )
         return moved
@@ -287,8 +320,11 @@ class UnificationService:
         )
         self._api.deactivate_user(duplicate.user_id)
         self._audit.emit(
-            audit_id=audit_id, event_type="duplicate_tombstoned", actor=actor,
-            survivor_user_id=survivor.user_id, duplicate_user_id=duplicate.user_id,
+            audit_id=audit_id,
+            event_type="duplicate_tombstoned",
+            actor=actor,
+            survivor_user_id=survivor.user_id,
+            duplicate_user_id=duplicate.user_id,
             payload={"attribute_key": TOMBSTONE_ATTRIBUTE_KEY},
         )
 
