@@ -22,12 +22,16 @@ from .keycloak_client import (
     _parse_user,
     _to_keycloak_user,
 )
-from .models import UserAccount
+from .models import (
+    FederatedIdentity,
+    GroupMembership,
+    RoleMapping,
+    UserAccount,
+)
 
-# ``None`` marks exactly one validated, caller-controlled path segment. Keeping
-# the complete route grammar here makes path handling fail closed: a value that
-# injects an extra slash can no longer turn one intended Admin REST operation
-# into a different valid endpoint.
+# ``None`` marks exactly one validated, caller-controlled path segment. The
+# whitelist is a second line of defense after every public method validates its
+# dynamic values before interpolation.
 _ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
     ("users",),
     ("users", None),
@@ -121,6 +125,116 @@ class ProductHttpAdminApi(HttpAdminApi):
             transport=transport,
         )
 
+    @staticmethod
+    def _safe_segment(value: str, field_name: str) -> str:
+        """Return one validated opaque Admin REST path segment."""
+        return validate_path_segment(value, field_name=field_name)
+
+    # -- hardened core API -------------------------------------------------
+    def get_user(self, user_id: str) -> UserAccount:
+        """Return one user after validating its opaque id."""
+        return super().get_user(self._safe_segment(user_id, "user_id"))
+
+    def replace_user(self, user_id: str, user: UserAccount) -> None:
+        """Replace one user after validating its opaque id."""
+        super().replace_user(self._safe_segment(user_id, "user_id"), user)
+
+    def list_federated_identities(
+        self, user_id: str
+    ) -> list[FederatedIdentity]:
+        """List external identities after validating the user id."""
+        return super().list_federated_identities(
+            self._safe_segment(user_id, "user_id")
+        )
+
+    def add_federated_identity(
+        self, user_id: str, identity: FederatedIdentity
+    ) -> None:
+        """Attach an external identity using validated path segments."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
+        self._safe_segment(
+            identity.identity_provider,
+            "identity_provider",
+        )
+        super().add_federated_identity(safe_user_id, identity)
+
+    def remove_federated_identity(
+        self, user_id: str, identity_provider: str
+    ) -> None:
+        """Remove an external identity using validated path segments."""
+        super().remove_federated_identity(
+            self._safe_segment(user_id, "user_id"),
+            self._safe_segment(identity_provider, "identity_provider"),
+        )
+
+    def list_role_mappings(self, user_id: str) -> list[RoleMapping]:
+        """List role mappings after validating the user id."""
+        return super().list_role_mappings(
+            self._safe_segment(user_id, "user_id")
+        )
+
+    def add_role_mapping(self, user_id: str, role: RoleMapping) -> None:
+        """Add a role mapping using validated path segments."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
+        if role.client_id is not None:
+            self._safe_segment(role.client_id, "client_id")
+        super().add_role_mapping(safe_user_id, role)
+
+    def remove_role_mapping(self, user_id: str, role: RoleMapping) -> None:
+        """Remove a role mapping using validated path segments."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
+        if role.client_id is not None:
+            self._safe_segment(role.client_id, "client_id")
+        super().remove_role_mapping(safe_user_id, role)
+
+    def list_group_memberships(
+        self, user_id: str
+    ) -> list[GroupMembership]:
+        """List group memberships after validating the user id."""
+        return super().list_group_memberships(
+            self._safe_segment(user_id, "user_id")
+        )
+
+    def add_group_membership(
+        self, user_id: str, group: GroupMembership
+    ) -> None:
+        """Add a group membership using validated path segments."""
+        self._safe_segment(group.group_id, "group_id")
+        super().add_group_membership(
+            self._safe_segment(user_id, "user_id"),
+            group,
+        )
+
+    def remove_group_membership(
+        self, user_id: str, group: GroupMembership
+    ) -> None:
+        """Remove a group membership using validated path segments."""
+        self._safe_segment(group.group_id, "group_id")
+        super().remove_group_membership(
+            self._safe_segment(user_id, "user_id"),
+            group,
+        )
+
+    def deactivate_user(self, user_id: str) -> None:
+        """Disable one user after validating its opaque id."""
+        super().deactivate_user(self._safe_segment(user_id, "user_id"))
+
+    def set_user_attribute(self, user_id: str, key: str, value: str) -> None:
+        """Set a user attribute after validating the user id."""
+        super().set_user_attribute(
+            self._safe_segment(user_id, "user_id"),
+            key,
+            value,
+        )
+
+    def get_user_attribute(self, user_id: str, key: str) -> str | None:
+        """Read a user attribute after validating the user id."""
+        return super().get_user_attribute(
+            self._safe_segment(user_id, "user_id"),
+            key,
+        )
+
+    # -- guarded transport -------------------------------------------------
     @staticmethod
     def _validate_admin_suffix(path_segments: tuple[str, ...]) -> None:
         """Require one known Admin REST suffix and validate dynamic segments."""
@@ -228,6 +342,7 @@ class ProductHttpAdminApi(HttpAdminApi):
 
         self._send_with_reauth(send_delete)
 
+    # -- product extensions ------------------------------------------------
     def create_user(self, user: UserAccount) -> str:
         """Create a user, refreshing an expired token before retrying once."""
         path = self._guard_path(f"/admin/realms/{self._realm}/users")
@@ -263,8 +378,9 @@ class ProductHttpAdminApi(HttpAdminApi):
 
     def reset_user_password(self, user_id: str, password_value: str) -> None:
         """Set one non-temporary password credential."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
         self._put(
-            f"/admin/realms/{self._realm}/users/{user_id}/reset-password",
+            f"/admin/realms/{self._realm}/users/{safe_user_id}/reset-password",
             {"type": "password", "value": password_value, "temporary": False},
         )
 
@@ -272,34 +388,44 @@ class ProductHttpAdminApi(HttpAdminApi):
         self, user_id: str, action_aliases: list[str]
     ) -> None:
         """Replace one user's pending required actions."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
         self._put(
-            f"/admin/realms/{self._realm}/users/{user_id}",
+            f"/admin/realms/{self._realm}/users/{safe_user_id}",
             {"requiredActions": list(action_aliases)},
         )
 
     def list_user_credentials(self, user_id: str) -> list[dict]:
         """Return stored credential representations for one user."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
         data = self._get(
-            f"/admin/realms/{self._realm}/users/{user_id}/credentials"
+            f"/admin/realms/{self._realm}/users/{safe_user_id}/credentials"
         )
         return [item for item in data if isinstance(item, dict)]
 
     def delete_user_credential(self, user_id: str, credential_id: str) -> None:
         """Delete one stored credential from one user."""
+        safe_user_id = self._safe_segment(user_id, "user_id")
+        safe_credential_id = self._safe_segment(
+            credential_id,
+            "credential_id",
+        )
         self._delete(
-            f"/admin/realms/{self._realm}/users/{user_id}/credentials/{credential_id}"
+            f"/admin/realms/{self._realm}/users/{safe_user_id}/credentials/"
+            f"{safe_credential_id}"
         )
 
     def delete_user(self, user_id: str) -> None:
         """Delete one user during failed registration rollback."""
-        self._delete(f"/admin/realms/{self._realm}/users/{user_id}")
+        safe_user_id = self._safe_segment(user_id, "user_id")
+        self._delete(f"/admin/realms/{self._realm}/users/{safe_user_id}")
 
     def get_identity_provider(self, provider_alias: str) -> dict | None:
         """Return an identity provider or ``None`` for a Keycloak 404."""
+        safe_alias = self._safe_segment(provider_alias, "provider_alias")
         try:
             data = self._get(
                 f"/admin/realms/{self._realm}/identity-provider/instances/"
-                f"{provider_alias}"
+                f"{safe_alias}"
             )
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 404:
@@ -309,6 +435,10 @@ class ProductHttpAdminApi(HttpAdminApi):
 
     def create_identity_provider(self, provider_payload: dict) -> None:
         """Create one Keycloak identity-provider instance."""
+        self._safe_segment(
+            provider_payload.get("alias"),
+            "provider_alias",
+        )
         self._post(
             f"/admin/realms/{self._realm}/identity-provider/instances",
             provider_payload,
@@ -318,15 +448,17 @@ class ProductHttpAdminApi(HttpAdminApi):
         self, provider_alias: str, provider_payload: dict
     ) -> None:
         """Replace one Keycloak identity-provider instance."""
+        safe_alias = self._safe_segment(provider_alias, "provider_alias")
         self._put(
             f"/admin/realms/{self._realm}/identity-provider/instances/"
-            f"{provider_alias}",
+            f"{safe_alias}",
             provider_payload,
         )
 
     def delete_identity_provider(self, provider_alias: str) -> None:
         """Delete one Keycloak identity-provider instance."""
+        safe_alias = self._safe_segment(provider_alias, "provider_alias")
         self._delete(
             f"/admin/realms/{self._realm}/identity-provider/instances/"
-            f"{provider_alias}"
+            f"{safe_alias}"
         )
