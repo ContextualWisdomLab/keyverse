@@ -116,8 +116,8 @@ def validate(realm: dict) -> list[str]:
     )
     if not passkey_enrollment_is_available:
         errors.append(
-            "webauthn-register-passwordless must remain enabled for action-email "
-            "enrollment"
+            "passkey enrollment required action must remain enabled for "
+            "action-email enrollment"
         )
     if realm.get("verifyEmail", False) and not realm.get("smtpServer"):
         errors.append(
