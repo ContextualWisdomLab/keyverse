@@ -1,6 +1,7 @@
 """Merge operations are fully audit-logged (in-memory and SQLite sinks)."""
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 
 from app.audit import AuditLogger, AuditSink, InMemoryAuditSink, SqliteAuditSink
@@ -82,3 +83,23 @@ def test_sqlite_audit_sink_persists(tmp_path):
         with closing(SqliteAuditSink(str(db))) as reopened:
             events = reopened.events_for(result.audit_id)
             assert any(e.event_type == "merge_completed" for e in events)
+
+
+def test_sqlite_audit_sink_supports_fastapi_worker_threads(tmp_path):
+    """A sink created during startup remains usable from request workers."""
+    db = tmp_path / "threaded-audit.db"
+    with closing(SqliteAuditSink(str(db))) as sink:
+        audit = AuditLogger(sink)
+        audit_id = audit.new_correlation_id()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            executor.submit(
+                audit.emit,
+                audit_id=audit_id,
+                event_type="threaded_test_event",
+                actor="admin@cwl",
+                payload={"result": "ok"},
+            ).result(timeout=5)
+            events = executor.submit(sink.events_for, audit_id).result(timeout=5)
+
+        assert [event.event_type for event in events] == ["threaded_test_event"]
