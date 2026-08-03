@@ -20,6 +20,7 @@ from .config import load_service_config
 from .keycloak_client import HttpAdminApi
 from .scim import scim_router
 from .service import UnificationService
+from .user_locks import SqliteUserOperationLocks
 
 
 def build_service(app: FastAPI) -> None:
@@ -39,10 +40,22 @@ def build_service(app: FastAPI) -> None:
     # a Postgres-backed sink writing account_merge_audit.
     audit_path = descriptor.sqlite_path or "account_unification.db"
     audit = AuditLogger(SqliteAuditSink(audit_path))
+    # Use a dedicated sidecar database so the serialization transaction never
+    # blocks config reads/writes or audit persistence. Every service worker that
+    # shares this path also shares the same crash-safe SQLite mutex.
+    user_operation_locks = SqliteUserOperationLocks(
+        f"{audit_path}.user-operation-locks.sqlite3"
+    )
 
-    app.state.unification_service = UnificationService(api, audit, config)
+    app.state.unification_service = UnificationService(
+        api,
+        audit,
+        config,
+        user_operation_locks,
+    )
     app.state.audit_logger = audit
     app.state.keycloak_api = api
+    app.state.user_operation_locks = user_operation_locks
     app.state.ready = True
 
 
