@@ -2,15 +2,15 @@
 
 External identity providers are deployment configuration, never committed realm
 code. Desired state is stored in the KV/DB backend and converged into Keycloak.
-Secrets remain in the store and Keycloak payloads but are redacted from every
-HTTP response and status object.
+Stored and applied secrets never enter HTTP responses: only explicitly approved,
+non-secret provider fields are disclosed to operators.
 """
 from __future__ import annotations
 
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .kv_store import KvStore
 from .product_keycloak_client import ProductAdminApi
@@ -22,20 +22,41 @@ _MAX_PROVIDER_CONFIG_ENTRIES = 64
 _MAX_PROVIDER_CONFIG_KEY_LENGTH = 128
 _MAX_PROVIDER_CONFIG_VALUE_LENGTH = 16_384
 _REDACTED_VALUE = "<redacted>"
-_SENSITIVE_CONFIG_KEY_FRAGMENTS = (
-    "secret",
-    "password",
-    "privatekey",
-    "signingkey",
-    "clientassertion",
-    "apikey",
-    "accesskey",
-    "credential",
+_ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
+_ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
+# Unknown fields are redacted. This allowlist contains only values that are
+# useful for operator diagnosis and are not credential material.
+_EXPOSED_PROVIDER_CONFIG_KEYS = frozenset(
+    {
+        "alias",
+        "authorizationUrl",
+        "backchannelSupported",
+        "defaultScope",
+        "entityId",
+        "guiOrder",
+        "hideOnLoginPage",
+        "issuer",
+        "logoutUrl",
+        "metadataDescriptorUrl",
+        "principalAttribute",
+        "principalType",
+        "signatureAlgorithm",
+        "singleLogoutServiceUrl",
+        "singleSignOnServiceUrl",
+        "syncMode",
+        "tokenUrl",
+        "useJwksUrl",
+        "useMetadataDescriptorUrl",
+        "userInfoUrl",
+        "validateSignature",
+    }
 )
 
 
 class IdentityProviderRegistration(BaseModel):
     """Desired state for one external identity provider."""
+
+    model_config = ConfigDict(extra="forbid")
 
     provider_alias: str = Field(description="Keycloak IdP alias (URL-safe slug).")
     display_name: str = Field(min_length=1, max_length=120)
@@ -88,67 +109,73 @@ class IdentityProviderStatus(BaseModel):
 
 
 class FederationService:
-    """Persist desired IdP state and converge Keycloak under one process lock."""
+    """Persist desired IdP state and reconcile Keycloak without lock-held I/O."""
 
     def __init__(self, store: KvStore, api: ProductAdminApi) -> None:
         """Create a federation service around one store and Keycloak client."""
         self._store = store
         self._api = api
-        self._lock = threading.RLock()
+        self._state_lock = threading.RLock()
+        self._convergence_lock = threading.RLock()
 
     def list_registrations(self) -> list[IdentityProviderStatus]:
-        """Return all stored registrations with redacted configuration."""
-        with self._lock:
-            statuses = [
-                self._status_for(self._parse_registration(raw_value))
-                for raw_value in self._store.get_all(
-                    FEDERATION_PROVIDER_NAMESPACE
-                ).values()
-            ]
+        """Return all stored registrations with live convergence status."""
+        with self._state_lock:
+            raw_values = list(
+                self._store.get_all(FEDERATION_PROVIDER_NAMESPACE).values()
+            )
+        registrations = [
+            self._parse_registration(raw_value) for raw_value in raw_values
+        ]
+        statuses = [
+            self._status_for(registration) for registration in registrations
+        ]
         return sorted(statuses, key=lambda item: item.registration.provider_alias)
 
     def get_registration(self, provider_alias: str) -> IdentityProviderStatus:
         """Return one stored registration or raise HTTP 404."""
         _validate_provider_alias(provider_alias)
-        with self._lock:
+        with self._state_lock:
             raw_value = self._store.get(
                 FEDERATION_PROVIDER_NAMESPACE, provider_alias
             )
-            if raw_value is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="identity provider not registered",
-                )
-            return self._status_for(self._parse_registration(raw_value))
+        if raw_value is None:
+            raise HTTPException(
+                status_code=404,
+                detail="identity provider not registered",
+            )
+        return self._status_for(self._parse_registration(raw_value))
 
     def put_registration(
         self,
         provider_alias: str,
         registration: IdentityProviderRegistration,
     ) -> IdentityProviderStatus:
-        """Validate, persist, and converge one provider registration."""
+        """Validate, persist, and attempt to converge one provider."""
         if registration.provider_alias != provider_alias:
             raise HTTPException(
                 status_code=400,
                 detail="path alias and body provider_alias must match",
             )
         _validate_registration(registration)
-        with self._lock:
-            self._store.put(
-                FEDERATION_PROVIDER_NAMESPACE,
-                provider_alias,
-                registration.model_dump_json(),
-            )
-            self._apply(registration)
-            return self._status_for(registration)
+        with self._convergence_lock:
+            with self._state_lock:
+                self._store.put(
+                    FEDERATION_PROVIDER_NAMESPACE,
+                    provider_alias,
+                    registration.model_dump_json(),
+                )
+            applied = self._try_apply(registration)
+        return self._status_for(registration, applied=applied)
 
     def delete_registration(self, provider_alias: str) -> None:
         """Remove one provider from Keycloak and the desired-state store."""
         _validate_provider_alias(provider_alias)
-        with self._lock:
-            raw_value = self._store.get(
-                FEDERATION_PROVIDER_NAMESPACE, provider_alias
-            )
+        with self._convergence_lock:
+            with self._state_lock:
+                raw_value = self._store.get(
+                    FEDERATION_PROVIDER_NAMESPACE, provider_alias
+                )
             if raw_value is None:
                 raise HTTPException(
                     status_code=404,
@@ -156,21 +183,29 @@ class FederationService:
                 )
             if self._api.get_identity_provider(provider_alias) is not None:
                 self._api.delete_identity_provider(provider_alias)
-            self._store.delete(FEDERATION_PROVIDER_NAMESPACE, provider_alias)
+            with self._state_lock:
+                self._store.delete(
+                    FEDERATION_PROVIDER_NAMESPACE, provider_alias
+                )
 
     def apply_all(self) -> list[IdentityProviderStatus]:
-        """Re-converge Keycloak from all stored desired state."""
-        with self._lock:
-            registrations = [
-                self._parse_registration(raw_value)
-                for raw_value in self._store.get_all(
-                    FEDERATION_PROVIDER_NAMESPACE
-                ).values()
-            ]
-            statuses: list[IdentityProviderStatus] = []
+        """Re-converge Keycloak from a snapshot of stored desired state."""
+        with self._state_lock:
+            raw_values = list(
+                self._store.get_all(FEDERATION_PROVIDER_NAMESPACE).values()
+            )
+        registrations = [
+            self._parse_registration(raw_value) for raw_value in raw_values
+        ]
+        statuses: list[IdentityProviderStatus] = []
+        with self._convergence_lock:
             for registration in registrations:
-                self._apply(registration)
-                statuses.append(self._status_for(registration))
+                statuses.append(
+                    self._status_for(
+                        registration,
+                        applied=self._try_apply(registration),
+                    )
+                )
         return sorted(statuses, key=lambda item: item.registration.provider_alias)
 
     def _parse_registration(self, raw_value: str) -> IdentityProviderRegistration:
@@ -182,9 +217,7 @@ class FederationService:
     def _apply(self, registration: IdentityProviderRegistration) -> None:
         """Create or replace one Keycloak identity-provider instance."""
         payload = _to_keycloak_payload(registration)
-        existing = self._api.get_identity_provider(
-            registration.provider_alias
-        )
+        existing = self._api.get_identity_provider(registration.provider_alias)
         if existing is None:
             self._api.create_identity_provider(payload)
         else:
@@ -192,14 +225,26 @@ class FederationService:
                 registration.provider_alias, payload
             )
 
+    def _try_apply(self, registration: IdentityProviderRegistration) -> bool:
+        """Attempt convergence and report failure without losing desired state."""
+        try:
+            self._apply(registration)
+        except Exception:
+            return False
+        return True
+
     def _status_for(
-        self, registration: IdentityProviderRegistration
+        self,
+        registration: IdentityProviderRegistration,
+        *,
+        applied: bool | None = None,
     ) -> IdentityProviderStatus:
         """Build a redacted status from desired and applied state."""
-        applied = (
-            self._api.get_identity_provider(registration.provider_alias)
-            is not None
-        )
+        if applied is None:
+            applied = (
+                self._api.get_identity_provider(registration.provider_alias)
+                is not None
+            )
         return IdentityProviderStatus(
             registration=IdentityProviderView.from_registration(registration),
             applied_to_keycloak=applied,
@@ -207,22 +252,18 @@ class FederationService:
 
 
 def _validate_provider_alias(provider_alias: str) -> None:
-    """Validate a lowercase alphanumeric-and-hyphen provider alias."""
+    """Validate one ASCII lowercase alphanumeric-and-hyphen provider alias."""
     valid = (
-        1 <= len(provider_alias) <= _MAX_PROVIDER_ALIAS_LENGTH
-        and provider_alias[0].isalnum()
-        and provider_alias[-1].isalnum()
-        and all(
-            character.islower()
-            or character.isdigit()
-            or character == "-"
-            for character in provider_alias
-        )
+        isinstance(provider_alias, str)
+        and 1 <= len(provider_alias) <= _MAX_PROVIDER_ALIAS_LENGTH
+        and provider_alias[0] in _ALIAS_EDGE_ALPHABET
+        and provider_alias[-1] in _ALIAS_EDGE_ALPHABET
+        and all(character in _ALIAS_ALPHABET for character in provider_alias)
     )
     if not valid:
         raise HTTPException(
             status_code=400,
-            detail="provider_alias must be a lowercase URL-safe slug",
+            detail="provider_alias must be an ASCII lowercase URL-safe slug",
         )
 
 
@@ -253,33 +294,15 @@ def _validate_registration(
             )
 
 
-def _normalized_config_key(config_key: str) -> str:
-    """Normalize one config key for deterministic sensitivity checks."""
-    return "".join(
-        character
-        for character in config_key.lower()
-        if character.isalnum()
-    )
-
-
-def _is_sensitive_config_key(config_key: str) -> bool:
-    """Return whether a provider config key conventionally carries a secret."""
-    normalized = _normalized_config_key(config_key)
-    return any(
-        fragment in normalized
-        for fragment in _SENSITIVE_CONFIG_KEY_FRAGMENTS
-    )
-
-
 def _redacted_provider_config(
     provider_config: dict[str, str],
 ) -> dict[str, str]:
-    """Return a copy with credential-bearing values replaced."""
+    """Expose only explicitly safe provider configuration values."""
     return {
         config_key: (
-            _REDACTED_VALUE
-            if _is_sensitive_config_key(config_key)
-            else config_value
+            config_value
+            if config_key in _EXPOSED_PROVIDER_CONFIG_KEYS
+            else _REDACTED_VALUE
         )
         for config_key, config_value in provider_config.items()
     }
