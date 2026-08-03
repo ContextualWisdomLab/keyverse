@@ -95,15 +95,11 @@ class SqliteUserOperationLocks:
 
     def _connect(self) -> sqlite3.Connection:
         """Open one autocommit connection configured with the lock timeout."""
-        connection = sqlite3.connect(
+        return sqlite3.connect(
             self._database_path,
             timeout=self._timeout_seconds,
             isolation_level=None,
         )
-        connection.execute(
-            f"PRAGMA busy_timeout = {int(self._timeout_seconds * 1000)}"
-        )
-        return connection
 
     def _initialize(self) -> None:
         """Create the sidecar schema before requests begin competing for it."""
