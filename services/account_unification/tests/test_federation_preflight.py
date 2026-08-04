@@ -26,6 +26,7 @@ def _adfs_body() -> dict:
         "trust_email": True,
         "provider_config": {
             "entityId": "https://idp.example/realms/cwl",
+            "idpEntityId": "http://sts.example/adfs/services/trust",
             "singleSignOnServiceUrl": "https://sts.example/adfs/ls/",
             "metadataDescriptorUrl": (
                 "https://sts.example/FederationMetadata/2007-06/"
@@ -47,18 +48,31 @@ def _build_app(store, api, operator_token: str):
     return app
 
 
+def _post_preflight(body: dict, store, api, auth_header, operator_token):
+    """Post one preflight body through the authenticated HTTP boundary."""
+    app = _build_app(store, api, operator_token)
+    with TestClient(app, headers=auth_header) as client:
+        return client.post(
+            "/federation/identity-providers:validate",
+            json=body,
+        )
+
+
+def _assert_no_side_effects(store, api) -> None:
+    """Assert that preflight did not persist or call the Keycloak mock."""
+    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
+    assert api.calls == []
+
+
 def test_preflight_validates_without_side_effects_and_redacts(
     api, auth_header, operator_token
 ) -> None:
     """A valid preflight is redacted and never touches storage or Keycloak."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=_adfs_body(),
-        )
+    response = _post_preflight(
+        _adfs_body(), store, api, auth_header, operator_token
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -66,11 +80,11 @@ def test_preflight_validates_without_side_effects_and_redacts(
     config = payload["registration"]["provider_config"]
     assert config["clientSecret"] == "<redacted>"
     assert config["unclassifiedValue"] == "<redacted>"
+    assert config["idpEntityId"] == "http://sts.example/adfs/services/trust"
     assert config["singleSignOnServiceUrl"] == "https://sts.example/adfs/ls/"
     assert "federation-secret" not in response.text
     assert "must-not-leak" not in response.text
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
 def test_preflight_rejects_unresolved_templates_without_side_effects(
@@ -78,54 +92,47 @@ def test_preflight_rejects_unresolved_templates_without_side_effects(
 ) -> None:
     """Unrendered deployment templates fail before storage or network calls."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"]["metadataDescriptorUrl"] = (
         "{{employer_adfs_metadata_url}}"
     )
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
         "provider_config contains unresolved template placeholders"
     )
     assert "employer_adfs_metadata_url" not in response.text
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
-@pytest.mark.parametrize("removed_key", ["entityId", "singleSignOnServiceUrl"])
-def test_saml_preflight_requires_core_urls(
+@pytest.mark.parametrize(
+    "removed_key",
+    ["entityId", "idpEntityId", "singleSignOnServiceUrl"],
+)
+def test_saml_preflight_requires_core_identifiers_and_endpoint(
     removed_key: str, api, auth_header, operator_token
 ) -> None:
-    """SAML preflight requires both the SP entity and SSO service URLs."""
+    """SAML preflight requires both entity identifiers and the SSO endpoint."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"].pop(removed_key)
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 400
     assert removed_key in response.json()["detail"]
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
 @pytest.mark.parametrize(
     ("field_name", "unsafe_value"),
     [
         ("entityId", "relative-realm-id"),
+        ("idpEntityId", "https://operator:secret@sts.example/adfs/trust"),
         ("singleSignOnServiceUrl", "ftp://sts.example/adfs/ls/"),
+        ("singleSignOnServiceUrl", " https://sts.example/adfs/ls/"),
         (
             "metadataDescriptorUrl",
             "https://operator:secret@sts.example/FederationMetadata.xml",
@@ -138,32 +145,60 @@ def test_saml_preflight_requires_core_urls(
             "metadataDescriptorUrl",
             "https://sts.example/FederationMetadata.xml\nInjected: value",
         ),
+        ("metadataDescriptorUrl", "https://[broken"),
     ],
 )
-def test_saml_preflight_rejects_unsafe_urls(
+def test_saml_preflight_rejects_unsafe_uris_and_urls(
     field_name: str,
     unsafe_value: str,
     api,
     auth_header,
     operator_token,
 ) -> None:
-    """SAML URL fields reject non-HTTP, credentialed, fragmented, or control input."""
+    """SAML identifiers and URLs reject ambiguous or unsafe material."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"][field_name] = unsafe_value
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 400
     assert field_name in response.json()["detail"]
     assert unsafe_value not in response.text
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
+
+
+def test_saml_preflight_rejects_oversized_entity_identifier(
+    api, auth_header, operator_token
+) -> None:
+    """SAML entity identifiers retain the standard 1,024-character ceiling."""
+    store = InMemoryKvStore()
+    body = _adfs_body()
+    body["provider_config"]["entityId"] = "urn:keyverse:" + ("a" * 1_013)
+
+    response = _post_preflight(body, store, api, auth_header, operator_token)
+
+    assert response.status_code == 400
+    assert "entityId" in response.json()["detail"]
+    _assert_no_side_effects(store, api)
+
+
+def test_saml_preflight_accepts_urn_entity_identifiers(
+    api, auth_header, operator_token
+) -> None:
+    """SAML entity identifiers remain interoperable with absolute URN forms."""
+    store = InMemoryKvStore()
+    body = _adfs_body()
+    body["provider_config"]["entityId"] = "urn:keyverse:service-provider:cwl"
+    body["provider_config"]["idpEntityId"] = "urn:partner:identity-provider"
+
+    response = _post_preflight(body, store, api, auth_header, operator_token)
+
+    assert response.status_code == 200
+    config = response.json()["registration"]["provider_config"]
+    assert config["entityId"] == "urn:keyverse:service-provider:cwl"
+    assert config["idpEntityId"] == "urn:partner:identity-provider"
+    _assert_no_side_effects(store, api)
 
 
 @pytest.mark.parametrize(
@@ -183,21 +218,34 @@ def test_saml_preflight_rejects_insecure_or_malformed_booleans(
 ) -> None:
     """SAML security booleans accept only true/false and require validation."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"][field_name] = field_value
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 400
     assert field_name in response.json()["detail"]
     assert field_value not in response.text
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
+
+
+@pytest.mark.parametrize(
+    "removed_key",
+    ["validateSignature", "useMetadataDescriptorUrl"],
+)
+def test_saml_preflight_requires_explicit_security_mode(
+    removed_key: str, api, auth_header, operator_token
+) -> None:
+    """SAML signature validation and certificate-source mode are explicit."""
+    store = InMemoryKvStore()
+    body = _adfs_body()
+    body["provider_config"].pop(removed_key)
+
+    response = _post_preflight(body, store, api, auth_header, operator_token)
+
+    assert response.status_code == 400
+    assert removed_key in response.json()["detail"]
+    _assert_no_side_effects(store, api)
 
 
 def test_saml_preflight_requires_metadata_url_when_enabled(
@@ -205,20 +253,14 @@ def test_saml_preflight_requires_metadata_url_when_enabled(
 ) -> None:
     """Metadata-backed SAML validation requires a usable descriptor URL."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"].pop("metadataDescriptorUrl")
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 400
     assert "metadataDescriptorUrl" in response.json()["detail"]
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
 def test_saml_preflight_requires_manual_certificate_when_metadata_is_disabled(
@@ -226,21 +268,15 @@ def test_saml_preflight_requires_manual_certificate_when_metadata_is_disabled(
 ) -> None:
     """Manual SAML trust requires an explicit signing certificate."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"]["useMetadataDescriptorUrl"] = "false"
     body["provider_config"].pop("metadataDescriptorUrl")
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 400
     assert "signingCertificate" in response.json()["detail"]
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
 def test_saml_preflight_accepts_manual_signing_certificate(
@@ -248,24 +284,18 @@ def test_saml_preflight_accepts_manual_signing_certificate(
 ) -> None:
     """A manual certificate is accepted when metadata retrieval is disabled."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = _adfs_body()
     body["provider_config"]["useMetadataDescriptorUrl"] = "false"
     body["provider_config"].pop("metadataDescriptorUrl")
     body["provider_config"]["signingCertificate"] = "MIIC-test-certificate"
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 200
     config = response.json()["registration"]["provider_config"]
     assert config["signingCertificate"] == "<redacted>"
     assert "MIIC-test-certificate" not in response.text
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
 def test_put_rejects_invalid_saml_before_persisting_or_calling_keycloak(
@@ -282,8 +312,7 @@ def test_put_rejects_invalid_saml_before_persisting_or_calling_keycloak(
         federation.put_registration("employer-adfs", registration)
 
     assert error.value.status_code == 400
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
 
 
 def test_non_saml_preflight_remains_provider_neutral(
@@ -291,7 +320,6 @@ def test_non_saml_preflight_remains_provider_neutral(
 ) -> None:
     """OIDC registrations retain generic validation in this focused slice."""
     store = InMemoryKvStore()
-    app = _build_app(store, api, operator_token)
     body = deepcopy(_adfs_body())
     body.update(
         {
@@ -307,11 +335,7 @@ def test_non_saml_preflight_remains_provider_neutral(
         }
     )
 
-    with TestClient(app, headers=auth_header) as client:
-        response = client.post(
-            "/federation/identity-providers:validate",
-            json=body,
-        )
+    response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 200
     assert response.json()["registration"]["provider_alias"] == "partner-oidc"
@@ -321,5 +345,4 @@ def test_non_saml_preflight_remains_provider_neutral(
     assert response.json()["registration"]["provider_config"]["clientSecret"] == (
         "<redacted>"
     )
-    assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-    assert api.calls == []
+    _assert_no_side_effects(store, api)
