@@ -36,6 +36,16 @@ _ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
 _HTTP_SCHEMES = frozenset({"http", "https"})
 _HTTPS_SCHEME = "https"
+_OIDC_CLIENT_AUTH_METHODS = frozenset(
+    {"client_secret_basic", "client_secret_post"}
+)
+_OIDC_PKCE_METHOD = "S256"
+_OIDC_FORBIDDEN_DISCOVERY_KEYS = ("fromUrl", "discoveryEndpoint")
+_OAUTH_SCOPE_SET = re.compile(
+    r"^[\x21\x23-\x5B\x5D-\x7E]+"
+    r"(?: [\x21\x23-\x5B\x5D-\x7E]+)*$"
+)
+_RAW_CONTROL = re.compile(r"[\x00-\x1F\x7F]")
 _PERCENT_ENCODED_CONTROL = re.compile(
     r"%(?:0[0-9A-Fa-f]|1[0-9A-Fa-f]|7[Ff])"
 )
@@ -48,14 +58,19 @@ _EXPOSED_PROVIDER_CONFIG_KEYS = frozenset(
         "alias",
         "authorizationUrl",
         "backchannelSupported",
+        "clientAuthMethod",
+        "clientId",
         "defaultScope",
         "entityId",
         "guiOrder",
         "hideOnLoginPage",
         "idpEntityId",
         "issuer",
+        "jwksUrl",
         "logoutUrl",
         "metadataDescriptorUrl",
+        "pkceEnabled",
+        "pkceMethod",
         "principalAttribute",
         "principalType",
         "signatureAlgorithm",
@@ -352,6 +367,8 @@ def _validate_registration(
             )
     if registration.provider_id == "saml":
         _validate_saml_registration(registration.provider_config)
+    else:
+        _validate_oidc_registration(registration.provider_config)
 
 
 def _provider_config_error(
@@ -420,8 +437,8 @@ def _validate_absolute_uri(
 
 def _validate_https_url(
     provider_config: dict[str, str], field_name: str
-) -> None:
-    """Validate one HTTPS network location without dereferencing it."""
+) -> SplitResult:
+    """Validate and return one HTTPS location without dereferencing it."""
     parsed = _validate_absolute_uri(
         provider_config,
         field_name,
@@ -436,6 +453,100 @@ def _validate_https_url(
             field_name,
             "must be an absolute HTTPS URL without a fragment",
         )
+    return parsed
+
+
+def _validate_required_provider_text(
+    provider_config: dict[str, str],
+    field_name: str,
+    *,
+    maximum_length: int = _MAX_PROVIDER_CONFIG_VALUE_LENGTH,
+) -> str:
+    """Return one bounded non-empty value without ambiguous controls."""
+    raw_value = provider_config.get(field_name)
+    invalid = (
+        raw_value is None
+        or not raw_value
+        or len(raw_value) > maximum_length
+        or raw_value != raw_value.strip()
+        or _RAW_CONTROL.search(raw_value) is not None
+    )
+    if invalid:
+        _provider_config_error(
+            field_name,
+            "must be a bounded non-empty control-free value",
+        )
+    return cast(str, raw_value)
+
+
+def _validate_oidc_issuer(provider_config: dict[str, str]) -> None:
+    """Require one pinned HTTPS issuer without query or fragment."""
+    parsed = _validate_https_url(provider_config, "issuer")
+    if parsed.query or parsed.fragment:
+        _provider_config_error(
+            "issuer",
+            "must be an HTTPS URL without a query or fragment",
+        )
+
+
+def _validate_oidc_scopes(provider_config: dict[str, str]) -> None:
+    """Require an RFC 6749 scope set containing one openid token."""
+    raw_scope = _validate_required_provider_text(
+        provider_config, "defaultScope"
+    )
+    tokens = raw_scope.split(" ")
+    valid = (
+        _OAUTH_SCOPE_SET.fullmatch(raw_scope) is not None
+        and len(tokens) == len(set(tokens))
+        and tokens.count("openid") == 1
+    )
+    if not valid:
+        _provider_config_error(
+            "defaultScope",
+            "must be unique RFC 6749 scope tokens including openid",
+        )
+
+
+def _validate_oidc_registration(provider_config: dict[str, str]) -> None:
+    """Enforce pinned endpoints, token validation, PKCE, and scopes."""
+    for discovery_key in _OIDC_FORBIDDEN_DISCOVERY_KEYS:
+        if discovery_key in provider_config:
+            _provider_config_error(
+                discovery_key,
+                "is not supported; render explicit pinned endpoints",
+            )
+    _validate_oidc_issuer(provider_config)
+    for endpoint_field in ("authorizationUrl", "tokenUrl", "jwksUrl"):
+        _validate_https_url(provider_config, endpoint_field)
+    for optional_endpoint in ("userInfoUrl", "logoutUrl"):
+        if optional_endpoint in provider_config:
+            _validate_https_url(provider_config, optional_endpoint)
+    _validate_required_provider_text(provider_config, "clientId")
+    _validate_required_provider_text(provider_config, "clientSecret")
+    client_auth_method = _validate_required_provider_text(
+        provider_config, "clientAuthMethod"
+    )
+    if client_auth_method not in _OIDC_CLIENT_AUTH_METHODS:
+        _provider_config_error(
+            "clientAuthMethod",
+            "must be client_secret_basic or client_secret_post",
+        )
+    for security_flag in (
+        "validateSignature",
+        "useJwksUrl",
+        "pkceEnabled",
+    ):
+        if not _validate_provider_boolean(provider_config, security_flag):
+            _provider_config_error(
+                security_flag,
+                "must be true for OIDC identity providers",
+            )
+    pkce_method = _validate_required_provider_text(
+        provider_config, "pkceMethod"
+    )
+    if pkce_method != _OIDC_PKCE_METHOD:
+        _provider_config_error("pkceMethod", "must be S256")
+    _validate_oidc_scopes(provider_config)
 
 
 def _validate_signing_certificates(

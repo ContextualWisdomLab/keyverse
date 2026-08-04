@@ -397,10 +397,10 @@ def test_put_rejects_invalid_saml_before_persisting_or_calling_keycloak(
     _assert_no_side_effects(store, api)
 
 
-def test_non_saml_preflight_remains_provider_neutral(
+def test_oidc_preflight_does_not_fall_back_to_generic_validation(
     api, auth_header, operator_token
 ) -> None:
-    """OIDC registrations retain generic validation in this focused slice."""
+    """Incomplete OIDC desired state fails instead of using generic validation."""
     store = InMemoryKvStore()
     body = deepcopy(_adfs_body())
     body.update(
@@ -419,12 +419,7 @@ def test_non_saml_preflight_remains_provider_neutral(
 
     response = _post_preflight(body, store, api, auth_header, operator_token)
 
-    assert response.status_code == 200
-    assert response.json()["registration"]["provider_alias"] == "partner-oidc"
-    assert response.json()["registration"]["provider_config"]["issuer"] == (
-        "https://login.partner.example"
-    )
-    assert response.json()["registration"]["provider_config"]["clientSecret"] == (
-        "<redacted>"
-    )
+    assert response.status_code == 400
+    assert "authorizationUrl" in response.json()["detail"]
+    assert "oidc-secret" not in response.text
     _assert_no_side_effects(store, api)

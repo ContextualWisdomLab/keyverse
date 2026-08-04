@@ -7,6 +7,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Fail-closed OIDC and Keycloak-OIDC federation preflight with pinned HTTPS
+  endpoints, JWKS signature validation, PKCE `S256`, confidential-client
+  authentication, and RFC 6749 scope validation before desired-state writes.
+- A deployment-ready external OIDC provider template for standalone, CWL,
+  and Naruon integrations with `trust_email=false` by default.
 - Side-effect-free federation preflight validation with redacted operator
   results, explicit SAML issuer pinning, mandatory signature validation, and
   metadata-backed or cryptographically parsed manual X.509 certificate trust.
@@ -48,6 +53,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Prevented external OIDC broker configuration from persisting cleartext or
+  unpinned endpoints, disabled token-signature/JWKS checks, missing PKCE,
+  unsupported client authentication, remote discovery imports, or OAuth-only
+  scope sets that omit `openid`.
 - Upgraded `cryptography` to 50.0.0 to remediate CVE-2026-69247 while
   retaining the supported DER X.509 certificate parsing API.
 - Converted the employer ADFS template from an incompatible raw Keycloak

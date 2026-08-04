@@ -27,9 +27,20 @@ def _oidc_registration(**updates) -> IdentityProviderRegistration:
         "enabled": True,
         "trust_email": False,
         "provider_config": {
-            "issuer": "https://login.partner.example",
+            "issuer": "https://login.partner.example/tenant",
+            "authorizationUrl": (
+                "https://login.partner.example/tenant/oauth2/authorize"
+            ),
+            "tokenUrl": "https://login.partner.example/tenant/oauth2/token",
+            "jwksUrl": "https://login.partner.example/tenant/oidc/jwks",
             "clientId": "keyverse",
             "clientSecret": "secret",
+            "clientAuthMethod": "client_secret_basic",
+            "validateSignature": "true",
+            "useJwksUrl": "true",
+            "pkceEnabled": "true",
+            "pkceMethod": "S256",
+            "defaultScope": "openid profile email",
         },
     }
     values.update(updates)
