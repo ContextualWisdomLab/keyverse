@@ -1,0 +1,161 @@
+name: Bootstrap HTTPS federation review remediation
+
+on:
+  push:
+    branches:
+      - feat/federation-preflight-validation
+    paths:
+      - scripts/ci/bootstrap_https_review_remediation.py
+      - .github/workflows/bootstrap-https-review-remediation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-https-federation-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  remediate:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/feat/federation-preflight-validation'
+      && github.actor == 'seonghobae'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/federation-preflight-validation
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Set up package runner
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        with:
+          prune-cache: true
+
+      - name: Apply exact reviewed remediation
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' \
+            'ad8a2ee676ffe05c0685e850c00b8d92d15dd5a42b83df78dd9713e4085e29ba' \
+            'scripts/ci/bootstrap_https_review_remediation.py' \
+            | sha256sum --check -
+          python -m py_compile scripts/ci/bootstrap_https_review_remediation.py
+          python scripts/ci/bootstrap_https_review_remediation.py
+          git diff --check
+
+      - name: Verify focused federation regressions
+        working-directory: services/account_unification
+        run: |
+          set -euo pipefail
+          uv sync --locked --extra dev
+          uv run pytest -q \
+            tests/test_federation.py \
+            tests/test_federation_preflight.py \
+            tests/test_federation_url_hardening.py \
+            tests/test_full_coverage_core.py
+
+      - name: Verify complete service and quality gates
+        working-directory: services/account_unification
+        run: |
+          set -euo pipefail
+          uv run python - <<'PY'
+          import cryptography
+          from cryptography import x509
+
+          assert cryptography.__version__ == "50.0.0"
+          assert callable(x509.load_der_x509_certificate)
+          PY
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run python -m compileall -q app tests tools
+          uv run coverage erase
+          uv run coverage run --branch --source=app -m pytest -q
+          uv run coverage report --show-missing --fail-under=100
+          uv build --out-dir dist
+
+      - name: Verify documentation shell examples
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          output_directory = Path("${{ runner.temp }}") / "keyverse-doc-shell"
+          output_directory.mkdir(parents=True, exist_ok=True)
+          for document_path in (
+              Path("deploy/templates/README.md"),
+              Path("docs/federation-onboarding.md"),
+          ):
+              inside = False
+              block_lines: list[str] = []
+              block_number = 0
+              for line in document_path.read_text(encoding="utf-8").splitlines():
+                  if line.strip() == "```bash":
+                      inside = True
+                      block_lines = []
+                      continue
+                  if inside and line.strip() == "```":
+                      block_number += 1
+                      output_path = output_directory / (
+                          f"{document_path.stem}-{block_number}.sh"
+                      )
+                      output_path.write_text(
+                          "\n".join(block_lines) + "\n", encoding="utf-8"
+                      )
+                      inside = False
+                      continue
+                  if inside:
+                      block_lines.append(line)
+              if inside:
+                  raise SystemExit(f"unterminated bash block in {document_path}")
+          PY
+          find "${{ runner.temp }}/keyverse-doc-shell" \
+            -type f -name '*.sh' -print0 \
+            | xargs -0 -n1 bash -n
+
+      - name: Verify deployment contracts
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        run: |
+          set -euo pipefail
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          python -m json.tool deploy/templates/saml-idp-employer-adfs.json >/dev/null
+          git diff --check
+
+      - name: Remove one-shot remediation material
+        run: |
+          set -euo pipefail
+          rm .github/workflows/bootstrap-https-review-remediation.yml
+          rm scripts/ci/bootstrap_https_review_remediation.py
+          git diff --check
+
+      - name: Commit exact verified review remediation
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo '::error::HTTPS review remediation produced no change.'
+            exit 1
+          fi
+          git commit -m 'fix(federation): require HTTPS SAML network endpoints'
+          git push origin HEAD:feat/federation-preflight-validation
