@@ -57,3 +57,18 @@ jobs:
             coverage run --branch --source=app -m pytest -q
           uv run --with coverage==7.14.3 \
             coverage report --show-missing --skip-covered --fail-under=100
+
+      - name: Package exact measured worktree
+        if: always()
+        run: |
+          set -euo pipefail
+          tar --exclude=.git -czf "$RUNNER_TEMP/keyverse-worktree.tar.gz" .
+
+      - name: Upload exact measured worktree
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
+        with:
+          name: keyverse-worktree-${{ github.sha }}
+          path: ${{ runner.temp }}/keyverse-worktree.tar.gz
+          if-no-files-found: error
+          retention-days: 1
