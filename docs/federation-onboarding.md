@@ -8,9 +8,13 @@ through one stable API.
 ## Trust boundary
 
 The operator API is privileged. Store its bearer token in the platform secret
-manager and expose it only to the deployment controller. The preflight endpoint
-accepts the same closed request schema as `PUT`, but deliberately performs no
-storage write, Keycloak call, DNS lookup, or metadata download.
+manager and expose it only to the deployment controller. At the WAF edge,
+expose only the Keyverse admin and SCIM APIs plus explicitly permitted Keycloak
+OIDC endpoints. Keep the account-unification/federation service network and the
+Keycloak Admin REST API private and unreachable from the public internet. The
+preflight endpoint accepts the same closed request schema as `PUT`, but
+deliberately performs no storage write, Keycloak call, DNS lookup, or metadata
+download.
 
 For SAML providers, Keyverse requires:
 
@@ -44,48 +48,46 @@ PREFLIGHT_RESPONSE="$(mktemp)"
 AUTH_CONFIG=""
 cleanup() {
   rm -f "$PAYLOAD" "$PREFLIGHT_RESPONSE"
-  if [ -n "${AUTH_CONFIG:-}" ]; then
+  if [ -n "$AUTH_CONFIG" ]; then
     rm -f "$AUTH_CONFIG"
   fi
 }
 trap cleanup EXIT
 chmod 0600 "$PAYLOAD" "$PREFLIGHT_RESPONSE"
 
-XTRACE_WAS_ON=0
+xtrace_was_on=0
 case $- in
-  *x*)
-    XTRACE_WAS_ON=1
-    set +x
-    ;;
+  *x*) xtrace_was_on=1; set +x ;;
 esac
 TOKEN="$(kv get secret/keyverse/operator-api-token)"
 AUTH_CONFIG="$(mktemp)"
 chmod 0600 "$AUTH_CONFIG"
 printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" >"$AUTH_CONFIG"
 unset TOKEN
-if [ "$XTRACE_WAS_ON" -eq 1 ]; then
+if [ "$xtrace_was_on" -eq 1 ]; then
   set -x
 fi
 
 render deploy/templates/saml-idp-employer-adfs.json >"$PAYLOAD"
 
-PREFLIGHT_STATUS="$(
+preflight_code="$(
   curl --config "$AUTH_CONFIG" \
+    --max-redirs 0 \
     --silent \
     --show-error \
-    --max-redirs 0 \
     --output "$PREFLIGHT_RESPONSE" \
     --write-out '%{http_code}' \
     --header "Content-Type: application/json" \
     --data-binary @"$PAYLOAD" \
     "$BASE/federation/identity-providers:validate"
 )"
-if [ "$PREFLIGHT_STATUS" != "200" ]; then
-  printf 'preflight returned HTTP %s\n' "$PREFLIGHT_STATUS" >&2
+
+if [ "$preflight_code" != "200" ]; then
   cat "$PREFLIGHT_RESPONSE" >&2
   exit 1
 fi
-if ! python3 - "$PREFLIGHT_RESPONSE" <<'PY'
+
+python3 - "$PREFLIGHT_RESPONSE" <<'PY'
 import json
 import sys
 
@@ -93,16 +95,12 @@ with open(sys.argv[1], encoding="utf-8") as response_file:
     response = json.load(response_file)
 raise SystemExit(0 if response.get("ready_to_apply") is True else 1)
 PY
-then
-  echo 'preflight response did not confirm ready_to_apply=true' >&2
-  exit 1
-fi
 
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
+  --max-redirs 0 \
   --silent \
   --show-error \
-  --max-redirs 0 \
   --request PUT \
   --header "Content-Type: application/json" \
   --data-binary @"$PAYLOAD" \
@@ -115,55 +113,48 @@ visible without losing the intended configuration.
 
 ## Convergence and recovery
 
-The recovery block is independently executable. It recreates its private bearer
-configuration, lists redacted desired state and live convergence status, then
-reapplies every stored provider after a Keycloak restart, realm rebuild, or
-temporary outage:
+The recovery block below is independently executable in a new shell. It creates
+and removes its own private bearer configuration before listing and applying
+stored provider desired state:
 
 ```bash
 set -euo pipefail
 BASE="https://keyverse-admin.example"
 AUTH_CONFIG=""
 cleanup() {
-  if [ -n "${AUTH_CONFIG:-}" ]; then
+  if [ -n "$AUTH_CONFIG" ]; then
     rm -f "$AUTH_CONFIG"
   fi
 }
 trap cleanup EXIT
 
-XTRACE_WAS_ON=0
+xtrace_was_on=0
 case $- in
-  *x*)
-    XTRACE_WAS_ON=1
-    set +x
-    ;;
+  *x*) xtrace_was_on=1; set +x ;;
 esac
 TOKEN="$(kv get secret/keyverse/operator-api-token)"
 AUTH_CONFIG="$(mktemp)"
 chmod 0600 "$AUTH_CONFIG"
 printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" >"$AUTH_CONFIG"
 unset TOKEN
-if [ "$XTRACE_WAS_ON" -eq 1 ]; then
+if [ "$xtrace_was_on" -eq 1 ]; then
   set -x
 fi
 
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
+  --max-redirs 0 \
   --silent \
   --show-error \
-  --max-redirs 0 \
   "$BASE/federation/identity-providers"
 
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
+  --max-redirs 0 \
   --silent \
   --show-error \
-  --max-redirs 0 \
   --request POST \
   "$BASE/federation/identity-providers:apply"
-
-cleanup
-trap - EXIT
 ```
 
 Delete removes the provider from Keycloak first and then removes desired state.
@@ -180,17 +171,14 @@ templates.
 
 When metadata refresh is enabled, pin the identity-provider entity identifier
 and restrict network egress to the approved metadata host. When metadata refresh
-is disabled, `signingCertificate` must contain one or more comma-separated
-Base64 DER X.509 certificate bodies without PEM headers or footers.
-
-For a manual certificate rollover, render both the previous and next certificate
-as active trust material in the same `PUT` payload, for example
-`"signingCertificate": "<previous-base64-der>,<next-base64-der>"`. Run the
-complete render → preflight → `PUT` sequence before the upstream IdP switches
-keys. Keep both certificates in that field throughout the overlap window. After
-the upstream rollover period ends, render only the next certificate and repeat
-preflight and `PUT` to remove the previous certificate. Storing the previous
-certificate elsewhere does not preserve active signature trust.
+is disabled, each `signingCertificate` entry must be a Base64 DER X.509
+certificate body without PEM headers or footers. For a manual rollover, set
+`signingCertificate` in the `PUT` payload to
+`previous_certificate_body,next_certificate_body` so both certificates remain
+active trusted certificates throughout the upstream rollover window. After the
+upstream no longer signs with the previous key, render, preflight, and `PUT` the
+payload again with only `next_certificate_body`; storing the previous
+certificate separately does not preserve active trust.
 
 ## Standards basis
 
