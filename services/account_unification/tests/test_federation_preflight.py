@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.federation import (
@@ -268,18 +269,19 @@ def test_saml_preflight_accepts_manual_signing_certificate(
 
 
 def test_put_rejects_invalid_saml_before_persisting_or_calling_keycloak(
-    store, api
+    api,
 ) -> None:
     """The existing PUT boundary shares preflight validation before mutation."""
+    store = InMemoryKvStore()
     federation = FederationService(store, api)
     body = _adfs_body()
     body["provider_config"]["validateSignature"] = "false"
     registration = IdentityProviderRegistration.model_validate(body)
 
-    with pytest.raises(Exception) as error:
+    with pytest.raises(HTTPException) as error:
         federation.put_registration("employer-adfs", registration)
 
-    assert getattr(error.value, "status_code", None) == 400
+    assert error.value.status_code == 400
     assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
     assert api.calls == []
 
