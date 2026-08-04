@@ -5,11 +5,11 @@
 Keyverse stores external identity-provider desired state and converges it into
 Keycloak, but the current operator workflow accepts only generic size and alias
 checks. A rendered ADFS/SAML payload can therefore contain unresolved template
-markers, missing SSO endpoints, relative URLs, disabled signature validation, or
-no trusted certificate source. `PUT` persists that invalid desired state before
-Keycloak reports convergence failure, and the committed ADFS template still
-uses the raw Keycloak Admin REST shape instead of the Keyverse desired-state
-API shape.
+markers, missing issuer identifiers or SSO endpoints, disabled signature
+validation, or no trusted certificate source. `PUT` persists that invalid
+desired state before Keycloak reports convergence failure, and the committed
+ADFS template still uses the raw Keycloak Admin REST shape instead of the
+Keyverse desired-state API shape.
 
 For an enterprise identity control plane, configuration errors must fail before
 persistence and before a network call. Operators also need a safe dry-run
@@ -28,10 +28,13 @@ In scope:
 - redacted success responses with an explicit `ready_to_apply` signal;
 - no desired-state mutation and no Keycloak Admin REST call during preflight;
 - unresolved `{{...}}` marker rejection for all provider configuration values;
-- SAML validation for service-provider entity ID, SSO URL, signature validation,
-  and a certificate source;
+- SAML validation for service-provider and identity-provider entity identifiers,
+  SSO URL, signature validation, and a certificate source;
 - either a metadata descriptor URL or manually supplied signing certificate;
-- absolute HTTP(S) URLs without userinfo, fragments, or control characters;
+- SAML entity identifiers as bounded absolute URIs, preserving standards-valid
+  `urn:` identifiers as well as HTTPS identifiers;
+- network-reachable SSO and metadata locations as absolute HTTP(S) URLs without
+  userinfo, fragments, surrounding whitespace, or control characters;
 - conversion of the employer ADFS template to the Keyverse runtime API shape;
 - operator documentation, root README correction, and changelog update.
 
@@ -61,6 +64,7 @@ The request body is `IdentityProviderRegistration`:
   "trust_email": true,
   "provider_config": {
     "entityId": "https://idp.example/realms/cwl",
+    "idpEntityId": "http://sts.example/adfs/services/trust",
     "singleSignOnServiceUrl": "https://sts.example/adfs/ls/",
     "validateSignature": "true",
     "useMetadataDescriptorUrl": "true",
@@ -108,17 +112,22 @@ and value-length bounds. Any provider configuration value containing `{{` or
 
 For `provider_id == "saml"`:
 
-1. `entityId` is required and must be an absolute HTTP(S) URL.
-2. `singleSignOnServiceUrl` is required and must be an absolute HTTP(S) URL.
-3. `validateSignature` must be the exact boolean string `true` after trimming
-   and ASCII case normalization.
-4. `useMetadataDescriptorUrl`, when present, must be `true` or `false`.
-5. When metadata use is enabled, `metadataDescriptorUrl` is required and must
+1. `entityId` is required and must be a non-empty absolute URI of at most 1,024
+   characters. HTTP(S) and `urn:` forms are accepted.
+2. `idpEntityId` is required and must be a non-empty absolute URI of at most
+   1,024 characters. Requiring it prevents Keycloak's documented fallback in
+   which issuer validation is skipped when the field is empty.
+3. `singleSignOnServiceUrl` is required and must be an absolute HTTP(S) URL.
+4. `validateSignature` is required and must be the exact boolean string `true`
+   after trimming and ASCII case normalization.
+5. `useMetadataDescriptorUrl` is required and must be `true` or `false`.
+6. When metadata use is enabled, `metadataDescriptorUrl` is required and must
    be an absolute HTTP(S) URL.
-6. When metadata use is disabled, a non-empty `signingCertificate` is required.
+7. When metadata use is disabled, a non-empty `signingCertificate` is required.
 
-URL validation rejects credentials in authority components, URI fragments, and
-ASCII control characters. Query strings remain allowed because some enterprise
+URI validation rejects surrounding whitespace, ASCII control characters, and
+credentials in hierarchical authority components. Network URL validation also
+rejects URI fragments. Query strings remain allowed because some enterprise
 metadata services use bounded query parameters.
 
 ## Architecture and Data Flow
@@ -148,8 +157,10 @@ before the desired-state write.
 - Secret-bearing configuration is accepted for validation but never returned.
 - Error text names only configuration fields and policy requirements, never
   supplied values.
+- The external IdP issuer is pinned explicitly.
 - SAML signature validation cannot be disabled through the supported runtime
   contract.
+- A certificate source is mandatory whether metadata refresh is enabled or not.
 
 ## Testing
 
@@ -159,9 +170,10 @@ The test-first sequence proves:
 - a valid ADFS registration returns a redacted 200 response;
 - preflight leaves both the KV store and Keycloak mock untouched;
 - unresolved placeholders fail closed without side effects;
-- every SAML required-field and URL branch fails with HTTP 400;
+- every SAML required-field, URI, URL, trust-mode, and boolean branch fails with
+  HTTP 400 when invalid;
+- standards-valid `urn:` entity identifiers remain accepted;
 - manual signing certificates are accepted when metadata retrieval is disabled;
-- malformed boolean strings are rejected;
 - the existing `PUT`, list, get, apply, outage, lock, and redaction regressions
   remain green;
 - production docstring and statement/branch coverage remain 100%.
@@ -176,3 +188,11 @@ and RP-client templates.
 
 This is an unreleased feature. It updates `CHANGELOG.md` but does not bump the
 package or Helm version until the broader 0.2.0 release criteria are satisfied.
+
+## Authoritative References
+
+- OASIS Security Services Technical Committee. (2019). *SAML V2.0 Metadata
+  Interoperability Profile Version 1.0*.
+  https://docs.oasis-open.org/security/saml/Post2.0/sstc-metadata-iop-os.html
+- Keycloak. (2026). *Server Administration Guide: SAML v2.0 identity providers*.
+  https://www.keycloak.org/docs/latest/server_admin/#saml-v2-0-identity-providers
