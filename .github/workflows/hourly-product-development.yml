@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pull-requests: read
   checks: read
@@ -21,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: read
       contents: read
       pull-requests: read
       checks: read
@@ -29,12 +31,12 @@ jobs:
       BASE_BRANCH: main
       CORE_WORKFLOWS: '["ci","CodeQL","Security Scan","SAST Semgrep"]'
       CURRENT_RUN_ID: ${{ github.run_id }}
-      AGENT_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
     steps:
       - name: Determine whether product development may start
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
+          AGENT_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -369,7 +371,12 @@ jobs:
           task_id = task.get("id") if isinstance(task, dict) else None
           task_url = task.get("html_url") if isinstance(task, dict) else None
           task_state = task.get("state") if isinstance(task, dict) else None
-          if not task_id or task_state not in {"queued", "in_progress", "idle"}:
+          if not task_id or task_state not in {
+              "queued",
+              "in_progress",
+              "idle",
+              "waiting_for_user",
+          }:
               raise SystemExit("Agent Tasks API returned an unsupported creation response")
           print(f"Created one Keyverse product task {task_id}: {task_url or 'URL unavailable'}")
           PY
