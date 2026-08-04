@@ -8,7 +8,9 @@ non-secret provider fields are disclosed to operators.
 from __future__ import annotations
 
 import logging
+import re
 import threading
+from typing import NoReturn, cast
 from urllib.parse import SplitResult, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -29,6 +31,9 @@ _REDACTED_VALUE = "<redacted>"
 _ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
 _HTTP_SCHEMES = frozenset({"http", "https"})
+_PERCENT_ENCODED_CONTROL = re.compile(
+    r"%(?:0[0-9A-Fa-f]|1[0-9A-Fa-f]|7[Ff])"
+)
 _SAML_ENTITY_ID_MAX_LENGTH = 1_024
 _UNRESOLVED_TEMPLATE_MARKERS = ("{{", "}}")
 # Unknown fields are redacted. This allowlist contains only values that are
@@ -344,7 +349,9 @@ def _validate_registration(
         _validate_saml_registration(registration.provider_config)
 
 
-def _provider_config_error(field_name: str, requirement: str) -> None:
+def _provider_config_error(
+    field_name: str, requirement: str
+) -> NoReturn:
     """Raise one bounded non-secret provider configuration error."""
     raise HTTPException(
         status_code=400,
@@ -377,7 +384,12 @@ def _validate_absolute_uri(
         not value
         or len(value) > maximum_length
         or value != value.strip()
-        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or any(
+            character.isspace() or ord(character) == 127
+            for character in value
+        )
+        or "\\" in value
+        or _PERCENT_ENCODED_CONTROL.search(value) is not None
     )
     try:
         parsed = urlsplit(value)
@@ -395,7 +407,7 @@ def _validate_absolute_uri(
     )
     if invalid_text or invalid_uri:
         _provider_config_error(field_name, "must be a bounded absolute URI")
-    return parsed
+    return cast(SplitResult, parsed)
 
 
 def _validate_http_url(
