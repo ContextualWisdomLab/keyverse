@@ -51,10 +51,8 @@ jobs:
       - name: Apply exact reviewed remediation
         run: |
           set -euo pipefail
-          printf '%s  %s\n' \
-            'ad8a2ee676ffe05c0685e850c00b8d92d15dd5a42b83df78dd9713e4085e29ba' \
-            'scripts/ci/bootstrap_https_review_remediation.py' \
-            | sha256sum --check -
+          test "$(git hash-object scripts/ci/bootstrap_https_review_remediation.py)" = \
+            '0bffa6099fb0b67e21e6efa073228c2005eda16a'
           python -m py_compile scripts/ci/bootstrap_https_review_remediation.py
           python scripts/ci/bootstrap_https_review_remediation.py
           git diff --check
