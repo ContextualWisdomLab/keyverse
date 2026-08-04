@@ -76,12 +76,10 @@ def test_product_development_fails_closed_without_exclusive_queue_ownership() ->
 
 
 def test_product_development_requires_a_healthy_default_branch() -> None:
-    """New work starts only after exact-main core workflows and checks are green."""
+    """New work starts only after exact-main push workflows and checks are green."""
     workflow = _workflow_source()
 
-    assert "CORE_WORKFLOWS" in workflow
-    for workflow_name in ("ci", "CodeQL", "Security Scan", "SAST Semgrep"):
-        assert workflow_name in workflow
+    assert 'CORE_WORKFLOWS: \'["ci","CodeQL"]\'' in workflow
     assert 'commits/${BASE_BRANCH}' in workflow
     assert 'actions/runs?branch=${BASE_BRANCH}&head_sha=${base_sha}' in workflow
     assert 'commits/${base_sha}/check-runs?per_page=100' in workflow
