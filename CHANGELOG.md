@@ -7,6 +7,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Side-effect-free federation preflight validation with redacted operator
+  results, explicit SAML issuer pinning, mandatory signature validation, and
+  metadata-backed or cryptographically parsed manual X.509 certificate trust.
+- An operational external-federation onboarding and recovery guide for
+  standalone, CWL platform, and Naruon-integrated deployments.
 - Password-free headless registration that sends one bounded Keycloak action
   email for address verification and passkey enrollment, with failure-atomic
   account rollback.
@@ -43,6 +48,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Upgraded `cryptography` to 50.0.0 to remediate CVE-2026-69247 while
+  retaining the supported DER X.509 certificate parsing API.
+- Converted the employer ADFS template from an incompatible raw Keycloak
+  representation to the closed Keyverse desired-state API contract.
+- Corrected root and template documentation that still claimed employer
+  federation was embedded in the portable realm.
 - Prevented registration races from surfacing raw Keycloak duplicate-user
   errors by mapping exact HTTP 409 responses to a stable product conflict.
 - Prevented unusable registration orphans by deleting accounts when Keycloak
@@ -53,6 +64,12 @@ Keep a Changelog, and releases use semantic versioning.
   values from being echoed through list, get, or update responses.
 - Rejected Unicode-confusable federation aliases outside the explicit ASCII
   slug alphabet.
+- Rejected raw C0 controls, DEL, invalid ports, insecure HTTP SSO or metadata
+  endpoints, malformed Base64, non-X.509 DER, PEM-wrapped manual certificates,
+  and empty rollover certificate entries before federation desired state can
+  be persisted.
+- Hardened federation operator examples against shell xtrace leakage, HTTP
+  redirects, ambiguous preflight responses, and non-standalone recovery steps.
 - Raised non-success health responses correctly in the restricted stdlib HTTP
   opener.
 - Replaced a potentially expensive registration email regular expression with

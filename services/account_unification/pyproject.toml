@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = [
+    "cryptography==50.0.0",
     "fastapi==0.140.13",
     "pydantic==2.13.4",
     "httpx==0.28.1",
@@ -19,6 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "coverage==7.14.3",
     "httpx2>=2.5.0",
     "interrogate==1.7.0",
     "pytest==9.1.1",

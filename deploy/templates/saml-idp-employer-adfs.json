@@ -1,40 +1,13 @@
 {
-  "$comment": [
-    "SAML IdP registration template — EMPLOYER ADFS (sts.hssmartdev.com).",
-    "Registers the employer's proprietary ADFS as an INBOUND federation source",
-    "on cwl-idp. cwl-idp is the SP; ADFS is the external IdP. Feed this body to",
-    "the Keycloak Admin REST API:",
-    "  POST /admin/realms/{realm}/identity-provider/instances",
-    "with an Authorization: Bearer <admin token> header.",
-    "The employer ADFS is a COMPATIBILITY TARGET, never the hub.",
-    "",
-    "trustEmail=true makes the ADFS-asserted email an eligible link anchor so",
-    "the first-broker-login flow AUTO-LINKS by verified email and JIT-provisions.",
-    "Placeholders {{like_this}} are resolved by tooling from the KV config store",
-    "at apply time — do not hardcode metadata URLs or secrets here."
-  ],
-
-  "alias": "employer-adfs",
-  "displayName": "Employer ADFS (hssmartdev)",
-  "providerId": "saml",
+  "provider_alias": "employer-adfs",
+  "display_name": "Employer ADFS",
+  "provider_id": "saml",
   "enabled": true,
-  "trustEmail": true,
-  "storeToken": false,
-  "linkOnly": false,
-  "firstBrokerLoginFlowAlias": "first broker login",
-
-  "$mapping_notes": [
-    "ADFS emits WS-* / SAML claim URIs. nameID is EmailAddress format (stable",
-    "subject); the email claim drives AUTO-LINK-BY-VERIFIED-EMAIL on first login.",
-    "Attribute-to-user mappers (email, upn, given/family name) are created as",
-    "separate identity-provider/{alias}/mappers POSTs after this instance exists."
-  ],
-
-  "config": {
-    "entityId": "https://idp.example/realms/cwl",
-    "idpEntityId": "http://sts.hssmartdev.com/adfs/services/trust",
+  "trust_email": true,
+  "provider_config": {
+    "entityId": "{{keyverse_saml_entity_id}}",
+    "idpEntityId": "{{employer_adfs_entity_id}}",
     "metadataDescriptorUrl": "{{employer_adfs_metadata_url}}",
-    "$metadata_example": "https://sts.hssmartdev.com/FederationMetadata/2007-06/FederationMetadata.xml",
     "useMetadataDescriptorUrl": "true",
     "singleSignOnServiceUrl": "{{employer_adfs_sso_url}}",
     "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",

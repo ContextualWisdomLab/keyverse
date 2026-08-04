@@ -1,29 +1,30 @@
 # cwl-idp — ecosystem central IdP
 
-The **ContextualWisdom ecosystem's central Identity Provider**, a new standalone
+The **ContextualWisdom ecosystem's central Identity Provider**, a standalone
 component built on [**Keycloak**](https://www.keycloak.org) (Apache-2.0). It:
 
 - issues **OIDC / OAuth 2.1** to ecosystem relying parties (`naruon`,
   `pg-erd-cloud`, `semantic-data-portal`, `clearfolio`, `contextual-orchestrator`,
-  `newsdom-api` via the WAF edge);
+  and `newsdom-api` through the WAF edge);
 - is **passwordless-first**: FIDO2 / passkeys are the default and the **password
   authenticator is removed** from the login flow for ecosystem-local accounts;
 - runs a **SCIM v2 server shim** for inbound provisioning into Keycloak;
-- **federates external IdPs in** — the employer **ADFS** (`sts.hssmartdev.com`)
-  via SAML/WS-Fed, corporate **LDAP/AD**, and optional personal OIDC — with JIT
-  provisioning and auto-link-by-**verified**-email; and
+- **federates external IdPs in** — employer ADFS via SAML, corporate LDAP/AD,
+  and optional personal OIDC — with JIT provisioning and auto-link-by-
+  **verified**-email; and
 - adds an **account-unification** admin service to link one human's many external
   identities and to **merge** two pre-existing accounts into one.
 
-> The employer ADFS is an **external, proprietary** IdP and a **compatibility
-> target — not the hub**. cwl-idp is the hub.
+> Employer ADFS is an **external, proprietary** compatibility target — not the
+> hub. cwl-idp is the hub, and employer-specific federation remains deployment
+> data rather than portable realm code.
 
 RP client registrations and secrets live in the **IdP DB / KV**, never in an RP's
 environment.
 
 ## Architecture
 
-```
+```text
 external IdPs  ──►  cwl-idp (Keycloak)  ──►  OIDC to ecosystem RPs
   ADFS (SAML)       passwordless OIDC/OAuth
   LDAP/AD           FIDO2 passkeys
@@ -38,14 +39,14 @@ Full diagram and trust directions: [`docs/topology.md`](docs/topology.md).
 | Path | What |
 | --- | --- |
 | `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
-| `deploy/keycloak/` | Keycloak config-as-code: realm export (passwordless flow, OIDC RP template, ADFS SAML IdP, LDAP source, service-account client) + kcadm bootstrap |
-| `deploy/templates/` | Admin-API templates for registering more RPs/IdPs: ADFS (SAML), LDAP source, OIDC RP client |
+| `deploy/keycloak/` | Portable Keycloak realm config-as-code, passwordless flows, shared scopes, concrete Naruon RP, and service-account bootstrap |
+| `deploy/templates/` | Deployment templates split between the Keyverse desired-state API and explicit Keycloak Admin REST contracts |
 | `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
 | `deploy/scripts/healthz.sh` | Cross-component readiness probe |
 | `scripts/validate_realm.py` | Realm config-as-code validator (CI gate) |
-| `services/account_unification/` | FastAPI admin service (link + merge + SCIM shim) with unit tests |
+| `services/account_unification/` | FastAPI admin service (link + merge + SCIM + federation desired state) with unit tests |
 | `helm/cwl-idp/` | Helm chart (templated Keycloak + Postgres + admin service) |
-| `docs/` | Topology, passwordless policy, merge flow, RP onboarding, papers |
+| `docs/` | Topology, passwordless policy, federation, merge flow, RP onboarding, and papers |
 
 ## Quick start (standalone)
 
@@ -67,13 +68,15 @@ The stack imports the **passwordless-first** realm at first start
 WebAuthn passwordless authenticator and **no password authenticator**, plus
 `registrationAllowed:false` / `resetPasswordAllowed:false`.
 
-### Register the employer ADFS + LDAP
+### Register external federation
 
-The realm ships the employer ADFS SAML IdP and the LDAP/AD source as-code; run
-`deploy/keycloak/kcadm-bootstrap.sh` to patch their secrets/URLs from KV. To
-register additional RPs/IdPs against a running realm, apply the templates in
-`deploy/templates/`. See [`deploy/keycloak/README.md`](deploy/keycloak/README.md)
-and [`deploy/templates/README.md`](deploy/templates/README.md).
+The portable realm contains no employer ADFS, LDAP/AD source, or other
+customer-specific federation. Render deployment values from KV, validate SAML
+desired state through the side-effect-free preflight endpoint, and converge it
+through `/federation/identity-providers`. See
+[`docs/federation-onboarding.md`](docs/federation-onboarding.md),
+[`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
+[`deploy/templates/README.md`](deploy/templates/README.md).
 
 ### Onboard a relying party
 

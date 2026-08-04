@@ -28,7 +28,13 @@ def _employer_adfs_registration() -> IdentityProviderRegistration:
         trust_email=True,
         provider_config={
             "entityId": "https://idp.example/realms/cwl",
+            "idpEntityId": "http://sts.example/adfs/services/trust",
             "singleSignOnServiceUrl": "https://sts.example/adfs/ls/",
+            "metadataDescriptorUrl": (
+                "https://sts.example/FederationMetadata/2007-06/"
+                "FederationMetadata.xml"
+            ),
+            "useMetadataDescriptorUrl": "true",
             "clientSecret": "federation-secret",
             "unclassifiedValue": "must-not-leak",
             "validateSignature": "true",
