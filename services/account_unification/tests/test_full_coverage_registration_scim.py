@@ -7,12 +7,13 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 
 from app import registration, scim
-from app.main import create_app
 from app.models import UserAccount
-from app.user_locks import UserOperationLockTimeout
+from app.user_locks import (
+    InMemoryUserOperationLocks,
+    UserOperationLockTimeout,
+)
 
 
 class _UnavailableApi:
@@ -217,7 +218,12 @@ def test_scim_primary_email_handles_absent_and_fallback_entries() -> None:
     """Email extraction returns none or the first non-primary address."""
     assert scim._primary_email({}) is None
     assert scim._primary_email(
-        {"emails": [{"value": "first@example.com"}, {"value": "second@example.com"}]}
+        {
+            "emails": [
+                {"value": "first@example.com"},
+                {"value": "second@example.com"},
+            ]
+        }
     ) == "first@example.com"
 
 
@@ -275,9 +281,7 @@ def test_scim_replace_translates_unknown_user_and_lock_timeout() -> None:
             "missing",
             resource,
             provisioner=provisioner,
-            user_operation_locks=registration.InMemoryUserOperationLocks()
-            if hasattr(registration, "InMemoryUserOperationLocks")
-            else _TimeoutLocks(),
+            user_operation_locks=InMemoryUserOperationLocks(),
         )
 
     with pytest.raises(HTTPException) as timeout_error:
@@ -288,7 +292,7 @@ def test_scim_replace_translates_unknown_user_and_lock_timeout() -> None:
             user_operation_locks=_TimeoutLocks(),
         )
 
-    assert missing_error.value.status_code in {404, 503}
+    assert missing_error.value.status_code == 404
     assert timeout_error.value.status_code == 503
 
 
