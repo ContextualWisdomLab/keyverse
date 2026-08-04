@@ -38,7 +38,7 @@ Full diagram and trust directions: [`docs/topology.md`](docs/topology.md).
 | Path | What |
 | --- | --- |
 | `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
-| `deploy/keycloak/` | Keycloak config-as-code: realm export (passwordless flow, OIDC RP template, ADFS SAML IdP, LDAP source, service-account client) + kcadm bootstrap |
+| `deploy/keycloak/` | Portable Keycloak realm config-as-code, passwordless flows, shared scopes, concrete Naruon RP, and service-account bootstrap |
 | `deploy/templates/` | Admin-API templates for registering more RPs/IdPs: ADFS (SAML), LDAP source, OIDC RP client |
 | `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
 | `deploy/scripts/healthz.sh` | Cross-component readiness probe |
@@ -67,13 +67,15 @@ The stack imports the **passwordless-first** realm at first start
 WebAuthn passwordless authenticator and **no password authenticator**, plus
 `registrationAllowed:false` / `resetPasswordAllowed:false`.
 
-### Register the employer ADFS + LDAP
+### Register external federation
 
-The realm ships the employer ADFS SAML IdP and the LDAP/AD source as-code; run
-`deploy/keycloak/kcadm-bootstrap.sh` to patch their secrets/URLs from KV. To
-register additional RPs/IdPs against a running realm, apply the templates in
-`deploy/templates/`. See [`deploy/keycloak/README.md`](deploy/keycloak/README.md)
-and [`deploy/templates/README.md`](deploy/templates/README.md).
+The portable realm contains no employer ADFS, LDAP/AD source, or other
+customer-specific federation. Render deployment values from KV, validate SAML
+desired state through the side-effect-free preflight endpoint, and converge it
+through `/federation/identity-providers`. See
+[`docs/federation-onboarding.md`](docs/federation-onboarding.md),
+[`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
+[`deploy/templates/README.md`](deploy/templates/README.md).
 
 ### Onboard a relying party
 

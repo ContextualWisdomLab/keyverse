@@ -7,6 +7,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Side-effect-free federation preflight validation with redacted operator
+  results, explicit SAML issuer pinning, mandatory signature validation, and
+  metadata-backed or manual certificate trust.
+- An operational external-federation onboarding and recovery guide for
+  standalone, CWL platform, and Naruon-integrated deployments.
 - Password-free headless registration that sends one bounded Keycloak action
   email for address verification and passkey enrollment, with failure-atomic
   account rollback.
@@ -43,6 +48,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Converted the employer ADFS template from an incompatible raw Keycloak
+  representation to the closed Keyverse desired-state API contract.
+- Corrected root and template documentation that still claimed employer
+  federation was embedded in the portable realm.
 - Prevented registration races from surfacing raw Keycloak duplicate-user
   errors by mapping exact HTTP 409 responses to a stable product conflict.
 - Prevented unusable registration orphans by deleting accounts when Keycloak

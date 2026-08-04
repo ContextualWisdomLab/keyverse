@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from urllib.parse import SplitResult, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +28,9 @@ _MAX_PROVIDER_CONFIG_VALUE_LENGTH = 16_384
 _REDACTED_VALUE = "<redacted>"
 _ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
+_HTTP_SCHEMES = frozenset({"http", "https"})
+_SAML_ENTITY_ID_MAX_LENGTH = 1_024
+_UNRESOLVED_TEMPLATE_MARKERS = ("{{", "}}")
 # Unknown fields are redacted. This allowlist contains only values that are
 # useful for operator diagnosis and are not credential material.
 _EXPOSED_PROVIDER_CONFIG_KEYS = frozenset(
@@ -38,6 +42,7 @@ _EXPOSED_PROVIDER_CONFIG_KEYS = frozenset(
         "entityId",
         "guiOrder",
         "hideOnLoginPage",
+        "idpEntityId",
         "issuer",
         "logoutUrl",
         "metadataDescriptorUrl",
@@ -104,6 +109,13 @@ class IdentityProviderView(BaseModel):
         )
 
 
+class IdentityProviderValidationResult(BaseModel):
+    """Redacted result proving a registration is ready for persistence."""
+
+    registration: IdentityProviderView
+    ready_to_apply: bool = True
+
+
 class IdentityProviderStatus(BaseModel):
     """Redacted stored registration plus its Keycloak convergence status."""
 
@@ -120,6 +132,15 @@ class FederationService:
         self._api = api
         self._state_lock = threading.RLock()
         self._convergence_lock = threading.RLock()
+
+    def validate_registration(
+        self, registration: IdentityProviderRegistration
+    ) -> IdentityProviderValidationResult:
+        """Validate desired state without storage or Keycloak side effects."""
+        _validate_registration(registration)
+        return IdentityProviderValidationResult(
+            registration=IdentityProviderView.from_registration(registration)
+        )
 
     def list_registrations(self) -> list[IdentityProviderStatus]:
         """Return all stored registrations with live convergence status."""
@@ -309,7 +330,123 @@ def _validate_registration(
                 status_code=400,
                 detail="provider_config key or value exceeds allowed bounds",
             )
+        if any(
+            marker in config_value
+            for marker in _UNRESOLVED_TEMPLATE_MARKERS
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "provider_config contains unresolved template placeholders"
+                ),
+            )
+    if registration.provider_id == "saml":
+        _validate_saml_registration(registration.provider_config)
 
+
+def _provider_config_error(field_name: str, requirement: str) -> None:
+    """Raise one bounded non-secret provider configuration error."""
+    raise HTTPException(
+        status_code=400,
+        detail=f"{field_name} {requirement}",
+    )
+
+
+def _validate_provider_boolean(
+    provider_config: dict[str, str], field_name: str
+) -> bool:
+    """Parse one required Keycloak configuration boolean strictly."""
+    raw_value = provider_config.get(field_name)
+    if raw_value is None:
+        _provider_config_error(field_name, "is required and must be true or false")
+    normalized = raw_value.strip().lower()
+    if normalized not in {"true", "false"}:
+        _provider_config_error(field_name, "must be true or false")
+    return normalized == "true"
+
+
+def _validate_absolute_uri(
+    provider_config: dict[str, str],
+    field_name: str,
+    *,
+    maximum_length: int,
+) -> SplitResult:
+    """Validate one bounded absolute URI without dereferencing it."""
+    value = provider_config.get(field_name, "")
+    invalid_text = (
+        not value
+        or len(value) > maximum_length
+        or value != value.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    )
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        parsed = None
+    invalid_uri = (
+        parsed is None
+        or not parsed.scheme
+        or parsed.username is not None
+        or parsed.password is not None
+        or (
+            parsed.scheme.lower() in _HTTP_SCHEMES
+            and parsed.hostname is None
+        )
+    )
+    if invalid_text or invalid_uri:
+        _provider_config_error(field_name, "must be a bounded absolute URI")
+    return parsed
+
+
+def _validate_http_url(
+    provider_config: dict[str, str], field_name: str
+) -> None:
+    """Validate one HTTP(S) network location without fetching it."""
+    parsed = _validate_absolute_uri(
+        provider_config,
+        field_name,
+        maximum_length=_MAX_PROVIDER_CONFIG_VALUE_LENGTH,
+    )
+    if (
+        parsed.scheme.lower() not in _HTTP_SCHEMES
+        or parsed.hostname is None
+        or bool(parsed.fragment)
+    ):
+        _provider_config_error(
+            field_name,
+            "must be an absolute HTTP(S) URL without a fragment",
+        )
+
+
+def _validate_saml_registration(provider_config: dict[str, str]) -> None:
+    """Enforce issuer, endpoint, signature, and certificate-source policy."""
+    _validate_absolute_uri(
+        provider_config,
+        "entityId",
+        maximum_length=_SAML_ENTITY_ID_MAX_LENGTH,
+    )
+    _validate_absolute_uri(
+        provider_config,
+        "idpEntityId",
+        maximum_length=_SAML_ENTITY_ID_MAX_LENGTH,
+    )
+    _validate_http_url(provider_config, "singleSignOnServiceUrl")
+    if not _validate_provider_boolean(provider_config, "validateSignature"):
+        _provider_config_error(
+            "validateSignature",
+            "must be true for SAML identity providers",
+        )
+    use_metadata = _validate_provider_boolean(
+        provider_config, "useMetadataDescriptorUrl"
+    )
+    if use_metadata:
+        _validate_http_url(provider_config, "metadataDescriptorUrl")
+        return
+    if not provider_config.get("signingCertificate", "").strip():
+        _provider_config_error(
+            "signingCertificate",
+            "is required when metadata certificate refresh is disabled",
+        )
 
 def _redacted_provider_config(
     provider_config: dict[str, str],
@@ -354,6 +491,18 @@ def get_federation_service(request: Request) -> FederationService:
             status_code=503, detail="federation service not ready"
         )
     return service
+
+
+@federation_router.post(
+    "/identity-providers:validate",
+    response_model=IdentityProviderValidationResult,
+)
+def validate_identity_provider(
+    registration: IdentityProviderRegistration,
+    service: FederationService = Depends(get_federation_service),
+) -> IdentityProviderValidationResult:
+    """Validate provider desired state without writing or converging it."""
+    return service.validate_registration(registration)
 
 
 @federation_router.get(

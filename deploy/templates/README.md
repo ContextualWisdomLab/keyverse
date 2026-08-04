@@ -1,48 +1,46 @@
-# Federation & client registration templates
+# Federation and client registration templates
 
-These are **request-body templates** for the Keycloak Admin REST API. They are
-applied as-code (idempotently) by your provisioning tooling, which resolves
-`{{placeholders}}` from the ecosystem KV config store and posts them with an
-admin bearer token (obtained from a service-account client whose secret is in
-KV). Nothing here contains a secret.
+These files are deployment inputs. They contain no reusable credentials and all
+`{{placeholders}}` must be resolved from the platform KV before use.
 
-| Template | Direction | Keycloak endpoint |
-| --- | --- | --- |
-| `saml-idp-employer-adfs.json` | inbound (external IdP → cwl-idp) | `POST /admin/realms/{realm}/identity-provider/instances` |
-| `ldap-source.json` | inbound (external directory → cwl-idp) | `POST /admin/realms/{realm}/components` |
-| `oidc-rp-client.json` | outbound (cwl-idp → RP) | `POST /admin/realms/{realm}/clients` |
+| Template | Owner | Direction | Apply endpoint |
+| --- | --- | --- | --- |
+| `saml-idp-employer-adfs.json` | Keyverse desired-state API | external IdP → Keyverse | `PUT /federation/identity-providers/employer-adfs` |
+| `ldap-source.json` | Keycloak Admin REST | external directory → Keycloak | `POST /admin/realms/{realm}/components` |
+| `oidc-rp-client.json` | Keycloak Admin REST | Keyverse → RP | `POST /admin/realms/{realm}/clients` |
 
-The realm itself (flows, base client template, the two federation sources) is
-imported as-code from [`../keycloak/realm-cwl.json`](../keycloak/realm-cwl.json);
-these templates are for registering **additional** RPs / IdPs against a running
-realm.
+The portable realm contains no employer-specific federation. External providers
+are customer or deployment data stored in the Keyverse KV/DB desired-state
+registry and reconciled into Keycloak.
 
-## Apply pattern
+## Employer ADFS apply pattern
+
+Render the ADFS template into a private temporary file, validate it without side
+effects, and apply it only after preflight returns HTTP 200:
 
 ```bash
-# 1. Get an admin token from the service-account client (secret from KV).
-REALM=cwl
-BASE="https://idp.example"
-TOKEN=$(curl -sS -X POST \
-  "$BASE/realms/$REALM/protocol/openid-connect/token" \
-  -d grant_type=client_credentials \
-  -d client_id=account-unification-svc \
-  -d client_secret="$(kv get secret/idp/account-unification-client-secret)" \
-  | jq -r .access_token)
+BASE="https://keyverse-admin.example"
+TOKEN="$(kv get secret/keyverse/operator-api-token)"
+render deploy/templates/saml-idp-employer-adfs.json >"$TMPDIR/employer-adfs.json"
+chmod 0600 "$TMPDIR/employer-adfs.json"
 
-# 2. Render placeholders from KV, then POST.
-render deploy/templates/oidc-rp-client.json \
-  | curl -sS -X POST "$BASE/admin/realms/$REALM/clients" \
-      -H "Authorization: Bearer ${TOKEN}" \
-      -H "Content-Type: application/json" \
-      --data @-
+curl --fail-with-body --silent --show-error   -H "Authorization: Bearer ${TOKEN}"   -H "Content-Type: application/json"   --data-binary @"$TMPDIR/employer-adfs.json"   "$BASE/federation/identity-providers:validate"
+
+curl --fail-with-body --silent --show-error -X PUT   -H "Authorization: Bearer ${TOKEN}"   -H "Content-Type: application/json"   --data-binary @"$TMPDIR/employer-adfs.json"   "$BASE/federation/identity-providers/employer-adfs"
 ```
 
-## Auto-linking policy (important)
+Preflight performs no KV write, no Keycloak Admin REST request, and no metadata
+fetch. Unresolved placeholders, unpinned SAML issuers, disabled signature
+validation, unsafe endpoints, or a missing certificate source return HTTP 400.
+Operator responses redact unknown and credential-bearing configuration values.
 
-Both federation templates set `trustEmail: true`, which makes an incoming
-**verified** email an eligible anchor for Keycloak's first-broker-login flow to
-auto-link the external identity to a single existing account (and JIT-provision
-otherwise). The account-unification service (this repo) enforces the stricter
-rule end-to-end: **never link or merge on an unverified email** — see
-`docs/merge-unification-flow.md`.
+See [`../../docs/federation-onboarding.md`](../../docs/federation-onboarding.md)
+for the complete operational and recovery flow.
+
+## Auto-linking policy
+
+`trust_email: true` makes an email assertion eligible for account linking only
+when the upstream provider's assertion is trusted as verified. The
+account-unification service retains the stricter invariant: it never links or
+merges accounts when the only common signal is an unverified email. See
+[`../../docs/merge-unification-flow.md`](../../docs/merge-unification-flow.md).
