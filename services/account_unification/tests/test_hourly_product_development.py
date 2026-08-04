@@ -59,6 +59,20 @@ def test_product_development_uses_read_only_repository_permissions() -> None:
     assert "id-token" not in workflow
 
 
+def test_agent_tasks_token_is_scoped_only_to_the_two_api_steps() -> None:
+    """The user token never becomes a job-wide environment variable."""
+    workflow = _workflow_source()
+    job_environment = _permissions_block(
+        workflow,
+        "    env:\n",
+        "    steps:",
+    )
+
+    assert "COPILOT_GITHUB_TOKEN" not in job_environment
+    assert workflow.count("secrets.COPILOT_GITHUB_TOKEN") == 2
+    assert workflow.count("AGENT_TOKEN:") == 2
+
+
 def test_product_development_fails_closed_without_exclusive_queue_ownership() -> None:
     """Missing credentials, unreadable state, or open work suppresses dispatch."""
     workflow = _workflow_source()
@@ -87,6 +101,7 @@ def test_product_development_rechecks_queue_ownership_before_post() -> None:
     assert workflow.rindex(
         "/agents/repos/${TARGET_REPOSITORY}/tasks?per_page=100"
     ) < post_position
+    assert "EXPECTED_BASE_SHA" in workflow
     assert "Queue ownership changed before task creation" in workflow
 
 
