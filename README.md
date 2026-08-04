@@ -46,6 +46,7 @@ Full diagram and trust directions: [`docs/topology.md`](docs/topology.md).
 | `scripts/validate_realm.py` | Realm config-as-code validator (CI gate) |
 | `services/account_unification/` | FastAPI admin service (link + merge + SCIM + federation desired state) with unit tests |
 | `helm/cwl-idp/` | Helm chart (templated Keycloak + Postgres + admin service) |
+| `docs/operations/` | Scheduled maintenance and product-development operating procedures |
 | `docs/` | Topology, passwordless policy, federation, merge flow, RP onboarding, and papers |
 
 ## Quick start (standalone)
@@ -72,8 +73,8 @@ WebAuthn passwordless authenticator and **no password authenticator**, plus
 
 The portable realm contains no employer ADFS, LDAP/AD source, or other
 customer-specific federation. Render deployment values from KV, validate SAML
-desired state through the side-effect-free preflight endpoint, and converge it
-through `/federation/identity-providers`. See
+or OIDC desired state through the side-effect-free preflight endpoint, and
+converge it through `/federation/identity-providers`. See
 [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
 [`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
 [`deploy/templates/README.md`](deploy/templates/README.md).
@@ -101,6 +102,28 @@ and the engine **never merges on an unverified email**.
 - **Submodule:** add this repo as a git submodule and `include:` its
   `docker-compose.yml`, or depend on `helm/cwl-idp`. Every component exposes a
   `/healthz`-style readiness probe so the parent can gate on it.
+
+## Protected autonomous loops
+
+Keyverse keeps repository maintenance and product creation in separate trust
+boundaries:
+
+- at minute **17** of every hour, `hourly-pr-steward.yml` updates trusted
+  branches and arms exact-head auto-merge only after approval and required
+  Checks;
+- at minute **41**, `hourly-product-development.yml` may create one bounded
+  Copilot cloud-agent task only when no PR or active task exists and the exact
+  `main` commit is healthy.
+
+The product scheduler has read-only repository permissions. Agent-task inventory
+and creation use the separate minimum-permission `COPILOT_GITHUB_TOKEN` secret;
+a missing or unreadable credential, unknown task state, open PR, or unhealthy
+`main` suppresses dispatch. The delegated agent opens one draft PR and may not
+approve, merge, bypass Checks, or publish a release.
+
+Setup, credential rotation, first-run validation, incident response, and the
+complete single-flight contract are documented in
+[`docs/operations/hourly-product-development.md`](docs/operations/hourly-product-development.md).
 
 ## Configuration & secrets
 
