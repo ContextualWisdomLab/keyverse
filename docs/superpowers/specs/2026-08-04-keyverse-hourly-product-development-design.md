@@ -63,6 +63,7 @@ Rejected for this slice; it remains a future migration option.
 
 The workflow-level and job-level `GITHUB_TOKEN` permissions are read-only:
 
+- `actions: read`
 - `contents: read`
 - `pull-requests: read`
 - `checks: read`
@@ -108,19 +109,23 @@ pull request owns the development queue, including drafts and dependency PRs.
 
 ### 4. Require a healthy default branch
 
-The workflow resolves the exact `main` head SHA. It then requires successful,
-completed evidence for the repository's four core workflows:
+The workflow resolves the exact `main` head SHA. It requires successful,
+completed evidence for the workflows that actually execute on a `main` push:
 
 - `ci`
 - `CodeQL`
-- `Security Scan`
-- `SAST Semgrep`
 
-It also inspects the latest check run for each check name on that SHA, excluding
-the current scheduler run. Any missing core workflow, pending latest check, or
-latest unsuccessful conclusion suppresses dispatch. Success, neutral, and
-skipped are accepted for non-core check runs; the four core workflows require
-`success`.
+`Security Scan` and `SAST Semgrep` remain exact-head pull-request merge gates;
+they do not currently run again for the squash-generated `main` commit. Requiring
+nonexistent main-push runs would leave the scheduler permanently fail-closed.
+Their successful PR evidence is therefore owned by protected merge policy,
+while the scheduler independently verifies the two exact-main push workflows.
+
+The scheduler also inspects the latest check run for each app/name pair on the
+exact `main` SHA, excluding the current scheduler run. Missing evidence, a
+pending latest check, or an unsuccessful latest conclusion suppresses dispatch.
+Success, neutral, and skipped are accepted for non-core check runs; `ci` and
+`CodeQL` require successful completed workflow runs.
 
 This is a development-start health gate, not a replacement for branch protection
 or release verification.
@@ -199,8 +204,8 @@ Malformed GitHub API responses, unknown task state, and missing workflow evidenc
 are treated as unsafe and suppress dispatch. The workflow must not log the user
 token or task prompt as shell-expanded secrets.
 
-A successful task creation returns the GitHub API response to the Actions log,
-providing the task identifier and URL without exposing credentials.
+A successful task creation records only the task identifier, state, and URL in
+the Actions log, without exposing credentials or the complete prompt payload.
 
 ## Testing
 
