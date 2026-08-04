@@ -116,7 +116,7 @@ def test_product_development_creates_at_most_one_task_and_one_draft_pr() -> None
 
 def test_product_prompt_preserves_commercial_and_engineering_invariants() -> None:
     """The delegated task remains bounded, evidence-backed, modular, and protected."""
-    workflow = _workflow_source()
+    workflow = " ".join(_workflow_source().split())
 
     required_prompt_fragments = (
         "Select exactly one highest-impact buyer-visible product gap",
@@ -129,6 +129,7 @@ def test_product_prompt_preserves_commercial_and_engineering_invariants() -> Non
         "NVIDIA_NIM_API_KEY",
         "contextual-orchestrator",
         "Use Figma or Product Design only when",
+        "Open exactly one focused draft pull request",
         "Do not merge your own pull request",
         "Do not bypass reviews or required checks",
         "Do not publish a release",
