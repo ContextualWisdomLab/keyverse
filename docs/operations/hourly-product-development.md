@@ -49,14 +49,18 @@ dispatch.
 ### Healthy exact `main`
 
 The workflow resolves the current `main` SHA and requires completed successful
-runs for these core workflows on that exact SHA:
+runs for the workflows that actually execute on that exact squash-generated
+commit:
 
 - `ci`
 - `CodeQL`
-- `Security Scan`
-- `SAST Semgrep`
 
-It then reads all check runs for the exact commit, excludes its own scheduler
+`Security Scan` and `SAST Semgrep` remain exact-head pull-request merge gates,
+but they do not currently run a second time on `main` push. Their evidence is
+therefore enforced by the protected merge path rather than invented as a
+nonexistent main-push requirement.
+
+The scheduler also reads all check runs for the exact commit, excludes its own
 run, and evaluates only the latest occurrence of each app/name pair. Pending or
 unsuccessful latest evidence suppresses dispatch. This is a start-of-work guard,
 not a substitute for branch protection or post-merge release verification.
