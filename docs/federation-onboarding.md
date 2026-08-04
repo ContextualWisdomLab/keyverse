@@ -16,6 +16,17 @@ preflight endpoint accepts the same closed request schema as `PUT`, but
 deliberately performs no storage write, Keycloak call, DNS lookup, or metadata
 download.
 
+For OpenID Connect providers, Keyverse requires explicit HTTPS issuer,
+authorization, token, and JWKS endpoints; signature validation; JWKS-based
+key retrieval; confidential-client authentication; PKCE `S256`; and a
+standards-valid scope set containing `openid`. Keyverse does not fetch OIDC
+discovery metadata during preflight. Render reviewed metadata into explicit
+desired state, restrict Keycloak egress to the approved HTTPS hosts, and
+reject redirect downgrade at the outbound proxy. Optional UserInfo and
+logout endpoints are validated when supplied. Keep `trust_email=false` by
+default and enable it only after the upstream email-verification and claim-
+mapping contract has been independently reviewed.
+
 For SAML providers, Keyverse requires:
 
 - explicit service-provider and identity-provider entity identifiers;
@@ -191,3 +202,11 @@ certificate separately does not preserve active trust.
   https://docs.oasis-open.org/security/saml/Post2.0/sstc-metadata-iop-os.html
 - Keycloak. (2026). *Server Administration Guide: SAML v2.0 identity providers*.
   https://www.keycloak.org/docs/latest/server_admin/#saml-v2-0-identity-providers
+- OpenID Foundation. (2023). *OpenID Connect Discovery 1.0 incorporating
+  errata set 2*. https://openid.net/specs/openid-connect-discovery-1_0.html
+- Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best
+  current practice for OAuth 2.0 security* (RFC 9700, BCP 240). Internet
+  Engineering Task Force. https://www.rfc-editor.org/rfc/rfc9700
+- Sakimura, N., Bradley, J., & Agarwal, N. (2015). *Proof key for code
+  exchange by OAuth public clients* (RFC 7636). Internet Engineering Task
+  Force. https://www.rfc-editor.org/rfc/rfc7636

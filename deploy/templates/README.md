@@ -6,6 +6,7 @@ all `{{placeholders}}` must be resolved from the platform KV before use.
 | Template | Owner | Direction | Apply endpoint |
 | --- | --- | --- | --- |
 | `saml-idp-employer-adfs.json` | Keyverse desired-state API | external IdP → Keyverse | `PUT /federation/identity-providers/employer-adfs` |
+| `oidc-idp-partner.json` | Keyverse desired-state API | external OIDC IdP → Keyverse | `PUT /federation/identity-providers/partner-oidc` |
 | `ldap-source.json` | Keycloak Admin REST | external directory → Keycloak | `POST /admin/realms/{realm}/components` |
 | `oidc-rp-client.json` | Keycloak Admin REST | Keyverse → RP | `POST /admin/realms/{realm}/clients` |
 
@@ -103,6 +104,19 @@ Operator responses redact unknown and credential-bearing configuration values.
 
 See [`../../docs/federation-onboarding.md`](../../docs/federation-onboarding.md)
 for the complete operational and recovery flow.
+
+## Partner OIDC apply pattern
+
+Render `oidc-idp-partner.json` and use the same private-file, exact-200
+preflight, `ready_to_apply=true`, and `PUT` sequence above with
+`ALIAS="partner-oidc"`. The template pins issuer, authorization, token,
+JWKS, and optional UserInfo endpoints explicitly; runtime discovery import
+is not accepted. Every network endpoint is HTTPS, token signatures and JWKS
+retrieval are enabled, PKCE is fixed to `S256`, and `openid` is mandatory.
+Keep `trust_email=false` until the upstream verification and claim-mapping
+contract has been independently reviewed. `oidc-rp-client.json` is a
+different artifact: it registers Keyverse as an RP and is applied directly
+to Keycloak Admin REST rather than the Keyverse federation API.
 
 ## Auto-linking policy
 

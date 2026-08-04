@@ -53,17 +53,17 @@ REST representations, GitHub Actions.
 - Modify: `services/account_unification/app/federation.py`
 - Modify: `services/account_unification/tests/test_oidc_federation_preflight.py`
 
-- [ ] Add explicit OIDC provider IDs, allowed client-auth methods, PKCE method,
+- [x] Add explicit OIDC provider IDs, allowed client-auth methods, PKCE method,
   forbidden discovery keys, and RFC 6749 scope-token constants.
-- [ ] Add bounded required-text validation without secret echoing.
-- [ ] Return parsed HTTPS URLs from the shared helper and enforce issuer query
+- [x] Add bounded required-text validation without secret echoing.
+- [x] Return parsed HTTPS URLs from the shared helper and enforce issuer query
   and fragment restrictions.
-- [ ] Require explicit authorization, token, and JWKS endpoints; validate
+- [x] Require explicit authorization, token, and JWKS endpoints; validate
   optional UserInfo and logout endpoints when present.
-- [ ] Require signature validation, JWKS URL use, PKCE S256, confidential-client
+- [x] Require signature validation, JWKS URL use, PKCE S256, confidential-client
   credentials, and exactly one `openid` scope.
-- [ ] Reject runtime discovery import keys.
-- [ ] Expose only explicitly safe OIDC operational fields in redacted views.
+- [x] Reject runtime discovery import keys.
+- [x] Expose only explicitly safe OIDC operational fields in redacted views.
 - [ ] Run focused tests, Ruff, interrogate, and full production coverage.
 
 ### Task 3: Add operator and deployment contracts
@@ -75,13 +75,13 @@ REST representations, GitHub Actions.
 - Modify: `docs/federation-onboarding.md`
 - Modify: `CHANGELOG.md`
 
-- [ ] Add a provider-neutral OIDC desired-state template with `trust_email=false`
+- [x] Add a provider-neutral OIDC desired-state template with `trust_email=false`
   by default.
-- [ ] Document verified out-of-band metadata rendering, preflight, apply,
+- [x] Document verified out-of-band metadata rendering, preflight, apply,
   egress restrictions, redirect downgrade protection, PKCE, and secret handling.
-- [ ] Distinguish OIDC IdP desired state from the existing OIDC RP-client raw
+- [x] Distinguish OIDC IdP desired state from the existing OIDC RP-client raw
   Keycloak template.
-- [ ] Record the buyer-visible security contract under `[Unreleased]`.
+- [x] Record the buyer-visible security contract under `[Unreleased]`.
 - [ ] Validate JSON, Markdown shell snippets, and deployment contracts.
 
 ### Task 4: Protected completion

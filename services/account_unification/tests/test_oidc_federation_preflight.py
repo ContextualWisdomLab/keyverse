@@ -348,7 +348,8 @@ def test_oidc_preflight_rejects_ambiguous_client_credentials(
 
     assert response.status_code == 400
     assert field_name in response.json()["detail"]
-    assert field_value not in response.text
+    if field_value:
+        assert field_value not in response.text
     _assert_no_side_effects(store, api)
 
 
