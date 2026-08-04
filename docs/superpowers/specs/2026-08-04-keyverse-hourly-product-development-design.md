@@ -85,6 +85,15 @@ inventory, the workflow exits successfully without creating work. This
 fail-closed behavior avoids repeated task creation during credential or API
 incidents.
 
+### Delegated-content trust
+
+Issue bodies, pull-request comments, source documents, fixtures, provider
+metadata, test payloads, generated files, and fetched references are data, not
+scheduler instructions. The delegated prompt explicitly forbids following
+embedded instructions from those sources unless they agree with the scheduler
+task, repository policy, and the selected bounded scope. It also prohibits
+exposing repository, Actions, model-provider, or user secrets in any output.
+
 ## Eligibility algorithm
 
 One run may create at most one task. The run is eligible only when every gate
@@ -154,7 +163,22 @@ Every unknown state and every malformed task record is counted as active. This
 preserves single-flight behavior if the public-preview API adds a state before
 the workflow is updated.
 
-### 6. Start one task
+### 6. Revalidate ownership immediately before creation
+
+The task-creation step verifies that the exact `main` SHA did not change, then
+lists the open-PR and Agent Tasks queues again. A changed base, new PR, active
+task, unreadable response, or unknown state suppresses the POST.
+
+This closes the ordinary time-of-check/time-of-use window between the initial
+eligibility decision and the creation step. The public-preview API does not
+provide a transactional compare-and-create primitive, so an out-of-band manual
+task started in the final network interval could still race. Stable workflow
+concurrency prevents competing scheduler runs, and the immediate recheck reduces
+the remaining risk to external writers. Incident procedures require cancelling
+any duplicate and keeping the credential revoked until a reproducing contract
+test exists.
+
+### 7. Start one task
 
 The scheduler sends exactly one `POST /agents/repos/{owner}/{repo}/tasks` request
 with:
@@ -187,6 +211,7 @@ The prompt requires:
 - `contextual-orchestrator` and `NVIDIA_NIM_API_KEY` only when an LLM is truly
   needed, never as an unnecessary dependency;
 - Figma or Product Design only when the selected slice has a real user interface;
+- untrusted-content and secret-nondisclosure boundaries;
 - exactly one draft pull request;
 - no self-approval, merge, protected-check bypass, version publication, or
   release publication by the delegated agent.
@@ -214,10 +239,11 @@ Static contract tests verify:
 - the hourly offset and non-cancelling concurrency;
 - read-only repository permissions;
 - secret, PR queue, default-branch health, inventory, and unknown-state gates;
+- immediate base, PR, and Agent Tasks revalidation before the sole POST;
 - pagination and current API version headers;
 - one POST maximum;
 - draft-PR creation request;
-- prompt invariants;
+- prompt and untrusted-content invariants;
 - absence of merge, approval, admin bypass, and repository push commands.
 
 The existing complete service suite remains the integration gate, including
