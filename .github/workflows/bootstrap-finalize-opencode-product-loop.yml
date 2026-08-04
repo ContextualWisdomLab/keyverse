@@ -1,0 +1,143 @@
+name: Bootstrap OpenCode product-loop finalization
+
+on:
+  push:
+    branches:
+      - feat/hourly-product-development-loop
+    paths:
+      - scripts/ci/finalize_opencode_product_loop.py
+      - .github/workflows/bootstrap-finalize-opencode-product-loop.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-finalize-opencode-product-loop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/feat/hourly-product-development-loop'
+      && github.actor == 'seonghobae'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+
+      - name: Check out the exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/hourly-product-development-loop
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up the locked package runner
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          prune-cache: true
+
+      - name: Apply the reviewed scheduler and documentation finalization
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/finalize_opencode_product_loop.py
+          python scripts/ci/finalize_opencode_product_loop.py
+          git diff --check
+
+      - name: Verify focused scheduler security contracts
+        working-directory: services/account_unification
+        run: |
+          set -euo pipefail
+          uv sync --locked --extra dev
+          uv run pytest -q \
+            tests/test_hourly_product_development.py \
+            tests/test_hourly_product_guard.py \
+            tests/test_nim_proxy.py
+
+      - name: Verify the complete service and production coverage
+        working-directory: services/account_unification
+        run: |
+          set -euo pipefail
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run python -m compileall -q app tests tools
+          uv run coverage erase
+          uv run coverage run --branch --source=app -m pytest -q
+          uv run coverage report --show-missing --fail-under=100
+          uv build --out-dir dist
+
+      - name: Verify workflow, documentation, and deployment contracts
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/ci/hourly_product_guard.py \
+            scripts/ci/nim_proxy.py
+          python scripts/ci/hourly_product_guard.py self-test
+          grep -F 'NVIDIA_NIM_API_KEY' .github/workflows/hourly-product-development.yml >/dev/null
+          grep -F 'opencode run' .github/workflows/hourly-product-development.yml >/dev/null
+          grep -F 'OPENCODE_PRODUCT_DEVELOPMENT_TOKEN' .github/workflows/hourly-product-development.yml >/dev/null
+          if grep -R -E 'COPILOT_GITHUB_TOKEN|/agents/repos/' \
+            .github/workflows/hourly-product-development.yml \
+            README.md CHANGELOG.md docs/operations/hourly-product-development.md \
+            docs/superpowers/specs/2026-08-04-keyverse-hourly-product-development-design.md \
+            docs/superpowers/plans/2026-08-04-keyverse-hourly-product-development.md; then
+            echo '::error::Superseded Copilot Agent Tasks contract remains.'
+            exit 1
+          fi
+          (
+            cd services/account_unification
+            uv run python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          workflow = yaml.safe_load(
+              Path('../../.github/workflows/hourly-product-development.yml').read_text(
+                  encoding='utf-8'
+              )
+          )
+          assert isinstance(workflow, dict)
+          assert 'jobs' in workflow
+          PY
+          )
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          while IFS= read -r -d '' template; do
+            python -m json.tool "$template" >/dev/null
+          done < <(find deploy/templates -maxdepth 1 -type f -name '*.json' -print0)
+          git diff --check
+
+      - name: Remove one-shot finalization material
+        run: |
+          set -euo pipefail
+          rm .github/workflows/bootstrap-finalize-opencode-product-loop.yml
+          rm scripts/ci/finalize_opencode_product_loop.py
+          git diff --check
+
+      - name: Commit the exact verified OpenCode scheduler
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo '::error::OpenCode product-loop finalization produced no change.'
+            exit 1
+          fi
+          git commit -m 'ci: run hourly product development through NVIDIA NIM OpenCode'
+          git push origin HEAD:feat/hourly-product-development-loop
