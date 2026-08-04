@@ -1,7 +1,7 @@
 # Federation and client registration templates
 
-These files are deployment inputs. They contain no reusable credentials and all
-`{{placeholders}}` must be resolved from the platform KV before use.
+These files are deployment inputs. They contain no reusable credentials, and
+all `{{placeholders}}` must be resolved from the platform KV before use.
 
 | Template | Owner | Direction | Apply endpoint |
 | --- | --- | --- | --- |
@@ -16,17 +16,40 @@ registry and reconciled into Keycloak.
 ## Employer ADFS apply pattern
 
 Render the ADFS template into a private temporary file, validate it without side
-effects, and apply it only after preflight returns HTTP 200:
+effects, and apply it only after preflight returns HTTP 200. Keep the bearer
+token out of the `curl` argument vector by placing the header in a private curl
+configuration file:
 
 ```bash
+set -euo pipefail
 BASE="https://keyverse-admin.example"
+ALIAS="employer-adfs"
 TOKEN="$(kv get secret/keyverse/operator-api-token)"
-render deploy/templates/saml-idp-employer-adfs.json >"$TMPDIR/employer-adfs.json"
-chmod 0600 "$TMPDIR/employer-adfs.json"
+PAYLOAD="$(mktemp)"
+AUTH_CONFIG="$(mktemp)"
+trap 'rm -f "$PAYLOAD" "$AUTH_CONFIG"' EXIT
+chmod 0600 "$PAYLOAD" "$AUTH_CONFIG"
+printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" >"$AUTH_CONFIG"
+unset TOKEN
 
-curl --fail-with-body --silent --show-error   -H "Authorization: Bearer ${TOKEN}"   -H "Content-Type: application/json"   --data-binary @"$TMPDIR/employer-adfs.json"   "$BASE/federation/identity-providers:validate"
+render deploy/templates/saml-idp-employer-adfs.json >"$PAYLOAD"
 
-curl --fail-with-body --silent --show-error -X PUT   -H "Authorization: Bearer ${TOKEN}"   -H "Content-Type: application/json"   --data-binary @"$TMPDIR/employer-adfs.json"   "$BASE/federation/identity-providers/employer-adfs"
+curl --config "$AUTH_CONFIG" \
+  --fail-with-body \
+  --silent \
+  --show-error \
+  --header "Content-Type: application/json" \
+  --data-binary @"$PAYLOAD" \
+  "$BASE/federation/identity-providers:validate"
+
+curl --config "$AUTH_CONFIG" \
+  --fail-with-body \
+  --silent \
+  --show-error \
+  --request PUT \
+  --header "Content-Type: application/json" \
+  --data-binary @"$PAYLOAD" \
+  "$BASE/federation/identity-providers/$ALIAS"
 ```
 
 Preflight performs no KV write, no Keycloak Admin REST request, and no metadata
