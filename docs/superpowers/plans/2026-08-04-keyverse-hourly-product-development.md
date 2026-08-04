@@ -46,7 +46,8 @@ pytest contract tests.
 - [x] Define one-POST and one-draft-PR bounds.
 - [x] Define the commercial, modularity, evidence, testing, database naming,
   LLM, Figma, and protected-merge prompt invariants.
-- [ ] Run the focused test and record the expected missing-workflow failure.
+- [x] Run the focused test before implementation and record the expected
+  `FileNotFoundError` for the intentionally missing workflow.
 
 ### Task 2: Implement the eligibility gate
 
@@ -54,19 +55,19 @@ pytest contract tests.
 
 - Create: `.github/workflows/hourly-product-development.yml`
 
-- [ ] Schedule at minute 41 and add `workflow_dispatch`.
-- [ ] Set workflow and job repository permissions to read-only.
-- [ ] Add stable concurrency with `cancel-in-progress: false`.
-- [ ] Fail closed when `COPILOT_GITHUB_TOKEN` is empty.
-- [ ] Read the open-PR queue and fail closed on API or shape errors.
-- [ ] Resolve the exact `main` SHA.
-- [ ] Require successful `ci`, `CodeQL`, `Security Scan`, and `SAST Semgrep`
+- [x] Schedule at minute 41 and add `workflow_dispatch`.
+- [x] Set workflow and job repository permissions to read-only.
+- [x] Add stable concurrency with `cancel-in-progress: false`.
+- [x] Fail closed when `COPILOT_GITHUB_TOKEN` is empty.
+- [x] Read the open-PR queue and fail closed on API or shape errors.
+- [x] Resolve the exact `main` SHA.
+- [x] Require successful `ci`, `CodeQL`, `Security Scan`, and `SAST Semgrep`
   workflow evidence for that SHA.
-- [ ] Require every latest check run, excluding the current scheduler run, to be
+- [x] Require every latest check run, excluding the current scheduler run, to be
   completed with an accepted conclusion.
-- [ ] Fetch all non-archived repository Agent Tasks with pagination.
-- [ ] Treat malformed records and unknown states as active.
-- [ ] Emit `eligible=true` only after every gate succeeds.
+- [x] Fetch all non-archived repository Agent Tasks with pagination.
+- [x] Treat malformed records and unknown states as active.
+- [x] Emit `eligible=true` only after every gate succeeds.
 
 ### Task 3: Implement one bounded task dispatch
 
@@ -74,14 +75,14 @@ pytest contract tests.
 
 - Modify: `.github/workflows/hourly-product-development.yml`
 
-- [ ] Build one immutable repository-specific task prompt.
-- [ ] Request `base_ref: main` and `create_pull_request: true`.
-- [ ] Perform exactly one Agent Tasks POST when eligible.
-- [ ] Require one buyer-visible slice, Superpowers, TDD, realistic tests, 100%
+- [x] Build one immutable repository-specific task prompt.
+- [x] Request `base_ref: main` and `create_pull_request: true`.
+- [x] Perform exactly one Agent Tasks POST when eligible.
+- [x] Require one buyer-visible slice, Superpowers, TDD, realistic tests, 100%
   docstring/statement/branch coverage, standalone plus CWL/Naruon modularity,
   APA 7th standards documentation, database naming, guarded LLM usage, and
   UI-only Figma/Product Design usage.
-- [ ] Ban self-approval, self-merge, bypass, push by the scheduler, and release
+- [x] Ban self-approval, self-merge, bypass, push by the scheduler, and release
   publication by the delegated agent.
 
 ### Task 4: Document operations and release state
@@ -92,13 +93,13 @@ pytest contract tests.
 - Modify: `CHANGELOG.md`
 - Modify: `README.md`
 
-- [ ] Document the two offset loops: PR stewardship at minute 17 and product
+- [x] Document the two offset loops: PR stewardship at minute 17 and product
   development at minute 41.
-- [ ] Document `COPILOT_GITHUB_TOKEN` type and minimum permissions.
-- [ ] Document fail-closed and single-flight behavior.
-- [ ] Document first-run, rotation, revocation, and incident validation.
-- [ ] Record the new scheduler under `[Unreleased]`.
-- [ ] Do not bump version or publish a release.
+- [x] Document `COPILOT_GITHUB_TOKEN` type and minimum permissions.
+- [x] Document fail-closed and single-flight behavior.
+- [x] Document first-run, rotation, revocation, and incident validation.
+- [x] Record the new scheduler under `[Unreleased]`.
+- [x] Do not bump version or publish a release.
 
 ### Task 5: Protected completion
 
