@@ -61,8 +61,8 @@ pytest contract tests.
 - [x] Fail closed when `COPILOT_GITHUB_TOKEN` is empty.
 - [x] Read the open-PR queue and fail closed on API or shape errors.
 - [x] Resolve the exact `main` SHA.
-- [x] Require successful `ci`, `CodeQL`, `Security Scan`, and `SAST Semgrep`
-  workflow evidence for that SHA.
+- [x] Require successful exact-main `ci` and `CodeQL` workflow evidence; retain
+  `Security Scan` and `SAST Semgrep` as protected pull-request merge gates.
 - [x] Require every latest check run, excluding the current scheduler run, to be
   completed with an accepted conclusion.
 - [x] Fetch all non-archived repository Agent Tasks with pagination.
