@@ -6,6 +6,7 @@ on:
       - feat/oidc-federation-preflight
     paths:
       - scripts/ci/apply_oidc_federation_preflight.py
+      - scripts/ci/patch_oidc_legacy_test.py
       - .github/workflows/bootstrap-oidc-federation-preflight.yml
 
 permissions:
@@ -68,17 +69,24 @@ jobs:
       - name: Apply the reviewed production implementation
         run: |
           set -euo pipefail
-          actual_blob="$(git hash-object scripts/ci/apply_oidc_federation_preflight.py)"
-          test "$actual_blob" = 'fa1e315fce62f7d3a8ba4ad837b554e379f20cba'
-          python -m py_compile scripts/ci/apply_oidc_federation_preflight.py
+          implementation_blob="$(git hash-object scripts/ci/apply_oidc_federation_preflight.py)"
+          legacy_test_blob="$(git hash-object scripts/ci/patch_oidc_legacy_test.py)"
+          test "$implementation_blob" = 'fa1e315fce62f7d3a8ba4ad837b554e379f20cba'
+          test "$legacy_test_blob" = '0a78d97398835d98f0c37d9813ea6dea301e6913'
+          python -m py_compile \
+            scripts/ci/apply_oidc_federation_preflight.py \
+            scripts/ci/patch_oidc_legacy_test.py
           python scripts/ci/apply_oidc_federation_preflight.py
+          python scripts/ci/patch_oidc_legacy_test.py
           git diff --check
 
       - name: Verify focused OIDC federation behavior
         working-directory: services/account_unification
         run: |
           set -euo pipefail
-          uv run pytest -q tests/test_oidc_federation_preflight.py
+          uv run pytest -q \
+            tests/test_oidc_federation_preflight.py \
+            tests/test_federation_preflight.py
 
       - name: Verify the complete service and quality gates
         working-directory: services/account_unification
@@ -144,6 +152,7 @@ jobs:
           set -euo pipefail
           rm .github/workflows/bootstrap-oidc-federation-preflight.yml
           rm scripts/ci/apply_oidc_federation_preflight.py
+          rm scripts/ci/patch_oidc_legacy_test.py
           git diff --check
 
       - name: Commit the exact verified OIDC implementation
