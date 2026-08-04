@@ -49,6 +49,8 @@ def _preflight(metadata_url, api, auth_header, operator_token):
         "https://sts.example\\metadata.example/FederationMetadata.xml",
         "https://sts.example/FederationMetadata.xml%0d%0aInjected",
         "https://sts.example/FederationMetadata.xml\u00a0",
+        "https://sts.example/FederationMetadata.xml\x00tail",
+        "https://sts.example:65536/FederationMetadata.xml",
     ],
 )
 def test_preflight_rejects_whitespace_backslash_and_encoded_controls(

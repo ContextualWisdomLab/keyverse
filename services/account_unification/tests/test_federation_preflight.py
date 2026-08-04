@@ -15,6 +15,23 @@ from app.federation import (
 from app.kv_store import InMemoryKvStore
 from app.main import create_app
 
+_VALID_SIGNING_CERTIFICATE = (
+    "MIH2MIGpoAMCAQICAQEwBQYDK2VwMBwxGjAYBgNVBAMMEUtleXZlcnNlIFRlc3Qg"
+    "SWRQMB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowHDEaMBgGA1UE"
+    "AwwRS2V5dmVyc2UgVGVzdCBJZFAwKjAFBgMrZXADIQB5tVYuj+ZU+UB4sRLo"
+    "qYunkB+FOuaVvtfg45ELrQSWZKMQMA4wDAYDVR0TAQH/BAIwADAFBgMrZXAD"
+    "QQBETl77qTx6FIw1ZEqHCxT1BpLpPf/dJwxF1+vXFGiHUC6HEWWqPhXcWEj9"
+    "nlg8E6KnnpjzSmaVOL2dtTZMoTkG"
+)
+_NEXT_SIGNING_CERTIFICATE = (
+    "MIIBADCBs6ADAgECAgECMAUGAytlcDAhMR8wHQYDVQQDDBZLZXl2ZXJzZSBOZXh0"
+    "IFRlc3QgSWRQMB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowITEf"
+    "MB0GA1UEAwwWS2V5dmVyc2UgTmV4dCBUZXN0IElkUDAqMAUGAytlcAMhAOfx"
+    "YqEL7FWa/qGV5NzoS2lWjV0ssJY+tEbAaF4rF/LwoxAwDjAMBgNVHRMBAf8E"
+    "AjAAMAUGAytlcANBAPBvYJMwDJ1k5Jb+BWzYUVirHSILZOjNzvFyOcR4PfMj"
+    "DJfk2ivJ/fat8qsQNXspyeplpqOinqXxB/mCruM2Rw0="
+)
+
 
 def _adfs_body() -> dict:
     """Return a valid employer ADFS desired-state request body."""
@@ -279,22 +296,63 @@ def test_saml_preflight_requires_manual_certificate_when_metadata_is_disabled(
     _assert_no_side_effects(store, api)
 
 
-def test_saml_preflight_accepts_manual_signing_certificate(
-    api, auth_header, operator_token
+@pytest.mark.parametrize(
+    "signing_certificates",
+    [
+        _VALID_SIGNING_CERTIFICATE,
+        f"{_VALID_SIGNING_CERTIFICATE},{_NEXT_SIGNING_CERTIFICATE}",
+    ],
+)
+def test_saml_preflight_accepts_valid_manual_signing_certificates(
+    signing_certificates: str,
+    api,
+    auth_header,
+    operator_token,
 ) -> None:
-    """A manual certificate is accepted when metadata retrieval is disabled."""
+    """Manual trust accepts one certificate or an active rollover pair."""
     store = InMemoryKvStore()
     body = _adfs_body()
     body["provider_config"]["useMetadataDescriptorUrl"] = "false"
     body["provider_config"].pop("metadataDescriptorUrl")
-    body["provider_config"]["signingCertificate"] = "MIIC-test-certificate"
+    body["provider_config"]["signingCertificate"] = signing_certificates
 
     response = _post_preflight(body, store, api, auth_header, operator_token)
 
     assert response.status_code == 200
     config = response.json()["registration"]["provider_config"]
     assert config["signingCertificate"] == "<redacted>"
-    assert "MIIC-test-certificate" not in response.text
+    assert signing_certificates not in response.text
+    _assert_no_side_effects(store, api)
+
+
+@pytest.mark.parametrize(
+    "signing_certificates",
+    [
+        "MIIC-test-certificate",
+        "bm90LWFuLXg1MDktY2VydGlmaWNhdGU=",
+        f"-----BEGIN CERTIFICATE-----{_VALID_SIGNING_CERTIFICATE}"
+        "-----END CERTIFICATE-----",
+        f"{_VALID_SIGNING_CERTIFICATE},",
+    ],
+)
+def test_saml_preflight_rejects_invalid_manual_signing_certificates(
+    signing_certificates: str,
+    api,
+    auth_header,
+    operator_token,
+) -> None:
+    """Malformed Base64, non-X.509, PEM, and empty list entries fail closed."""
+    store = InMemoryKvStore()
+    body = _adfs_body()
+    body["provider_config"]["useMetadataDescriptorUrl"] = "false"
+    body["provider_config"].pop("metadataDescriptorUrl")
+    body["provider_config"]["signingCertificate"] = signing_certificates
+
+    response = _post_preflight(body, store, api, auth_header, operator_token)
+
+    assert response.status_code == 400
+    assert response.json()["detail"].startswith("signingCertificate ")
+    assert signing_certificates not in response.text
     _assert_no_side_effects(store, api)
 
 

@@ -30,11 +30,13 @@ In scope:
 - unresolved `{{...}}` marker rejection for all provider configuration values;
 - SAML validation for service-provider and identity-provider entity identifiers,
   SSO URL, signature validation, and a certificate source;
-- either a metadata descriptor URL or manually supplied signing certificate;
+- either a metadata descriptor URL or one or more manually supplied Base64
+  DER X.509 signing certificates;
 - SAML entity identifiers as bounded absolute URIs, preserving standards-valid
   `urn:` identifiers as well as HTTPS identifiers;
 - network-reachable SSO and metadata locations as absolute HTTP(S) URLs without
-  userinfo, fragments, surrounding whitespace, or control characters;
+  userinfo, fragments, whitespace, backslashes, raw controls, encoded controls,
+  or invalid ports;
 - conversion of the employer ADFS template to the Keyverse runtime API shape;
 - operator documentation, root README correction, and changelog update.
 
@@ -123,18 +125,24 @@ For `provider_id == "saml"`:
 5. `useMetadataDescriptorUrl` is required and must be `true` or `false`.
 6. When metadata use is enabled, `metadataDescriptorUrl` is required and must
    be an absolute HTTP(S) URL.
-7. When metadata use is disabled, a non-empty `signingCertificate` is required.
+7. When metadata use is disabled, `signingCertificate` is required. It must
+   contain one or more comma-separated Base64 DER X.509 certificate bodies.
+   Empty list entries, invalid Base64, non-X.509 DER, and PEM headers or footers
+   are rejected.
 
-URI validation rejects surrounding whitespace, ASCII control characters, and
-credentials in hierarchical authority components. Network URL validation also
-rejects URI fragments. Query strings remain allowed because some enterprise
-metadata services use bounded query parameters.
+URI validation rejects surrounding or internal whitespace, every C0 control
+character, DEL, backslashes, credentials in hierarchical authority components,
+and invalid or out-of-range ports. Network URL validation also rejects URI
+fragments. Query strings remain allowed because some enterprise metadata
+services use bounded query parameters.
 
 ## Architecture and Data Flow
 
 The pure validation helpers remain inside `app/federation.py`, next to the
 existing desired-state model and validation boundary. This avoids a circular
-model dependency and keeps all HTTP 400 semantics consistent.
+model dependency and keeps all HTTP 400 semantics consistent. Manual
+certificates are decoded with strict Base64 validation and parsed through the
+project-pinned `cryptography` X.509 loader without network or filesystem I/O.
 
 Preflight flow:
 
@@ -161,6 +169,7 @@ before the desired-state write.
 - SAML signature validation cannot be disabled through the supported runtime
   contract.
 - A certificate source is mandatory whether metadata refresh is enabled or not.
+- Manual trust material must parse as X.509 before `ready_to_apply` can be true.
 
 ## Testing
 
@@ -173,7 +182,11 @@ The test-first sequence proves:
 - every SAML required-field, URI, URL, trust-mode, and boolean branch fails with
   HTTP 400 when invalid;
 - standards-valid `urn:` entity identifiers remain accepted;
-- manual signing certificates are accepted when metadata retrieval is disabled;
+- valid single and comma-separated rollover certificates are accepted when
+  metadata retrieval is disabled;
+- malformed Base64, non-X.509 DER, PEM-wrapped values, and empty certificate
+  list entries fail closed;
+- raw NUL characters and out-of-range URL ports fail closed;
 - the existing `PUT`, list, get, apply, outage, lock, and redaction regressions
   remain green;
 - production docstring and statement/branch coverage remain 100%.

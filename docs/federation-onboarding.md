@@ -39,28 +39,70 @@ arguments.
 set -euo pipefail
 BASE="https://keyverse-admin.example"
 ALIAS="employer-adfs"
-TOKEN="$(kv get secret/keyverse/operator-api-token)"
 PAYLOAD="$(mktemp)"
+PREFLIGHT_RESPONSE="$(mktemp)"
+AUTH_CONFIG=""
+cleanup() {
+  rm -f "$PAYLOAD" "$PREFLIGHT_RESPONSE"
+  if [ -n "${AUTH_CONFIG:-}" ]; then
+    rm -f "$AUTH_CONFIG"
+  fi
+}
+trap cleanup EXIT
+chmod 0600 "$PAYLOAD" "$PREFLIGHT_RESPONSE"
+
+XTRACE_WAS_ON=0
+case $- in
+  *x*)
+    XTRACE_WAS_ON=1
+    set +x
+    ;;
+esac
+TOKEN="$(kv get secret/keyverse/operator-api-token)"
 AUTH_CONFIG="$(mktemp)"
-trap 'rm -f "$PAYLOAD" "$AUTH_CONFIG"' EXIT
-chmod 0600 "$PAYLOAD" "$AUTH_CONFIG"
+chmod 0600 "$AUTH_CONFIG"
 printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" >"$AUTH_CONFIG"
 unset TOKEN
+if [ "$XTRACE_WAS_ON" -eq 1 ]; then
+  set -x
+fi
 
 render deploy/templates/saml-idp-employer-adfs.json >"$PAYLOAD"
 
-curl --config "$AUTH_CONFIG" \
-  --fail-with-body \
-  --silent \
-  --show-error \
-  --header "Content-Type: application/json" \
-  --data-binary @"$PAYLOAD" \
-  "$BASE/federation/identity-providers:validate"
+PREFLIGHT_STATUS="$(
+  curl --config "$AUTH_CONFIG" \
+    --silent \
+    --show-error \
+    --max-redirs 0 \
+    --output "$PREFLIGHT_RESPONSE" \
+    --write-out '%{http_code}' \
+    --header "Content-Type: application/json" \
+    --data-binary @"$PAYLOAD" \
+    "$BASE/federation/identity-providers:validate"
+)"
+if [ "$PREFLIGHT_STATUS" != "200" ]; then
+  printf 'preflight returned HTTP %s\n' "$PREFLIGHT_STATUS" >&2
+  cat "$PREFLIGHT_RESPONSE" >&2
+  exit 1
+fi
+if ! python3 - "$PREFLIGHT_RESPONSE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as response_file:
+    response = json.load(response_file)
+raise SystemExit(0 if response.get("ready_to_apply") is True else 1)
+PY
+then
+  echo 'preflight response did not confirm ready_to_apply=true' >&2
+  exit 1
+fi
 
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
   --silent \
   --show-error \
+  --max-redirs 0 \
   --request PUT \
   --header "Content-Type: application/json" \
   --data-binary @"$PAYLOAD" \
@@ -73,26 +115,55 @@ visible without losing the intended configuration.
 
 ## Convergence and recovery
 
-List redacted desired state and live convergence status:
+The recovery block is independently executable. It recreates its private bearer
+configuration, lists redacted desired state and live convergence status, then
+reapplies every stored provider after a Keycloak restart, realm rebuild, or
+temporary outage:
 
 ```bash
+set -euo pipefail
+BASE="https://keyverse-admin.example"
+AUTH_CONFIG=""
+cleanup() {
+  if [ -n "${AUTH_CONFIG:-}" ]; then
+    rm -f "$AUTH_CONFIG"
+  fi
+}
+trap cleanup EXIT
+
+XTRACE_WAS_ON=0
+case $- in
+  *x*)
+    XTRACE_WAS_ON=1
+    set +x
+    ;;
+esac
+TOKEN="$(kv get secret/keyverse/operator-api-token)"
+AUTH_CONFIG="$(mktemp)"
+chmod 0600 "$AUTH_CONFIG"
+printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" >"$AUTH_CONFIG"
+unset TOKEN
+if [ "$XTRACE_WAS_ON" -eq 1 ]; then
+  set -x
+fi
+
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
   --silent \
   --show-error \
+  --max-redirs 0 \
   "$BASE/federation/identity-providers"
-```
 
-After a Keycloak restart, realm rebuild, or temporary outage, reapply all stored
-providers:
-
-```bash
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
   --silent \
   --show-error \
+  --max-redirs 0 \
   --request POST \
   "$BASE/federation/identity-providers:apply"
+
+cleanup
+trap - EXIT
 ```
 
 Delete removes the provider from Keycloak first and then removes desired state.
@@ -109,9 +180,17 @@ templates.
 
 When metadata refresh is enabled, pin the identity-provider entity identifier
 and restrict network egress to the approved metadata host. When metadata refresh
-is disabled, rotate `signingCertificate` through the same render → preflight →
-`PUT` sequence and retain the previous certificate until the upstream rollover
-window is complete.
+is disabled, `signingCertificate` must contain one or more comma-separated
+Base64 DER X.509 certificate bodies without PEM headers or footers.
+
+For a manual certificate rollover, render both the previous and next certificate
+as active trust material in the same `PUT` payload, for example
+`"signingCertificate": "<previous-base64-der>,<next-base64-der>"`. Run the
+complete render → preflight → `PUT` sequence before the upstream IdP switches
+keys. Keep both certificates in that field throughout the overlap window. After
+the upstream rollover period ends, render only the next certificate and repeat
+preflight and `PUT` to remove the previous certificate. Storing the previous
+certificate elsewhere does not preserve active signature trust.
 
 ## Standards basis
 

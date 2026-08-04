@@ -9,7 +9,7 @@ Keep a Changelog, and releases use semantic versioning.
 
 - Side-effect-free federation preflight validation with redacted operator
   results, explicit SAML issuer pinning, mandatory signature validation, and
-  metadata-backed or manual certificate trust.
+  metadata-backed or cryptographically parsed manual X.509 certificate trust.
 - An operational external-federation onboarding and recovery guide for
   standalone, CWL platform, and Naruon-integrated deployments.
 - Password-free headless registration that sends one bounded Keycloak action
@@ -62,6 +62,11 @@ Keep a Changelog, and releases use semantic versioning.
   values from being echoed through list, get, or update responses.
 - Rejected Unicode-confusable federation aliases outside the explicit ASCII
   slug alphabet.
+- Rejected raw C0 controls, DEL, invalid ports, malformed Base64, non-X.509
+  DER, PEM-wrapped manual certificates, and empty rollover certificate entries
+  before federation desired state can be persisted.
+- Hardened federation operator examples against shell xtrace leakage, HTTP
+  redirects, ambiguous preflight responses, and non-standalone recovery steps.
 - Raised non-success health responses correctly in the restricted stdlib HTTP
   opener.
 - Replaced a potentially expensive registration email regular expression with

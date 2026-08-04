@@ -7,12 +7,16 @@ non-secret provider fields are disclosed to operators.
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import logging
 import re
 import threading
 from typing import NoReturn, cast
 from urllib.parse import SplitResult, urlsplit
 
+from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -385,7 +389,9 @@ def _validate_absolute_uri(
         or len(value) > maximum_length
         or value != value.strip()
         or any(
-            character.isspace() or ord(character) == 127
+            character.isspace()
+            or ord(character) < 0x20
+            or ord(character) == 0x7F
             for character in value
         )
         or "\\" in value
@@ -393,6 +399,7 @@ def _validate_absolute_uri(
     )
     try:
         parsed = urlsplit(value)
+        _ = parsed.port
     except ValueError:
         parsed = None
     invalid_uri = (
@@ -430,6 +437,40 @@ def _validate_http_url(
         )
 
 
+def _validate_signing_certificates(
+    provider_config: dict[str, str], field_name: str
+) -> None:
+    """Require comma-separated Base64 DER X.509 certificate bodies."""
+    raw_value = provider_config.get(field_name, "")
+    certificate_bodies = [
+        certificate_body.strip()
+        for certificate_body in raw_value.split(",")
+    ]
+    if not raw_value.strip() or any(not body for body in certificate_bodies):
+        _provider_config_error(
+            field_name,
+            "must contain one or more Base64 DER X.509 certificates",
+        )
+    for certificate_body in certificate_bodies:
+        if "-----BEGIN CERTIFICATE-----" in certificate_body or (
+            "-----END CERTIFICATE-----" in certificate_body
+        ):
+            _provider_config_error(
+                field_name,
+                "must omit PEM certificate headers and footers",
+            )
+        try:
+            certificate_der = base64.b64decode(
+                certificate_body, validate=True
+            )
+            x509.load_der_x509_certificate(certificate_der)
+        except (binascii.Error, UnsupportedAlgorithm, ValueError):
+            _provider_config_error(
+                field_name,
+                "must contain valid Base64 DER X.509 certificates",
+            )
+
+
 def _validate_saml_registration(provider_config: dict[str, str]) -> None:
     """Enforce issuer, endpoint, signature, and certificate-source policy."""
     _validate_absolute_uri(
@@ -454,11 +495,8 @@ def _validate_saml_registration(provider_config: dict[str, str]) -> None:
     if use_metadata:
         _validate_http_url(provider_config, "metadataDescriptorUrl")
         return
-    if not provider_config.get("signingCertificate", "").strip():
-        _provider_config_error(
-            "signingCertificate",
-            "is required when metadata certificate refresh is disabled",
-        )
+    _validate_signing_certificates(provider_config, "signingCertificate")
+
 
 def _redacted_provider_config(
     provider_config: dict[str, str],
