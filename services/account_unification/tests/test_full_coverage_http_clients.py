@@ -99,6 +99,37 @@ def test_core_create_user_returns_empty_when_fallback_lookup_misses() -> None:
     api.close()
 
 
+def test_core_create_user_returns_location_identifier() -> None:
+    """A standard Keycloak Location header yields the created user ID."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Authenticate and return a Location-bearing create response."""
+        token = _token_response(request)
+        if token is not None:
+            return token
+        return httpx.Response(
+            201,
+            headers={
+                "Location": (
+                    "https://keycloak.example/admin/realms/cwl/users/location-id"
+                )
+            },
+        )
+
+    api = HttpAdminApi(
+        "https://keycloak.example",
+        "cwl",
+        "service-client",
+        "secret",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert api.create_user(
+        UserAccount(user_id="", user_name="new-user")
+    ) == "location-id"
+    api.close()
+
+
 @pytest.mark.parametrize(
     ("attribute_value", "expected"),
     [
@@ -113,6 +144,7 @@ def test_core_user_attribute_handles_all_keycloak_shapes(
 ) -> None:
     """Attribute reads handle empty lists, bare strings, and invalid shapes."""
     api = object.__new__(HttpAdminApi)
+    api._realm = "cwl"
 
     def fake_get(self, path: str, params=None):
         """Return the configured attribute representation."""
