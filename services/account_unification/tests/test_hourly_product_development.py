@@ -46,7 +46,12 @@ def test_product_development_uses_read_only_repository_permissions() -> None:
         "    env:",
     )
 
-    for permission in ("contents: read", "pull-requests: read", "checks: read"):
+    for permission in (
+        "actions: read",
+        "contents: read",
+        "pull-requests: read",
+        "checks: read",
+    ):
         assert permission in top_level_permissions
         assert permission in job_permissions
     assert "write" not in top_level_permissions
