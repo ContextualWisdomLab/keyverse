@@ -1,0 +1,89 @@
+name: Bootstrap federation preflight
+
+on:
+  push:
+    branches:
+      - feat/federation-preflight-validation
+    paths:
+      - .github/workflows/bootstrap-federation-preflight.yml
+      - scripts/ci/bootstrap_federation_preflight.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-federation-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  materialize:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/feat/federation-preflight-validation'
+      && github.actor == 'seonghobae'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/federation-preflight-validation
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Set up locked package runner
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        with:
+          prune-cache: true
+
+      - name: Materialize reviewed implementation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/bootstrap_federation_preflight.py
+          python scripts/ci/bootstrap_federation_preflight.py
+
+      - name: Verify account-unification service
+        working-directory: services/account_unification
+        run: |
+          set -euo pipefail
+          uv sync --locked --extra dev
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run pytest -q
+
+      - name: Verify deployment contracts
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        run: |
+          set -euo pipefail
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          python -m json.tool deploy/templates/saml-idp-employer-adfs.json >/dev/null
+          git diff --check
+          test ! -e .github/workflows/bootstrap-federation-preflight.yml
+          test ! -e scripts/ci/bootstrap_federation_preflight.py
+
+      - name: Commit verified final state
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "::error::Materializer produced no reviewed changes."
+            exit 1
+          fi
+          git commit -m 'feat(federation): validate SAML desired state before apply'
+          git push origin HEAD:feat/federation-preflight-validation
