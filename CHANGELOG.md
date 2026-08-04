@@ -48,6 +48,8 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Upgraded `cryptography` to 50.0.0 to remediate CVE-2026-69247 while
+  retaining the supported DER X.509 certificate parsing API.
 - Converted the employer ADFS template from an incompatible raw Keycloak
   representation to the closed Keyverse desired-state API contract.
 - Corrected root and template documentation that still claimed employer
