@@ -1,202 +1,110 @@
 # Federation Preflight Validation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> `superpowers:subagent-driven-development` or `superpowers:executing-plans` to
+> implement this plan task by task.
 
-**Goal:** Add an authenticated, side-effect-free federation preflight endpoint and fail-closed ADFS/SAML runtime validation before desired state is persisted.
+**Goal:** Add an authenticated, side-effect-free federation preflight endpoint
+and fail-closed ADFS/SAML runtime validation before desired state is persisted.
 
-**Architecture:** Extend the existing federation service boundary so the same pure validation functions are shared by preflight and `PUT`. Return only the existing redacted operator view, keep Keycloak and KV calls out of preflight, and update the ADFS template to the Keyverse API contract.
+**Architecture:** Extend the existing federation service boundary so preflight
+and `PUT` share pure validation. Return only the redacted operator view, keep KV
+and Keycloak calls out of preflight, and make the ADFS template use the Keyverse
+desired-state contract.
 
-**Tech Stack:** Python 3.11+, FastAPI, Pydantic v2, pytest, Keycloak 26 Admin REST representations, GitHub Actions.
+**Tech stack:** Python 3.11+, FastAPI, Pydantic v2, pytest, Keycloak 26 Admin
+REST representations, and GitHub Actions.
 
-## Global Constraints
+## Global constraints
 
-- Preserve the existing operator-authenticated federation router and all current routes.
+- Preserve the existing authenticated federation router and routes.
 - Perform no remote metadata fetch in preflight.
 - Never echo provider secrets or unknown configuration values.
 - Reject unresolved `{{...}}` markers before persistence.
-- Accept standards-valid absolute URI entity identifiers, including `urn:` forms.
-- Require explicit SP and IdP entity identifiers, SAML signature validation, and either metadata-backed or manual certificate trust.
-- Keep all production docstrings and statement/branch coverage at 100%.
+- Accept standards-valid absolute URI entity identifiers, including `urn:`.
+- Require explicit SP and IdP identifiers, SAML signature validation, and a
+  metadata-backed or manual certificate trust source.
+- Keep production docstrings and statement/branch coverage at 100%.
 - Keep database object naming unchanged and two-word-or-longer snake_case.
-- Update `CHANGELOG.md`; do not version-bump until broader 0.2.0 release criteria are met.
+- Update `CHANGELOG.md`; do not version-bump until broader 0.2.0 release criteria
+  are met.
 
 ---
 
 ### Task 1: Specify preflight behavior with failing tests
 
 **Files:**
+
 - Create: `services/account_unification/tests/test_federation_preflight.py`
+- Create: `services/account_unification/tests/test_federation_url_hardening.py`
 - Modify: `services/account_unification/tests/test_federation.py`
 
-**Interfaces:**
-- Consumes: existing `FederationService`, `IdentityProviderRegistration`, `InMemoryKvStore`, `create_app`, Keycloak mock fixtures.
-- Produces: executable tests for `POST /federation/identity-providers:validate` and stronger SAML policy.
-
-- [x] **Step 1: Add a no-side-effect HTTP preflight test**
-
-The test wires a fresh store and mock API, posts a valid SAML registration, and asserts:
-
-```python
-assert response.status_code == 200
-assert response.json()["ready_to_apply"] is True
-assert response.json()["registration"]["provider_config"]["clientSecret"] == "<redacted>"
-assert store.get_all(FEDERATION_PROVIDER_NAMESPACE) == {}
-assert api.calls == []
-```
-
-- [x] **Step 2: Add unresolved-template regression coverage**
-
-Post a registration whose metadata URL is `{{employer_adfs_metadata_url}}`; assert HTTP 400 and the same zero-side-effect checks.
-
-- [x] **Step 3: Add SAML policy branch tests**
-
-Cover missing and malformed `entityId`, `idpEntityId`, and
-`singleSignOnServiceUrl`; disabled, missing, or malformed `validateSignature`;
-missing or malformed `useMetadataDescriptorUrl`; missing or unsafe metadata URL;
-missing manual certificate; successful manual-certificate validation; and a
-standards-valid `urn:` entity identifier.
-
-- [x] **Step 4: Open a draft PR and verify RED**
-
-Repository CI on tests-only head `99b88fe74376ff42718660bd7dec6df38906cb11`
-failed as expected because the preflight route returned HTTP 404. Lint and
-interrogate remained green, demonstrating a behavior-only RED state. A fixture
-mistake in one direct-service assertion was corrected on the next test commit
-before production implementation.
+- [x] Add a no-side-effect HTTP preflight test with redacted output.
+- [x] Add unresolved-template rejection with zero side effects.
+- [x] Cover missing and malformed entity identifiers, SSO endpoints, boolean
+  security fields, metadata URLs, and certificate-source modes.
+- [x] Preserve standards-valid `urn:` entity identifiers.
+- [x] Add raw whitespace, backslash, malformed authority, fragment,
+  percent-encoded control, and ordinary percent-encoding regressions.
+- [x] Verify RED. Tests-only head
+  `99b88fe74376ff42718660bd7dec6df38906cb11` failed because the route returned
+  HTTP 404; URL-hardening head
+  `3dd95ba154823c1c9d1d344e3005d86b2c169378` failed on the three ambiguous URL
+  classes before the production fix.
 
 ### Task 2: Implement the shared validation boundary
 
 **Files:**
+
 - Modify: `services/account_unification/app/federation.py`
 
-**Interfaces:**
-- Produces: `IdentityProviderValidationResult`, `FederationService.validate_registration`, `_validate_saml_registration`, `_validate_provider_boolean`, `_validate_absolute_uri`, `_validate_http_url`, and the preflight route.
+- [x] Add `IdentityProviderValidationResult` with a redacted registration view.
+- [x] Reject unresolved template markers generically.
+- [x] Add required strict `true` / `false` parsing.
+- [x] Add bounded absolute-URI validation for `entityId` and `idpEntityId`.
+- [x] Add bounded HTTP(S)-only validation for SSO and metadata locations.
+- [x] Reject whitespace, backslashes, raw/encoded controls, userinfo, fragments,
+  malformed authorities, and non-HTTP network schemes.
+- [x] Require `validateSignature=true` and an explicit certificate-source mode.
+- [x] Add `FederationService.validate_registration` and authenticated
+  `POST /federation/identity-providers:validate` without store or network calls.
+- [x] Share the stronger validation with `PUT` before persistence.
+- [x] Verify GREEN. Bootstrap workflow run `30875502879` completed the locked
+  dependency install, Ruff, interrogate, complete pytest suite, realm validator,
+  Compose validation, JSON validation, and `git diff --check`, then committed
+  implementation head `39223fad8329a2d5ed7cc133f219d18825eb9b83`.
 
-- [ ] **Step 1: Add the redacted validation result model**
-
-```python
-class IdentityProviderValidationResult(BaseModel):
-    """Redacted result proving a registration is ready for persistence."""
-
-    registration: IdentityProviderView
-    ready_to_apply: bool = True
-```
-
-- [ ] **Step 2: Reject unresolved template markers generically**
-
-During `_validate_registration`, inspect every configuration value and raise HTTP 400 when `{{` or `}}` is present. Error text must not include the supplied value.
-
-- [ ] **Step 3: Add strict boolean parsing for SAML policy fields**
-
-Require both `validateSignature` and `useMetadataDescriptorUrl`. Accept only trimmed, case-insensitive `true` or `false`; reject missing or malformed values with HTTP 400. Require `validateSignature` to evaluate to true.
-
-- [ ] **Step 4: Add bounded absolute URI validation**
-
-Use `urllib.parse.urlsplit`. For `entityId` and `idpEntityId`, require a non-empty scheme, no surrounding whitespace, no credentials, no ASCII control characters, and at most 1,024 characters. Do not require an HTTP scheme so standards-valid `urn:` identifiers remain interoperable.
-
-- [ ] **Step 5: Add bounded absolute HTTP(S) URL validation**
-
-For `singleSignOnServiceUrl` and `metadataDescriptorUrl`, additionally require scheme `http` or `https`, a hostname, and no fragment. Do not fetch the URL.
-
-- [ ] **Step 6: Add SAML-specific validation**
-
-Require:
-
-```text
-entityId: absolute URI, <= 1024 characters
-idpEntityId: absolute URI, <= 1024 characters
-singleSignOnServiceUrl: absolute HTTP(S)
-validateSignature: true
-useMetadataDescriptorUrl: explicit true or false
-useMetadataDescriptorUrl=true -> metadataDescriptorUrl: absolute HTTP(S)
-useMetadataDescriptorUrl=false -> signingCertificate: non-empty
-```
-
-- [ ] **Step 7: Add the service and router method**
-
-`FederationService.validate_registration` runs validation and returns a redacted result. Add authenticated `POST /federation/identity-providers:validate`; do not access the store or Keycloak API.
-
-- [ ] **Step 8: Verify GREEN on focused tests**
-
-Run:
-
-```bash
-cd services/account_unification
-uv run pytest -q tests/test_federation.py tests/test_federation_preflight.py
-```
-
-Expected: all federation tests pass.
-
-### Task 3: Correct the operator artifact and documentation
+### Task 3: Correct operator artifacts and documentation
 
 **Files:**
+
 - Modify: `deploy/templates/saml-idp-employer-adfs.json`
 - Modify: `deploy/templates/README.md`
-- Modify: `README.md`
 - Create: `docs/federation-onboarding.md`
+- Modify: `README.md`
+- Modify: `CLAUDE.md`
 - Modify: `CHANGELOG.md`
 
-**Interfaces:**
-- Consumes: the new `IdentityProviderRegistration` API contract.
-- Produces: one render → preflight → apply workflow for employer ADFS.
+- [x] Convert the ADFS template to `IdentityProviderRegistration` and remove raw
+  Keycloak-only top-level fields.
+- [x] Parameterize SP entity ID, IdP entity ID, metadata URL, and SSO URL.
+- [x] Document render → preflight → `PUT` with private payload and curl-config
+  files so bearer credentials do not enter process arguments.
+- [x] Document convergence, outage recovery, certificate rotation, egress
+  restriction, redaction, and deletion semantics.
+- [x] Correct root and agent guidance that still claimed external federation was
+  embedded in portable realm code or that every template used the same control
+  plane.
+- [x] Record the feature and documentation corrections under `[Unreleased]`.
 
-- [ ] **Step 1: Convert the ADFS template**
+### Task 4: Exact-head review, coverage, and merge readiness
 
-Replace the raw Keycloak representation with:
-
-```json
-{
-  "provider_alias": "employer-adfs",
-  "display_name": "Employer ADFS (hssmartdev)",
-  "provider_id": "saml",
-  "enabled": true,
-  "trust_email": true,
-  "provider_config": {}
-}
-```
-
-Retain the existing ADFS issuer, endpoints, metadata location, and security settings inside `provider_config`; remove `$comment` and `$mapping_notes` keys rejected by the closed Pydantic schema.
-
-- [ ] **Step 2: Document side-effect-free preflight**
-
-Show an operator-token flow that renders placeholders to a temporary JSON file, calls `:validate`, then calls `PUT` only after 200. State that unresolved placeholders return 400 and no desired state is stored.
-
-- [ ] **Step 3: Correct stale root documentation**
-
-State that the committed realm contains no external IdP or LDAP source and that external providers are deployment data reconciled from the KV/DB desired-state API.
-
-- [ ] **Step 4: Update the changelog**
-
-Add preflight validation, secure SAML issuer/trust requirements, and the corrected ADFS template under `[Unreleased]`.
-
-### Task 4: Full verification and PR readiness
-
-**Files:**
-- Verify all changed files.
-
-- [ ] **Step 1: Run the complete locked verification suite**
-
-```bash
-cd services/account_unification
-uv sync --locked --extra dev
-uv run ruff check app tests tools
-uv run interrogate .
-uv run pytest -q
-cd ../..
-python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
-docker compose -f docker-compose.yml config >/dev/null
-```
-
-Expected: all commands exit 0, production docstrings are 100%, and production statement/branch coverage remains 100%.
-
-- [ ] **Step 2: Inspect all review threads and checks**
-
-Resolve only feedback addressed on the exact current head. Do not treat stale or superseded reviews as current approval.
-
-- [ ] **Step 3: Mark ready and enable exact-head auto-merge**
-
-Only after required checks and independent approval pass, mark the draft PR ready and enable auto-merge. Merge immediately only if GitHub reports all repository policy conditions satisfied for the unchanged head SHA.
-
-- [ ] **Step 4: Close the roadmap issue after merge**
-
-Close issue #3 as completed with the merge SHA and a concise statement that employer ADFS now has an operational, validated desired-state onboarding path.
+- [ ] Verify the final human-authored head after all documentation and template
+  commits: locked CI, realm validation, Compose validation, Semgrep, CodeQL,
+  security scan, 100% docstrings, and central statement/branch coverage.
+- [ ] Inspect every current review submission and unresolved thread; resolve only
+  feedback addressed on the unchanged head.
+- [ ] Mark the PR ready and enable exact-head auto-merge only after required
+  checks and independent approval satisfy repository policy.
+- [ ] After merge, close issue #3 with the merge SHA and confirm the open PR queue
+  before choosing the next buyer-visible slice.
