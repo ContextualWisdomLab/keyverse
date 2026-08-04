@@ -69,20 +69,6 @@ def main() -> None:
         "    return cast(SplitResult, parsed)\n\n\ndef _validate_http_url(\n",
         label="validated URI return type",
     )
-    content = _replace_once(
-        content,
-        "        _provider_config_error(\n"
-        '            "signingCertificate",\n'
-        '            "is required when metadata certificate refresh is disabled",\n'
-        "        )\n"
-        "def _redacted_provider_config(\n",
-        "        _provider_config_error(\n"
-        '            "signingCertificate",\n'
-        '            "is required when metadata certificate refresh is disabled",\n'
-        "        )\n\n\n"
-        "def _redacted_provider_config(\n",
-        label="module section spacing",
-    )
     MODULE_PATH.write_text(content.rstrip() + "\n", encoding="utf-8")
     WORKFLOW_PATH.unlink()
     SCRIPT_PATH.unlink()
