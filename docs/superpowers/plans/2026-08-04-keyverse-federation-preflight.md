@@ -62,7 +62,8 @@ REST representations, and GitHub Actions.
 - [x] Reject unresolved template markers generically.
 - [x] Add required strict `true` / `false` parsing.
 - [x] Add bounded absolute-URI validation for `entityId` and `idpEntityId`.
-- [x] Add bounded HTTP(S)-only validation for SSO and metadata locations.
+- [x] Add bounded HTTPS-only validation for SSO and metadata locations while
+  preserving HTTP(S) and `urn:` entity identifiers.
 - [x] Reject whitespace, backslashes, raw/encoded controls, userinfo, fragments,
   malformed authorities, and non-HTTP network schemes.
 - [x] Require `validateSignature=true` and an explicit certificate-source mode.
@@ -90,8 +91,8 @@ REST representations, and GitHub Actions.
 - [x] Parameterize SP entity ID, IdP entity ID, metadata URL, and SSO URL.
 - [x] Document render → preflight → `PUT` with private payload and curl-config
   files so bearer credentials do not enter process arguments.
-- [x] Document convergence, outage recovery, certificate rotation, egress
-  restriction, redaction, and deletion semantics.
+- [x] Document convergence, outage recovery, certificate rotation, HTTPS-only
+  egress and redirect-downgrade restriction, redaction, and deletion semantics.
 - [x] Correct root and agent guidance that still claimed external federation was
   embedded in portable realm code or that every template used the same control
   plane.

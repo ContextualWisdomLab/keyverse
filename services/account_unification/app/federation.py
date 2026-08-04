@@ -35,6 +35,7 @@ _REDACTED_VALUE = "<redacted>"
 _ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
 _HTTP_SCHEMES = frozenset({"http", "https"})
+_HTTPS_SCHEME = "https"
 _PERCENT_ENCODED_CONTROL = re.compile(
     r"%(?:0[0-9A-Fa-f]|1[0-9A-Fa-f]|7[Ff])"
 )
@@ -417,23 +418,23 @@ def _validate_absolute_uri(
     return cast(SplitResult, parsed)
 
 
-def _validate_http_url(
+def _validate_https_url(
     provider_config: dict[str, str], field_name: str
 ) -> None:
-    """Validate one HTTP(S) network location without fetching it."""
+    """Validate one HTTPS network location without dereferencing it."""
     parsed = _validate_absolute_uri(
         provider_config,
         field_name,
         maximum_length=_MAX_PROVIDER_CONFIG_VALUE_LENGTH,
     )
     if (
-        parsed.scheme.lower() not in _HTTP_SCHEMES
+        parsed.scheme.lower() != _HTTPS_SCHEME
         or parsed.hostname is None
         or bool(parsed.fragment)
     ):
         _provider_config_error(
             field_name,
-            "must be an absolute HTTP(S) URL without a fragment",
+            "must be an absolute HTTPS URL without a fragment",
         )
 
 
@@ -483,7 +484,7 @@ def _validate_saml_registration(provider_config: dict[str, str]) -> None:
         "idpEntityId",
         maximum_length=_SAML_ENTITY_ID_MAX_LENGTH,
     )
-    _validate_http_url(provider_config, "singleSignOnServiceUrl")
+    _validate_https_url(provider_config, "singleSignOnServiceUrl")
     if not _validate_provider_boolean(provider_config, "validateSignature"):
         _provider_config_error(
             "validateSignature",
@@ -493,7 +494,11 @@ def _validate_saml_registration(provider_config: dict[str, str]) -> None:
         provider_config, "useMetadataDescriptorUrl"
     )
     if use_metadata:
-        _validate_http_url(provider_config, "metadataDescriptorUrl")
+        _validate_https_url(provider_config, "metadataDescriptorUrl")
+        if provider_config.get("signingCertificate", "").strip():
+            _validate_signing_certificates(
+                provider_config, "signingCertificate"
+            )
         return
     _validate_signing_certificates(provider_config, "signingCertificate")
 

@@ -149,7 +149,12 @@ def test_saml_preflight_requires_core_identifiers_and_endpoint(
         ("entityId", "relative-realm-id"),
         ("idpEntityId", "https://operator:secret@sts.example/adfs/trust"),
         ("singleSignOnServiceUrl", "ftp://sts.example/adfs/ls/"),
+        ("singleSignOnServiceUrl", "http://sts.example/adfs/ls/"),
         ("singleSignOnServiceUrl", " https://sts.example/adfs/ls/"),
+        (
+            "metadataDescriptorUrl",
+            "http://sts.example/FederationMetadata.xml",
+        ),
         (
             "metadataDescriptorUrl",
             "https://operator:secret@sts.example/FederationMetadata.xml",
@@ -280,6 +285,22 @@ def test_saml_preflight_requires_metadata_url_when_enabled(
     _assert_no_side_effects(store, api)
 
 
+def test_saml_preflight_validates_optional_manual_certificate_in_metadata_mode(
+    api, auth_header, operator_token
+) -> None:
+    """Metadata mode still rejects malformed optional manual trust material."""
+    store = InMemoryKvStore()
+    body = _adfs_body()
+    body["provider_config"]["signingCertificate"] = "MIIC-test-certificate"
+
+    response = _post_preflight(body, store, api, auth_header, operator_token)
+
+    assert response.status_code == 400
+    assert response.json()["detail"].startswith("signingCertificate ")
+    assert "MIIC-test-certificate" not in response.text
+    _assert_no_side_effects(store, api)
+
+
 def test_saml_preflight_requires_manual_certificate_when_metadata_is_disabled(
     api, auth_header, operator_token
 ) -> None:
@@ -321,7 +342,10 @@ def test_saml_preflight_accepts_valid_manual_signing_certificates(
     assert response.status_code == 200
     config = response.json()["registration"]["provider_config"]
     assert config["signingCertificate"] == "<redacted>"
-    assert signing_certificates not in response.text
+    for certificate_body in signing_certificates.split(","):
+        certificate_body = certificate_body.strip()
+        if certificate_body:
+            assert certificate_body not in response.text
     _assert_no_side_effects(store, api)
 
 

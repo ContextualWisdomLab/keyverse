@@ -96,7 +96,9 @@ curl --config "$AUTH_CONFIG" \
 
 Preflight performs no KV write, no Keycloak Admin REST request, and no metadata
 fetch. Unresolved placeholders, unpinned SAML issuers, disabled signature
-validation, unsafe endpoints, or a missing certificate source return HTTP 400.
+validation, non-HTTPS network endpoints, unsafe URI text, or a missing
+certificate source return HTTP 400. Because preflight never dereferences remote
+metadata, the Keycloak egress layer must also reject redirect downgrade.
 Operator responses redact unknown and credential-bearing configuration values.
 
 See [`../../docs/federation-onboarding.md`](../../docs/federation-onboarding.md)

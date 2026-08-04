@@ -34,7 +34,7 @@ In scope:
   DER X.509 signing certificates;
 - SAML entity identifiers as bounded absolute URIs, preserving standards-valid
   `urn:` identifiers as well as HTTPS identifiers;
-- network-reachable SSO and metadata locations as absolute HTTP(S) URLs without
+- network-reachable SSO and metadata locations as absolute HTTPS URLs without
   userinfo, fragments, whitespace, backslashes, raw controls, encoded controls,
   or invalid ports;
 - conversion of the employer ADFS template to the Keyverse runtime API shape;
@@ -119,12 +119,14 @@ For `provider_id == "saml"`:
 2. `idpEntityId` is required and must be a non-empty absolute URI of at most
    1,024 characters. Requiring it prevents Keycloak's documented fallback in
    which issuer validation is skipped when the field is empty.
-3. `singleSignOnServiceUrl` is required and must be an absolute HTTP(S) URL.
+3. `singleSignOnServiceUrl` is required and must be an absolute HTTPS URL.
 4. `validateSignature` is required and must be the exact boolean string `true`
    after trimming and ASCII case normalization.
 5. `useMetadataDescriptorUrl` is required and must be `true` or `false`.
 6. When metadata use is enabled, `metadataDescriptorUrl` is required and must
-   be an absolute HTTP(S) URL.
+   be an absolute HTTPS URL. An optional supplied `signingCertificate` is
+   validated when present but is not required because metadata is the selected
+   trust source.
 7. When metadata use is disabled, `signingCertificate` is required. It must
    contain one or more comma-separated Base64 DER X.509 certificate bodies.
    Empty list entries, invalid Base64, non-X.509 DER, and PEM headers or footers
@@ -133,8 +135,11 @@ For `provider_id == "saml"`:
 URI validation rejects surrounding or internal whitespace, every C0 control
 character, DEL, backslashes, credentials in hierarchical authority components,
 and invalid or out-of-range ports. Network URL validation also rejects URI
-fragments. Query strings remain allowed because some enterprise metadata
-services use bounded query parameters.
+fragments and every scheme other than HTTPS. Query strings remain allowed
+because some enterprise metadata services use bounded query parameters. The
+side-effect-free preflight never follows redirects; deployments must enforce an
+approved-host, HTTPS-only redirect policy at Keycloak egress or its outbound
+proxy.
 
 ## Architecture and Data Flow
 
@@ -160,7 +165,9 @@ before the desired-state write.
 ## Security and Privacy
 
 - Preflight is operator-authenticated through the existing router dependency.
-- The endpoint performs no external fetch, preventing a new SSRF surface.
+- The endpoint performs no external fetch, preventing a new SSRF surface and
+  deliberately leaving redirect-target enforcement to the Keycloak egress
+  boundary.
 - Unresolved placeholders fail before persistence.
 - Secret-bearing configuration is accepted for validation but never returned.
 - Error text names only configuration fields and policy requirements, never
@@ -180,10 +187,13 @@ The test-first sequence proves:
 - preflight leaves both the KV store and Keycloak mock untouched;
 - unresolved placeholders fail closed without side effects;
 - every SAML required-field, URI, URL, trust-mode, and boolean branch fails with
-  HTTP 400 when invalid;
+  HTTP 400 when invalid, including direct HTTP SSO and metadata endpoints;
 - standards-valid `urn:` entity identifiers remain accepted;
 - valid single and comma-separated rollover certificates are accepted when
-  metadata retrieval is disabled;
+  metadata retrieval is disabled, and every certificate body is individually
+  absent from the redacted response;
+- malformed optional manual trust material also fails when metadata mode is
+  selected;
 - malformed Base64, non-X.509 DER, PEM-wrapped values, and empty certificate
   list entries fail closed;
 - raw NUL characters and out-of-range URL ports fail closed;

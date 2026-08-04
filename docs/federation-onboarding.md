@@ -27,11 +27,12 @@ For SAML providers, Keyverse requires:
 - fully rendered values without `{{...}}` markers.
 
 SAML entity identifiers are bounded absolute URIs and may use an interoperable
-`urn:` form. Network endpoints remain restricted to HTTP(S) and reject
-credentials, fragments, whitespace, backslashes, and raw or percent-encoded
-control characters. Preflight validates syntax and policy only; a deployment
-controller should separately restrict Keycloak egress to the approved metadata
-and SSO hosts.
+`urn:` form. Network endpoints are restricted to HTTPS and reject credentials,
+fragments, whitespace, backslashes, and raw or percent-encoded control
+characters. Preflight deliberately does not dereference metadata or follow
+redirects, so it cannot observe a redirect target. Restrict Keycloak egress or
+its outbound proxy to approved HTTPS metadata and SSO hosts, and reject every
+HTTPS-to-HTTP redirect before the response reaches Keycloak.
 
 ## Render, validate, apply
 
@@ -169,9 +170,12 @@ short-lived. Do not pass client secrets, bearer tokens, or signing material in
 process arguments, workflow logs, issue comments, or source-controlled
 templates.
 
-When metadata refresh is enabled, pin the identity-provider entity identifier
-and restrict network egress to the approved metadata host. When metadata refresh
-is disabled, each `signingCertificate` entry must be a Base64 DER X.509
+When metadata refresh is enabled, pin the identity-provider entity identifier,
+restrict network egress to the approved HTTPS metadata host, and reject
+redirect downgrade. A supplied optional `signingCertificate` is still parsed
+and rejected if malformed, but metadata remains the selected certificate source.
+When metadata refresh is disabled, each `signingCertificate` entry must be a
+Base64 DER X.509
 certificate body without PEM headers or footers. For a manual rollover, set
 `signingCertificate` in the `PUT` payload to
 `previous_certificate_body,next_certificate_body` so both certificates remain

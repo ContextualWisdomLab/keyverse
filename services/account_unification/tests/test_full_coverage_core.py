@@ -332,6 +332,19 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
     locks = object()
     unification = object()
     federation = object()
+    wired_locks: object | None = None
+
+    def build_unification(
+        _api: object,
+        _audit: object,
+        _config: object,
+        user_operation_locks: object,
+    ) -> object:
+        """Capture the lock manager assigned to the merge service."""
+        nonlocal wired_locks
+        wired_locks = user_operation_locks
+        return unification
+
     descriptor = SimpleNamespace(namespace="runtime")
     config = SimpleNamespace(
         keycloak_server_url="https://keycloak.example",
@@ -368,7 +381,7 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
     monkeypatch.setattr(
         main,
         "UnificationService",
-        lambda *args: unification,
+        build_unification,
     )
     monkeypatch.setattr(
         main,
@@ -383,6 +396,7 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
     assert app.state.audit_logger is audit
     assert app.state.keycloak_api is api
     assert app.state.user_operation_locks is locks
+    assert wired_locks is locks
     assert app.state.federation_service is federation
     assert app.state.operator_api_token == "operator"
     assert app.state.registration_api_token == "registration"

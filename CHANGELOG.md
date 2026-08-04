@@ -64,9 +64,10 @@ Keep a Changelog, and releases use semantic versioning.
   values from being echoed through list, get, or update responses.
 - Rejected Unicode-confusable federation aliases outside the explicit ASCII
   slug alphabet.
-- Rejected raw C0 controls, DEL, invalid ports, malformed Base64, non-X.509
-  DER, PEM-wrapped manual certificates, and empty rollover certificate entries
-  before federation desired state can be persisted.
+- Rejected raw C0 controls, DEL, invalid ports, insecure HTTP SSO or metadata
+  endpoints, malformed Base64, non-X.509 DER, PEM-wrapped manual certificates,
+  and empty rollover certificate entries before federation desired state can
+  be persisted.
 - Hardened federation operator examples against shell xtrace leakage, HTTP
   redirects, ambiguous preflight responses, and non-standalone recovery steps.
 - Raised non-success health responses correctly in the restricted stdlib HTTP
