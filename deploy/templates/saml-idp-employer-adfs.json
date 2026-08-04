@@ -1,12 +1,12 @@
 {
   "provider_alias": "employer-adfs",
-  "display_name": "Employer ADFS (hssmartdev)",
+  "display_name": "Employer ADFS",
   "provider_id": "saml",
   "enabled": true,
   "trust_email": true,
   "provider_config": {
-    "entityId": "https://idp.example/realms/cwl",
-    "idpEntityId": "http://sts.hssmartdev.com/adfs/services/trust",
+    "entityId": "{{keyverse_saml_entity_id}}",
+    "idpEntityId": "{{employer_adfs_entity_id}}",
     "metadataDescriptorUrl": "{{employer_adfs_metadata_url}}",
     "useMetadataDescriptorUrl": "true",
     "singleSignOnServiceUrl": "{{employer_adfs_sso_url}}",
