@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- A fail-closed hourly product-development scheduler that starts at most one
+  buyer-visible Copilot cloud-agent task when the PR queue and task queue are
+  empty and the exact default branch is healthy, while preserving read-only
+  repository permissions and protected draft-PR handoff.
 - Fail-closed OIDC and Keycloak-OIDC federation preflight with pinned HTTPS
   endpoints, JWKS signature validation, PKCE `S256`, confidential-client
   authentication, and RFC 6749 scope validation before desired-state writes.
