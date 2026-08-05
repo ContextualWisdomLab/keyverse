@@ -6,7 +6,7 @@ on:
       - fix/ldap-directory-reconciliation-hardening
     paths:
       - .github/workflows/one-shot-publish-ldap-hardening.yml
-      - scripts/ci/ldap-hardening.patch.gz.b64
+      - scripts/ci/ldap-hardening.part-*
 
 permissions:
   contents: write
@@ -51,8 +51,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          encoded="scripts/ci/ldap-hardening.patch.gz.b64"
+          encoded="${RUNNER_TEMP}/ldap-hardening.patch.gz.b64"
           decoded="${RUNNER_TEMP}/ldap-hardening.patch"
+          cat scripts/ci/ldap-hardening.part-* >"$encoded"
           printf '%s  %s\n' \
             'cb7b5c7ab1d4109f9d8dbf576f0013cca1b9cecd472a99baabcd9cb7df943908' \
             "$encoded" | sha256sum -c -
@@ -63,7 +64,8 @@ jobs:
           git apply --check "$decoded"
           git apply "$decoded"
           rm -f \
-            "$encoded" \
+            scripts/ci/ldap-hardening.part-* \
+            scripts/ci/ldap-hardening.patch.gz.b64 \
             .github/workflows/one-shot-publish-ldap-hardening.yml
           git diff --check
 
