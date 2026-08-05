@@ -1,21 +1,7 @@
 {
-  "$comment": [
-    "LDAP / Active Directory source template — INBOUND user-federation source.",
-    "Registers a corporate LDAP/AD directory as a Keycloak user-storage provider",
-    "so users sign in with directory credentials and are imported + linked by",
-    "verified email. Feed to the Keycloak Admin REST API:",
-    "  POST /admin/realms/{realm}/components",
-    "with an Authorization: Bearer <admin token> header.",
-    "",
-    "The bind password is NEVER stored here. {{ldap_bind_password}} is resolved",
-    "from the KV config store at apply time by the tooling. Keycloak component",
-    "config values are arrays of strings (MultivaluedHashMap)."
-  ],
-
   "name": "corp-ldap",
   "providerId": "ldap",
   "providerType": "org.keycloak.storage.UserStorageProvider",
-
   "config": {
     "enabled": ["true"],
     "priority": ["1"],
@@ -23,29 +9,20 @@
     "importEnabled": ["true"],
     "syncRegistrations": ["false"],
     "vendor": ["ad"],
-
     "connectionUrl": ["{{ldap_server_url}}"],
-    "$connectionUrl_example": ["ldaps://ad.corp.example:636"],
     "usersDn": ["{{ldap_users_dn}}"],
-    "$usersDn_example": ["OU=Users,DC=corp,DC=example"],
     "bindDn": ["{{ldap_bind_dn}}"],
-    "$bindDn_example": ["CN=svc-keycloak,OU=ServiceAccounts,DC=corp,DC=example"],
     "bindCredential": ["{{ldap_bind_password}}"],
-
     "usernameLDAPAttribute": ["sAMAccountName"],
     "rdnLDAPAttribute": ["cn"],
     "uuidLDAPAttribute": ["objectGUID"],
     "userObjectClasses": ["person, organizationalPerson, user"],
     "searchScope": ["2"],
-
-    "$attribute_notes": [
-      "userPrincipalName + mail feed verified-email auto-linking. AD marks",
-      "directory mail as authoritative, so trustEmail is enabled below."
-    ],
-    "trustEmail": ["true"],
-    "useTruststoreSpi": ["ldapsOnly"],
+    "trustEmail": ["false"],
+    "useTruststoreSpi": ["always"],
     "connectionPooling": ["true"],
     "connectionTimeout": ["10000"],
-    "readTimeout": ["10000"]
+    "readTimeout": ["10000"],
+    "allowKerberosAuthentication": ["false"]
   }
 }
