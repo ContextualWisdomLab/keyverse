@@ -433,7 +433,16 @@ def _validate_connection_urls(value: str) -> None:
 def _validate_object_classes(value: str) -> None:
     """Require a comma-and-space list of unique LDAP object classes."""
     object_classes = value.split(", ")
-    if not object_classes or ", ".join(object_classes) != value:
+    malformed = (
+        not value
+        or any(
+            not object_class
+            or object_class != object_class.strip()
+            or "," in object_class
+            for object_class in object_classes
+        )
+    )
+    if malformed:
         _directory_error(
             "userObjectClasses",
             "must be separated by a comma and one ASCII space",
