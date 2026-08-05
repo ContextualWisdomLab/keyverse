@@ -41,12 +41,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          diagnostic="scripts/ci/ldap-hardening-diagnostic.txt"
+          : >"$diagnostic"
           failed=0
           while read -r expected_sha expected_size path; do
             actual_sha="$(sha256sum "$path" | cut -d' ' -f1)"
             actual_size="$(wc -c <"$path" | tr -d ' ')"
             printf '%s expected_size=%s actual_size=%s expected_sha=%s actual_sha=%s\n' \
-              "$path" "$expected_size" "$actual_size" "$expected_sha" "$actual_sha"
+              "$path" "$expected_size" "$actual_size" "$expected_sha" "$actual_sha" \
+              | tee -a "$diagnostic"
             if [ "$actual_sha" != "$expected_sha" ] || [ "$actual_size" != "$expected_size" ]; then
               failed=1
             fi
@@ -60,9 +63,15 @@ jobs:
           c6f3df041f62b6e0d1b55a19faad1d5bb6e327b8e3da40346a9507c691973792 404 scripts/ci/ldap-hardening.part-06
           PARTS
           if [ "$failed" -ne 0 ]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add "$diagnostic"
+            git commit -m 'ci: record LDAP patch-part diagnostics'
+            git push origin HEAD:fix/ldap-directory-reconciliation-hardening
             echo '::error::One or more staged patch parts differ from the locally verified payload.'
             exit 1
           fi
+          rm -f "$diagnostic"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
