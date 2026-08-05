@@ -8,10 +8,10 @@ bind, search, or Keycloak Admin REST request occurs in this module.
 from __future__ import annotations
 
 import re
-from typing import NoReturn, cast
+from typing import Any, NoReturn, cast
 from urllib.parse import SplitResult, urlsplit
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 _DIRECTORY_PROVIDER_ID = "ldap"
@@ -117,6 +117,62 @@ def _directory_error(field_name: str, requirement: str) -> NoReturn:
     raise HTTPException(
         status_code=400,
         detail=f"{field_name} {requirement}",
+    )
+
+
+def _directory_shape_error(field_name: str, requirement: str) -> NoReturn:
+    """Raise one bounded schema error without reflecting malformed input."""
+    raise HTTPException(
+        status_code=422,
+        detail=f"{field_name} {requirement}",
+    )
+
+
+def _parse_directory_registration(payload: Any) -> DirectoryFederationRegistration:
+    """Parse arbitrary JSON manually so validation errors cannot echo secrets."""
+    if not isinstance(payload, dict):
+        _directory_shape_error("body", "must be a JSON object")
+
+    expected_fields = {"name", "providerId", "providerType", "config"}
+    payload_fields = set(payload)
+    if payload_fields.difference(expected_fields):
+        _directory_shape_error("body", "contains unsupported fields")
+    missing_fields = sorted(expected_fields.difference(payload_fields))
+    if missing_fields:
+        _directory_shape_error(missing_fields[0], "is required")
+
+    name = payload["name"]
+    provider_id = payload["providerId"]
+    provider_type = payload["providerType"]
+    config_input = payload["config"]
+    for field_name, field_value in (
+        ("name", name),
+        ("providerId", provider_id),
+        ("providerType", provider_type),
+    ):
+        if not isinstance(field_value, str):
+            _directory_shape_error(field_name, "must be a string")
+    if not isinstance(config_input, dict):
+        _directory_shape_error("config", "must be a JSON object")
+
+    config: dict[str, list[str]] = {}
+    for key, items in config_input.items():
+        if not isinstance(key, str):
+            _directory_shape_error("config", "contains a non-string key")
+        if not isinstance(items, list) or any(
+            not isinstance(item, str) for item in items
+        ):
+            _directory_shape_error(
+                key,
+                "must contain only string values in a JSON array",
+            )
+        config[key] = list(items)
+
+    return DirectoryFederationRegistration(
+        name=cast(str, name),
+        providerId=cast(str, provider_id),
+        providerType=cast(str, provider_type),
+        config=config,
     )
 
 
@@ -464,7 +520,8 @@ directory_federation_router = APIRouter(
     response_model=DirectoryFederationValidationResult,
 )
 def validate_user_directory(
-    registration: DirectoryFederationRegistration,
+    payload: Any = Body(...),
 ) -> DirectoryFederationValidationResult:
     """Validate LDAP desired input without storage or network side effects."""
+    registration = _parse_directory_registration(payload)
     return validate_directory_registration(registration)
