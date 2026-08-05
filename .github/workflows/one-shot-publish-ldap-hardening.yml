@@ -37,6 +37,33 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Diagnose staged patch parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          while read -r expected_sha expected_size path; do
+            actual_sha="$(sha256sum "$path" | cut -d' ' -f1)"
+            actual_size="$(wc -c <"$path" | tr -d ' ')"
+            printf '%s expected_size=%s actual_size=%s expected_sha=%s actual_sha=%s\n' \
+              "$path" "$expected_size" "$actual_size" "$expected_sha" "$actual_sha"
+            if [ "$actual_sha" != "$expected_sha" ] || [ "$actual_size" != "$expected_size" ]; then
+              failed=1
+            fi
+          done <<'PARTS'
+          654c43172fc61d2c91c4b14cfd77ae5cd88077d9689a648312daecb2160f095b 6000 scripts/ci/ldap-hardening.part-00
+          82568d4bc53d87096bc3a500f53ef26bb3f857eafb2c2eaa6f7e21eced651284 6000 scripts/ci/ldap-hardening.part-01
+          18a3ccf6e30ba9f81ea1c0e90fd5b9d9e717a3ba2cec4b8210068d126e397673 16000 scripts/ci/ldap-hardening.part-02
+          5d2ea5113be9173c1ce93b039224b9f25dfa3e120095f5494724145bd68f1120 16000 scripts/ci/ldap-hardening.part-03
+          1a01d14ee52738d090397cd40daf36e3b8abc1c7c52ae92be5c45dc509ea972d 16000 scripts/ci/ldap-hardening.part-04
+          9af98c620e04e782ae956199201887a58acfc8d99210d66aeb1fe79c33c17a64 16000 scripts/ci/ldap-hardening.part-05
+          c6f3df041f62b6e0d1b55a19faad1d5bb6e327b8e3da40346a9507c691973792 404 scripts/ci/ldap-hardening.part-06
+          PARTS
+          if [ "$failed" -ne 0 ]; then
+            echo '::error::One or more staged patch parts differ from the locally verified payload.'
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
