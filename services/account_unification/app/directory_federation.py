@@ -535,13 +535,21 @@ def validate_user_directory(
     registration = _parse_directory_registration(payload)
     return validate_directory_registration(registration)
 
-# Stateful desired-state routes are imported only after the pure preflight
-# models, validator, and router above are fully defined. This avoids a circular
-# initialization hazard while keeping the public module contract stable.
-from .directory_federation_state import (  # noqa: E402,F401
-    DIRECTORY_FEDERATION_NAMESPACE,
-    DIRECTORY_FEDERATION_RECEIPT_NAMESPACE,
-    DirectoryConvergenceState,
-    DirectoryFederationService,
-    DirectoryFederationStatus,
+_STATEFUL_EXPORTS = frozenset(
+    {
+        "DIRECTORY_FEDERATION_NAMESPACE",
+        "DIRECTORY_FEDERATION_RECEIPT_NAMESPACE",
+        "DirectoryConvergenceState",
+        "DirectoryFederationService",
+        "DirectoryFederationStatus",
+    }
 )
+
+
+def __getattr__(name: str):
+    """Load stateful directory exports lazily without a circular import."""
+    if name not in _STATEFUL_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from . import directory_federation_state
+
+    return getattr(directory_federation_state, name)

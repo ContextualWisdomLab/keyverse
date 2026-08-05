@@ -28,26 +28,49 @@ class _RecordingClient:
         self.requests: list[tuple[str, str, object | None]] = []
         self.list_payload: object = []
         self.location: str | None = None
+        self.auth_headers: list[dict[str, str]] = []
 
-    def get(self, url: str, *, params: dict[str, str]) -> _FakeResponse:
+    def get(
+        self,
+        url: str,
+        *,
+        params: dict[str, str],
+        headers: dict[str, str],
+    ) -> _FakeResponse:
         """Record one list request."""
         self.requests.append(("GET", url, dict(params)))
+        self.auth_headers.append(dict(headers))
         return _FakeResponse(payload=self.list_payload)
 
-    def post(self, url: str, *, json: dict) -> _FakeResponse:
+    def post(
+        self,
+        url: str,
+        *,
+        json: dict,
+        headers: dict[str, str],
+    ) -> _FakeResponse:
         """Record one create request."""
         self.requests.append(("POST", url, dict(json)))
-        headers = {"Location": self.location} if self.location else {}
-        return _FakeResponse(headers=headers)
+        self.auth_headers.append(dict(headers))
+        response_headers = {"Location": self.location} if self.location else {}
+        return _FakeResponse(headers=response_headers)
 
-    def put(self, url: str, *, json: dict) -> _FakeResponse:
+    def put(
+        self,
+        url: str,
+        *,
+        json: dict,
+        headers: dict[str, str],
+    ) -> _FakeResponse:
         """Record one replacement request."""
         self.requests.append(("PUT", url, dict(json)))
+        self.auth_headers.append(dict(headers))
         return _FakeResponse()
 
-    def delete(self, url: str) -> _FakeResponse:
+    def delete(self, url: str, *, headers: dict[str, str]) -> _FakeResponse:
         """Record one delete request."""
         self.requests.append(("DELETE", url, None))
+        self.auth_headers.append(dict(headers))
         return _FakeResponse()
 
 
@@ -62,6 +85,7 @@ def _client() -> tuple[ProductHttpAdminApi, _RecordingClient]:
     )
     recorder = _RecordingClient()
     api._client = recorder  # type: ignore[assignment]
+    api._token = "test-access-token"
     api._send_with_reauth = lambda request: request()  # type: ignore[method-assign]
     return api, recorder
 
@@ -91,6 +115,9 @@ def test_component_list_uses_fixed_type_and_name_query() -> None:
         "name": "corp-ldap",
         "type": "org.keycloak.storage.UserStorageProvider",
     }
+    assert recorder.auth_headers == [
+        {"Authorization": "Bearer test-access-token"}
+    ]
 
 
 def test_component_create_parses_only_a_safe_location_identifier() -> None:
@@ -155,6 +182,10 @@ def test_component_update_and_delete_use_exact_resource_path() -> None:
             None,
         ),
     ]
+    assert recorder.auth_headers == [
+        {"Authorization": "Bearer test-access-token"},
+        {"Authorization": "Bearer test-access-token"},
+    ]
 
 
 def test_component_list_rejects_invalid_response_shapes() -> None:
@@ -170,7 +201,7 @@ def test_component_list_rejects_unbounded_directory_name() -> None:
     """The adapter rejects empty and oversized names before transport."""
     api, recorder = _client()
 
-    for name in ("", "x" * 64):
+    for name in ("", "x" * 64, "Bad Alias", "-leading", "trailing-"):
         with pytest.raises(ValueError):
             api.list_user_storage_components(name)
 
