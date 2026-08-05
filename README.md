@@ -103,28 +103,6 @@ and the engine **never merges on an unverified email**.
   `docker-compose.yml`, or depend on `helm/cwl-idp`. Every component exposes a
   `/healthz`-style readiness probe so the parent can gate on it.
 
-## Protected autonomous loops
-
-Keyverse keeps repository maintenance and product creation in separate trust
-boundaries:
-
-- at minute **17** of every hour, `hourly-pr-steward.yml` updates trusted
-  branches and arms exact-head auto-merge only after approval and required
-  Checks;
-- at minute **41**, `hourly-product-development.yml` may create one bounded
-  Copilot cloud-agent task only when no PR or active task exists and the exact
-  `main` commit is healthy.
-
-The product scheduler has read-only repository permissions. Agent-task inventory
-and creation use the separate minimum-permission `COPILOT_GITHUB_TOKEN` secret;
-a missing or unreadable credential, unknown task state, open PR, or unhealthy
-`main` suppresses dispatch. The delegated agent opens one draft PR and may not
-approve, merge, bypass Checks, or publish a release.
-
-Setup, credential rotation, first-run validation, incident response, and the
-complete single-flight contract are documented in
-[`docs/operations/hourly-product-development.md`](docs/operations/hourly-product-development.md).
-
 ## Configuration & secrets
 
 Config and secrets are read from the **KV / DB store**, not from runtime
@@ -148,3 +126,23 @@ federation; RFC 7644 SCIM; OIDC Core; SAML V2.0), with citations.
 ---
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## Hourly OpenCode product development
+
+At minute 41 UTC, and only when no pull request exists and the exact `main` SHA
+is healthy, Keyverse may run one bounded OpenCode development cycle through a
+loopback NVIDIA NIM credential broker. The model works from a disposable
+`git archive` without `.git`, GitHub credentials, Actions OIDC, publication
+authority, or the upstream NIM credential.
+
+A fresh job independently validates the sealed patch and re-runs the complete
+100% production docstring, statement, and branch coverage gates plus package,
+realm, Compose, and provider-template checks. Only then may a dedicated
+`OPENCODE_PRODUCT_DEVELOPMENT_TOKEN` create one draft PR. Existing review-agent
+workflows and credentials are unchanged; the development workflow cannot
+approve, merge, tag, or release.
+
+Operations are documented in
+[`docs/operations/hourly-product-development.md`](docs/operations/hourly-product-development.md).
+Standards traceability and APA 7th references are recorded in
+[`docs/doctoring/hourly-opencode-product-development.md`](docs/doctoring/hourly-opencode-product-development.md).
