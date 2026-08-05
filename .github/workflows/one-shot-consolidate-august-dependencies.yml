@@ -1,0 +1,213 @@
+name: Consolidate August 2026 dependency updates
+
+on:
+  push:
+    branches:
+      - build/consolidate-august-2026-dependencies
+    paths:
+      - .github/workflows/one-shot-consolidate-august-dependencies.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-consolidate-august-dependencies
+  cancel-in-progress: true
+
+jobs:
+  update-verify-and-publish:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/build/consolidate-august-2026-dependencies'
+      && github.actor == 'seonghobae'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+
+      - name: Check out the exact dependency branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: build/consolidate-august-2026-dependencies
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up the pinned package resolver
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.12.1'
+          prune-cache: true
+
+      - name: Update direct constraints and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          project_path = Path('services/account_unification/pyproject.toml')
+          project = project_path.read_text(encoding='utf-8')
+          replacements = {
+              'fastapi==0.140.13': 'fastapi==0.141.1',
+              'uvicorn==0.52.0': 'uvicorn==0.52.1',
+              'coverage==7.14.3': 'coverage==7.15.2',
+              'httpx2>=2.5.0': 'httpx2==2.9.1',
+              'ruff==0.16.0': 'ruff==0.16.1',
+          }
+          for old, new in replacements.items():
+              if project.count(old) != 1:
+                  raise SystemExit(f'expected exactly one dependency constraint: {old}')
+              project = project.replace(old, new)
+          project_path.write_text(project, encoding='utf-8')
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          marker = '### Changed\n\n'
+          entry = (
+              '- Consolidated the August 2026 runtime, transport, certificate, '
+              'test, and lint dependency updates into one lock-consistent change.\n'
+          )
+          if entry not in changelog:
+              if changelog.count(marker) != 1:
+                  raise SystemExit('CHANGELOG Changed section is missing or ambiguous')
+              changelog = changelog.replace(marker, marker + entry, 1)
+              changelog_path.write_text(changelog, encoding='utf-8')
+          PY
+
+      - name: Regenerate every dependency lock surface
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv lock \
+            --upgrade-package anyio \
+            --upgrade-package certifi \
+            --upgrade-package coverage \
+            --upgrade-package fastapi \
+            --upgrade-package httpcore2 \
+            --upgrade-package httpx2 \
+            --upgrade-package ruff \
+            --upgrade-package uvicorn
+          uv export \
+            --format requirements.txt \
+            --no-dev \
+            --no-emit-project \
+            --output-file requirements.lock
+          uv export \
+            --format requirements.txt \
+            --extra dev \
+            --no-emit-project \
+            --output-file requirements-dev.txt
+
+      - name: Verify the dependency graph is internally consistent
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import tomllib
+
+          expected = {
+              'anyio': '4.14.2',
+              'certifi': '2026.7.22',
+              'coverage': '7.15.2',
+              'fastapi': '0.141.1',
+              'httpcore2': '2.9.1',
+              'httpx2': '2.9.1',
+              'ruff': '0.16.1',
+              'uvicorn': '0.52.1',
+          }
+          project = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
+          declarations = set(project['project']['dependencies']) | set(
+              project['project']['optional-dependencies']['dev']
+          )
+          for package in ('coverage', 'fastapi', 'httpx2', 'ruff', 'uvicorn'):
+              declaration = f'{package}=={expected[package]}'
+              if declaration not in declarations:
+                  raise SystemExit(f'missing exact direct constraint: {declaration}')
+
+          lock = Path('uv.lock').read_text(encoding='utf-8')
+          runtime = Path('requirements.lock').read_text(encoding='utf-8')
+          development = Path('requirements-dev.txt').read_text(encoding='utf-8')
+          for package, version in expected.items():
+              lock_pattern = (
+                  rf'(?ms)^\[\[package\]\]\nname = "{re.escape(package)}"\n'
+                  rf'version = "{re.escape(version)}"$'
+              )
+              if re.search(lock_pattern, lock) is None:
+                  raise SystemExit(f'uv.lock does not contain {package}=={version}')
+              target = runtime if package in {'anyio', 'certifi', 'fastapi', 'uvicorn'} else development
+              if re.search(rf'(?m)^{re.escape(package)}=={re.escape(version)}(?:\s|\\|$)', target) is None:
+                  target_name = 'requirements.lock' if target is runtime else 'requirements-dev.txt'
+                  raise SystemExit(f'{target_name} does not contain {package}=={version}')
+
+          forbidden = {
+              'anyio': '4.14.1',
+              'certifi': '2026.6.17',
+              'coverage': '7.14.3',
+              'fastapi': '0.140.13',
+              'httpcore2': '2.5.0',
+              'httpx2': '2.5.0',
+              'ruff': '0.16.0',
+              'uvicorn': '0.52.0',
+          }
+          combined = '\n'.join((lock, runtime, development))
+          for package, version in forbidden.items():
+              if re.search(rf'(?m)^(?:name = "{re.escape(package)}"\nversion = "{re.escape(version)}"|{re.escape(package)}=={re.escape(version)}(?:\s|\\|$))', combined):
+                  raise SystemExit(f'stale dependency remains: {package}=={version}')
+          PY
+          uv sync --locked --extra dev
+
+      - name: Verify service quality and production coverage
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run python -m compileall -q app tests tools
+          uv run coverage erase
+          uv run coverage run --branch --source=app -m pytest -q
+          uv run coverage report --show-missing --fail-under=100
+          uv build --out-dir dist
+
+      - name: Verify deployment contracts
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          while IFS= read -r -d '' template; do
+            python -m json.tool "$template" >/dev/null
+          done < <(find deploy/templates -maxdepth 1 -type f -name '*.json' -print0)
+          git diff --check
+
+      - name: Commit the exact verified dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-consolidate-august-dependencies.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo '::error::Dependency consolidation produced no final change.'
+            exit 1
+          fi
+          git commit -m 'build(deps): consolidate August 2026 dependency updates'
+          git push origin HEAD:build/consolidate-august-2026-dependencies
