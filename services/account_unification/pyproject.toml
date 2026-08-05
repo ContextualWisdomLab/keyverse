@@ -20,7 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "coverage==7.14.3",
+    "coverage==7.15.2",
     "httpx2>=2.5.0",
     "interrogate==1.7.0",
     "pytest==9.1.1",
