@@ -19,6 +19,7 @@ from .audit import AuditLogger, SqliteAuditSink
 from .auth import operator_auth_dependency
 from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
+from .directory_federation import directory_federation_router
 from .federation import FederationService, federation_router
 from .path_security import (
     ScimPathValidationError,
@@ -173,6 +174,13 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         federation_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        directory_federation_router,
         dependencies=[
             operator_auth_dependency,
             admin_path_security_dependency,

@@ -10,14 +10,14 @@ component built on [**Keycloak**](https://www.keycloak.org) (Apache-2.0). It:
   authenticator is removed** from the login flow for ecosystem-local accounts;
 - runs a **SCIM v2 server shim** for inbound provisioning into Keycloak;
 - **federates external IdPs in** — employer ADFS via SAML, corporate LDAP/AD,
-  and optional personal OIDC — with JIT provisioning and auto-link-by-
-  **verified**-email; and
+  and optional personal OIDC — while keeping unverified email ineligible for
+  account linking; and
 - adds an **account-unification** admin service to link one human's many external
   identities and to **merge** two pre-existing accounts into one.
 
-> Employer ADFS is an **external, proprietary** compatibility target — not the
-> hub. cwl-idp is the hub, and employer-specific federation remains deployment
-> data rather than portable realm code.
+> Employer ADFS and corporate directories are **external, proprietary**
+> compatibility targets—not the hub. cwl-idp is the hub, and customer-specific
+> federation remains deployment data rather than portable realm code.
 
 RP client registrations and secrets live in the **IdP DB / KV**, never in an RP's
 environment.
@@ -32,7 +32,8 @@ external IdPs  ──►  cwl-idp (Keycloak)  ──►  OIDC to ecosystem RPs
   HR/IGA (SCIM)     account-unification admin service
 ```
 
-Full diagram and trust directions: [`docs/topology.md`](docs/topology.md).
+Architecture and trust boundaries: [`ARCHITECTURE.md`](ARCHITECTURE.md). Full
+network diagram: [`docs/topology.md`](docs/topology.md).
 
 ## Repository layout
 
@@ -40,13 +41,14 @@ Full diagram and trust directions: [`docs/topology.md`](docs/topology.md).
 | --- | --- |
 | `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
 | `deploy/keycloak/` | Portable Keycloak realm config-as-code, passwordless flows, shared scopes, concrete Naruon RP, and service-account bootstrap |
-| `deploy/templates/` | Deployment templates split between the Keyverse desired-state API and explicit Keycloak Admin REST contracts |
+| `deploy/templates/` | Private deployment templates split between Keyverse preflight/desired state and explicit Keycloak Admin REST apply contracts |
 | `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
 | `deploy/scripts/healthz.sh` | Cross-component readiness probe |
 | `scripts/validate_realm.py` | Realm config-as-code validator (CI gate) |
-| `services/account_unification/` | FastAPI admin service (link + merge + SCIM + federation desired state) with unit tests |
+| `services/account_unification/` | FastAPI admin service (link + merge + SCIM + federation validation/desired state) with unit tests |
 | `helm/cwl-idp/` | Helm chart (templated Keycloak + Postgres + admin service) |
 | `docs/operations/` | Scheduled maintenance and product-development operating procedures |
+| `docs/doctoring/` | Standards interpretation and APA 7th engineering traceability |
 | `docs/` | Topology, passwordless policy, federation, merge flow, RP onboarding, and papers |
 
 ## Quick start (standalone)
@@ -72,10 +74,22 @@ WebAuthn passwordless authenticator and **no password authenticator**, plus
 ### Register external federation
 
 The portable realm contains no employer ADFS, LDAP/AD source, or other
-customer-specific federation. Render deployment values from KV, validate SAML
-or OIDC desired state through the side-effect-free preflight endpoint, and
-converge it through `/federation/identity-providers`. See
-[`docs/federation-onboarding.md`](docs/federation-onboarding.md),
+customer-specific federation. Render deployment values from KV and preflight
+every private payload before apply:
+
+- SAML and external OIDC:
+  `POST /federation/identity-providers:validate`, followed by the Keyverse
+  desired-state `PUT` and reconciliation flow.
+- LDAP and Active Directory:
+  `POST /federation/user-directories:validate`, followed by deployment-owned
+  private Keycloak component apply. The first profile is LDAPS-only,
+  read-only, Kerberos-disabled, and `trustEmail=false`.
+
+LDAP preflight performs no DNS lookup, socket connection, bind, search, KV/DB
+write, or Keycloak call. Its response redacts `bindDn` and `bindCredential` and
+must never be used as the apply payload; apply the original private file only.
+
+See [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
 [`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
 [`deploy/templates/README.md`](deploy/templates/README.md).
 
@@ -120,8 +134,9 @@ Database objects use two-word snake_case names (`idp_config_entries`,
 
 ## References
 
-Standards and papers in [`docs/papers/`](docs/papers/) (NIST SP 800-63C
-federation; RFC 7644 SCIM; OIDC Core; SAML V2.0), with citations.
+Standards and papers live under `docs/papers/` and `docs/doctoring/`, including
+NIST SP 800-63C federation, RFC 7644 SCIM, OIDC Core, SAML V2.0, and the LDAP
+RFC 4511–4515 family.
 
 ---
 

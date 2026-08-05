@@ -3,16 +3,18 @@
 These files are deployment inputs. They contain no reusable credentials, and
 all `{{placeholders}}` must be resolved from the platform KV before use.
 
-| Template | Owner | Direction | Apply endpoint |
-| --- | --- | --- | --- |
-| `saml-idp-employer-adfs.json` | Keyverse desired-state API | external IdP → Keyverse | `PUT /federation/identity-providers/employer-adfs` |
-| `oidc-idp-partner.json` | Keyverse desired-state API | external OIDC IdP → Keyverse | `PUT /federation/identity-providers/partner-oidc` |
-| `ldap-source.json` | Keycloak Admin REST | external directory → Keycloak | `POST /admin/realms/{realm}/components` |
-| `oidc-rp-client.json` | Keycloak Admin REST | Keyverse → RP | `POST /admin/realms/{realm}/clients` |
+| Template | Owner | Direction | Preflight | Apply endpoint |
+| --- | --- | --- | --- | --- |
+| `saml-idp-employer-adfs.json` | Keyverse desired-state API | external IdP → Keyverse | `POST /federation/identity-providers:validate` | `PUT /federation/identity-providers/employer-adfs` |
+| `oidc-idp-partner.json` | Keyverse desired-state API | external OIDC IdP → Keyverse | `POST /federation/identity-providers:validate` | `PUT /federation/identity-providers/partner-oidc` |
+| `ldap-source.json` | Keycloak component contract | external directory → Keycloak | `POST /federation/user-directories:validate` | `POST /admin/realms/{realm}/components` |
+| `oidc-rp-client.json` | Keycloak Admin REST | Keyverse → RP | deployment review | `POST /admin/realms/{realm}/clients` |
 
-The portable realm contains no employer-specific federation. External providers
-are customer or deployment data stored in the Keyverse KV/DB desired-state
-registry and reconciled into Keycloak.
+The portable realm contains no employer-specific federation. External SAML and
+OIDC providers are customer or deployment data stored in the Keyverse KV/DB
+desired-state registry and reconciled into Keycloak. LDAP is still applied as a
+Keycloak user-storage component in this release, but its rendered payload must
+first pass the authenticated Keyverse directory preflight described below.
 
 ## Employer ADFS apply pattern
 
@@ -118,10 +120,111 @@ contract has been independently reviewed. `oidc-rp-client.json` is a
 different artifact: it registers Keyverse as an RP and is applied directly
 to Keycloak Admin REST rather than the Keyverse federation API.
 
+## LDAP and Active Directory preflight pattern
+
+`ldap-source.json` is a private Keycloak component payload, not a Keyverse
+identity-provider registration. Render it from KV, submit the rendered private
+file to `POST /federation/user-directories:validate`, require exact HTTP 200 and
+`ready_to_apply=true`, and then send the **original private file** to Keycloak.
+Never apply the preflight response because `bindDn` and `bindCredential` are
+redacted in that response.
+
+```bash
+set -euo pipefail
+KEYVERSE_ADMIN="https://keyverse-admin.example"
+KEYCLOAK_ADMIN="https://keycloak-admin.internal"
+REALM="cwl"
+PAYLOAD="$(mktemp)"
+PREFLIGHT_RESPONSE="$(mktemp)"
+KEYVERSE_AUTH_CONFIG=""
+KEYCLOAK_AUTH_CONFIG=""
+cleanup() {
+  rm -f "$PAYLOAD" "$PREFLIGHT_RESPONSE"
+  [ -z "${KEYVERSE_AUTH_CONFIG:-}" ] || rm -f "$KEYVERSE_AUTH_CONFIG"
+  [ -z "${KEYCLOAK_AUTH_CONFIG:-}" ] || rm -f "$KEYCLOAK_AUTH_CONFIG"
+}
+trap cleanup EXIT
+chmod 0600 "$PAYLOAD" "$PREFLIGHT_RESPONSE"
+
+XTRACE_WAS_ON=0
+case $- in
+  *x*) XTRACE_WAS_ON=1; set +x ;;
+esac
+KEYVERSE_TOKEN="$(kv get secret/keyverse/operator-api-token)"
+KEYCLOAK_TOKEN="$(keycloak-admin-token)"
+KEYVERSE_AUTH_CONFIG="$(mktemp)"
+KEYCLOAK_AUTH_CONFIG="$(mktemp)"
+chmod 0600 "$KEYVERSE_AUTH_CONFIG" "$KEYCLOAK_AUTH_CONFIG"
+printf 'header = "Authorization: Bearer %s"\n' "$KEYVERSE_TOKEN" \
+  >"$KEYVERSE_AUTH_CONFIG"
+printf 'header = "Authorization: Bearer %s"\n' "$KEYCLOAK_TOKEN" \
+  >"$KEYCLOAK_AUTH_CONFIG"
+unset KEYVERSE_TOKEN KEYCLOAK_TOKEN
+if [ "$XTRACE_WAS_ON" -eq 1 ]; then
+  set -x
+fi
+
+render deploy/templates/ldap-source.json >"$PAYLOAD"
+
+PREFLIGHT_STATUS="$(
+  curl --config "$KEYVERSE_AUTH_CONFIG" \
+    --silent \
+    --show-error \
+    --max-redirs 0 \
+    --output "$PREFLIGHT_RESPONSE" \
+    --write-out '%{http_code}' \
+    --header "Content-Type: application/json" \
+    --data-binary @"$PAYLOAD" \
+    "$KEYVERSE_ADMIN/federation/user-directories:validate"
+)"
+if [ "$PREFLIGHT_STATUS" != "200" ]; then
+  printf 'LDAP preflight returned HTTP %s\n' "$PREFLIGHT_STATUS" >&2
+  cat "$PREFLIGHT_RESPONSE" >&2
+  exit 1
+fi
+python3 - "$PREFLIGHT_RESPONSE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as response_file:
+    response = json.load(response_file)
+raise SystemExit(0 if response.get("ready_to_apply") is True else 1)
+PY
+
+curl --config "$KEYCLOAK_AUTH_CONFIG" \
+  --fail-with-body \
+  --silent \
+  --show-error \
+  --max-redirs 0 \
+  --request POST \
+  --header "Content-Type: application/json" \
+  --data-binary @"$PAYLOAD" \
+  "$KEYCLOAK_ADMIN/admin/realms/$REALM/components"
+```
+
+The first LDAP profile is intentionally conservative:
+
+- all directory locations use `ldaps://`;
+- `editMode=READ_ONLY`;
+- `syncRegistrations=false`;
+- `trustEmail=false`;
+- `allowKerberosAuthentication=false`;
+- `useTruststoreSpi=always`;
+- connection and read timeouts are bounded;
+- distinguished names and LDAP schema identifiers are parsed locally;
+- no custom LDAP search filter is accepted.
+
+Preflight performs no DNS lookup, socket connection, bind, search, KV write, or
+Keycloak call. It cannot prove server reachability, TLS certificate validity,
+DNS behavior, directory schema, credential validity, or replication topology.
+The deployment controller and egress layer retain those responsibilities.
+
 ## Auto-linking policy
 
-`trust_email: true` makes an email assertion eligible for account linking only
-when the upstream provider's assertion is trusted as verified. The
-account-unification service retains the stricter invariant: it never links or
-merges accounts when the only common signal is an unverified email. See
+`trust_email: true` makes an SAML/OIDC email assertion eligible for account
+linking only when the upstream provider's assertion is trusted as verified.
+The account-unification service retains the stricter invariant: it never links
+or merges accounts when the only common signal is an unverified email. LDAP
+preflight fixes `trustEmail=false`; a future verified-directory-email profile
+requires a separately reviewed attribute and lifecycle contract. See
 [`../../docs/merge-unification-flow.md`](../../docs/merge-unification-flow.md).

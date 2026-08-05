@@ -7,8 +7,13 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
-- An hourly fail-closed NVIDIA NIM OpenCode loop that isolates model credentials, requires a production-code/test/changelog vertical, independently verifies the sealed patch, and opens one draft PR through a dedicated publication token.
-
+- Authenticated, side-effect-free LDAP and Active Directory component preflight
+  with LDAPS-only transport, RFC 4514 distinguished-name validation, closed
+  read-only policy, bounded timeouts, and bind-secret redaction.
+- An hourly fail-closed NVIDIA NIM OpenCode loop that isolates model credentials,
+  requires a production-code/test/changelog vertical, independently verifies
+  the sealed patch, and opens one draft PR through a dedicated publication
+  token.
 - Fail-closed OIDC and Keycloak-OIDC federation preflight with pinned HTTPS
   endpoints, JWKS signature validation, PKCE `S256`, confidential-client
   authentication, and RFC 6749 scope validation before desired-state writes.
@@ -35,6 +40,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- The LDAP deployment template is now a closed, preflight-ready Keycloak
+  component payload with `trustEmail=false`, `useTruststoreSpi=always`,
+  disabled Kerberos, and no synthetic comment fields.
 - The bound Keycloak browser flow is now strictly passkey-only; registration no
   longer creates a bootstrap password or runs a credential janitor.
 - The public `naruon-web` access-token lifespan is reduced to five minutes while
@@ -55,6 +63,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Prevented LDAP and Active Directory source configuration from reaching
+  Keycloak with cleartext transport, unresolved private values, malformed DNs,
+  writable or Kerberos-enabled policy, trusted-email linking, unsafe component
+  shapes, duplicate endpoints, or effectively unbounded login-path timeouts.
 - Prevented external OIDC broker configuration from persisting cleartext or
   unpinned endpoints, disabled token-signature/JWKS checks, missing PKCE,
   unsupported client authentication, remote discovery imports, or OAuth-only
