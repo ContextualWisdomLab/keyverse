@@ -265,11 +265,19 @@ def _validate_dn_value(value: str, field_name: str) -> None:
         ):
             _directory_error(field_name, "contains an invalid hexadecimal value")
         return
-    if value.startswith(" ") or value.startswith("#") or value.endswith(" "):
+    if value.startswith(" "):
         _directory_error(
             field_name,
             "contains an unescaped leading or trailing special character",
         )
+    if value.endswith(" "):
+        prefix = value[:-1]
+        trailing_backslashes = len(prefix) - len(prefix.rstrip("\\"))
+        if trailing_backslashes % 2 == 0:
+            _directory_error(
+                field_name,
+                "contains an unescaped leading or trailing special character",
+            )
 
     index = 0
     while index < len(value):
