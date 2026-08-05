@@ -86,8 +86,6 @@ jobs:
               if len(folded) != len(set(folded)):
                   _directory_error("userObjectClasses", "must not contain duplicates")
           '''
-          old = '\n'.join(line[10:] if line.startswith('          ') else line for line in old.splitlines()) + '\n'
-          new = '\n'.join(line[10:] if line.startswith('          ') else line for line in new.splitlines()) + '\n'
           if old not in content:
               if new in content:
                   raise SystemExit(0)
