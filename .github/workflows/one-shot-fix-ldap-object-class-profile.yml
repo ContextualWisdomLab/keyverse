@@ -1,0 +1,136 @@
+name: One-shot LDAP object-class profile fix
+
+on:
+  push:
+    branches:
+      - feat/ldap-directory-preflight
+    paths:
+      - .github/workflows/one-shot-fix-ldap-object-class-profile.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-ldap-object-class-profile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fix-and-verify:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/feat/ldap-directory-preflight'
+      && github.actor == 'seonghobae'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/ldap-directory-preflight
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up the locked package runner
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          prune-cache: true
+
+      - name: Make the delimiter branch reachable and exact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('services/account_unification/app/directory_federation.py')
+          content = path.read_text(encoding='utf-8')
+          old = '''def _validate_object_classes(value: str) -> None:
+              """Require a comma-and-space list of unique LDAP object classes."""
+              object_classes = value.split(", ")
+              if not object_classes or ", ".join(object_classes) != value:
+                  _directory_error(
+                      "userObjectClasses",
+                      "must be separated by a comma and one ASCII space",
+                  )
+              for object_class in object_classes:
+                  _validate_ldap_identifier(object_class, "userObjectClasses")
+              folded = [object_class.casefold() for object_class in object_classes]
+              if len(folded) != len(set(folded)):
+                  _directory_error("userObjectClasses", "must not contain duplicates")
+          '''
+          new = '''def _validate_object_classes(value: str) -> None:
+              """Require a comma-and-space list of unique LDAP object classes."""
+              object_classes = value.split(", ")
+              malformed = (
+                  not value
+                  or any(
+                      not object_class
+                      or object_class != object_class.strip()
+                      or "," in object_class
+                      for object_class in object_classes
+                  )
+              )
+              if malformed:
+                  _directory_error(
+                      "userObjectClasses",
+                      "must be separated by a comma and one ASCII space",
+                  )
+              for object_class in object_classes:
+                  _validate_ldap_identifier(object_class, "userObjectClasses")
+              folded = [object_class.casefold() for object_class in object_classes]
+              if len(folded) != len(set(folded)):
+                  _directory_error("userObjectClasses", "must not contain duplicates")
+          '''
+          old = '\n'.join(line[10:] if line.startswith('          ') else line for line in old.splitlines()) + '\n'
+          new = '\n'.join(line[10:] if line.startswith('          ') else line for line in new.splitlines()) + '\n'
+          if old not in content:
+              if new in content:
+                  raise SystemExit(0)
+              raise SystemExit('reviewed object-class validator anchor is missing')
+          path.write_text(content.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Verify complete quality and deployment contracts
+        shell: bash
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        run: |
+          set -euo pipefail
+          (
+            cd services/account_unification
+            uv sync --locked --extra dev
+            uv run ruff check app tests tools
+            uv run interrogate .
+            uv run python -m compileall -q app tests tools
+            uv run coverage erase
+            uv run coverage run --branch --source=app -m pytest -q
+            uv run coverage report --show-missing --fail-under=100
+            uv build --out-dir dist
+          )
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          while IFS= read -r -d '' template; do
+            python -m json.tool "$template" >/dev/null
+          done < <(find deploy/templates -maxdepth 1 -type f -name '*.json' -print0)
+          git diff --check
+
+      - name: Commit the verified production fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- services/account_unification/app/directory_federation.py; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add services/account_unification/app/directory_federation.py
+          git diff --cached --check
+          git commit -m 'fix(directory): enforce exact object-class delimiters'
+          git push origin HEAD:feat/ldap-directory-preflight
