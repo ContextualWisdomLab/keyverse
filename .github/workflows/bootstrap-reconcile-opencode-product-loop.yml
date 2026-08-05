@@ -164,5 +164,6 @@ jobs:
         with:
           name: verified-opencode-reconciliation-${{ github.run_id }}
           path: ${{ runner.temp }}/verified-reconciliation/
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 3
