@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 
 def _repository_root() -> Path:
     """Return the Keyverse repository root from this test module."""
@@ -17,6 +19,40 @@ def _workflow_source() -> str:
         / "workflows"
         / "hourly-product-development.yml"
     ).read_text(encoding="utf-8")
+
+
+def _workflow_document() -> dict[str, object]:
+    """Parse and return the workflow as a mapping for exact structural checks."""
+    document = yaml.safe_load(_workflow_source())
+    assert isinstance(document, dict)
+    return document
+
+
+def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
+    """Return exact allowed endpoints from one job's harden-runner step."""
+    jobs = _workflow_document().get("jobs")
+    assert isinstance(jobs, dict)
+    job = jobs.get(job_name)
+    assert isinstance(job, dict)
+    steps = job.get("steps")
+    assert isinstance(steps, list)
+
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        action = step.get("uses")
+        if not isinstance(action, str) or not action.startswith(
+            "step-security/harden-runner@"
+        ):
+            continue
+        inputs = step.get("with")
+        assert isinstance(inputs, dict)
+        endpoint_block = inputs.get("allowed-endpoints")
+        assert isinstance(endpoint_block, str)
+        return tuple(
+            line.strip() for line in endpoint_block.splitlines() if line.strip()
+        )
+    raise AssertionError(f"{job_name} has no harden-runner endpoint policy")
 
 
 def _permissions_block(source: str, marker: str, terminator: str) -> str:
@@ -56,17 +92,34 @@ def test_product_development_keeps_default_repository_permissions_read_only() ->
 def test_product_development_uses_opencode_and_nvidia_nim_not_copilot() -> None:
     """Scheduled implementation runs OpenCode against NVIDIA NIM only."""
     workflow = _workflow_source()
+    develop_endpoints = _harden_runner_endpoints("develop-product-gap")
 
     assert "OPENCODE_VERSION" in workflow
     assert "OPENCODE_SHA256" in workflow
     assert "opencode run" in workflow
     assert '"enabled_providers": ["nvidia-nim"]' in workflow
     assert '"baseURL": "http://127.0.0.1:8765/v1"' in workflow
-    assert "integrate.api.nvidia.com:443" in workflow
+    assert any(
+        endpoint == "integrate.api.nvidia.com:443"
+        for endpoint in develop_endpoints
+    )
     assert "secrets.NVIDIA_NIM_API_KEY" in workflow
     assert "COPILOT_GITHUB_TOKEN" not in workflow
     assert "/agents/repos/" not in workflow
     assert "create_pull_request: true" not in workflow
+
+
+def test_dependency_install_jobs_allow_exact_python_package_endpoints() -> None:
+    """Both locked dependency installations admit only the exact PyPI endpoints."""
+    expected_endpoints = (
+        "files.pythonhosted.org:443",
+        "pypi.org:443",
+    )
+
+    for job_name in ("develop-product-gap", "reverify-product-gap"):
+        endpoints = _harden_runner_endpoints(job_name)
+        for expected_endpoint in expected_endpoints:
+            assert any(endpoint == expected_endpoint for endpoint in endpoints)
 
 
 def test_nim_credential_is_brokered_outside_the_agent_environment() -> None:
