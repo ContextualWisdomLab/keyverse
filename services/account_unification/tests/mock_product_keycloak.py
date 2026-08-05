@@ -11,7 +11,21 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
         """Create empty product-specific stores."""
         super().__init__()
         self.identity_providers: dict[str, dict] = {}
+        self.user_storage_components: dict[str, dict] = {}
+        self._directory_component_sequence = 0
         self.action_emails: dict[str, dict] = {}
+
+    @staticmethod
+    def _clone_component(component: dict) -> dict:
+        """Return a defensive copy of one component representation."""
+        clone = dict(component)
+        config = component.get("config")
+        if isinstance(config, dict):
+            clone["config"] = {
+                key: list(values) if isinstance(values, list) else values
+                for key, values in config.items()
+            }
+        return clone
 
     def send_execute_actions_email(
         self,
@@ -73,98 +87,41 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
         self.calls.append(f"delete_identity_provider:{provider_alias}")
         self.identity_providers.pop(provider_alias, None)
 
-# Deterministic Keycloak component behavior for directory desired-state tests.
-def _directory_component_store(self: MockProductAdminApi) -> dict[str, dict]:
-    """Return the lazily initialized component store on the shared mock."""
-    store = getattr(self, "user_storage_components", None)
-    if store is None:
-        store = {}
-        setattr(self, "user_storage_components", store)
-        setattr(self, "_directory_component_sequence", 0)
-    return store
+    def list_user_storage_components(self, component_name: str) -> list[dict]:
+        """Return defensive copies of components with one exact name."""
+        self.calls.append(f"list_user_storage_components:{component_name}")
+        return [
+            self._clone_component(component)
+            for component in self.user_storage_components.values()
+            if component.get("name") == component_name
+        ]
 
+    def create_user_storage_component(self, component_payload: dict) -> str:
+        """Create one deterministic in-memory user-storage component."""
+        self._directory_component_sequence += 1
+        component_id = (
+            f"directory-component-{self._directory_component_sequence}"
+        )
+        component = self._clone_component(component_payload)
+        component["id"] = component_id
+        component.setdefault("parentId", "cwl")
+        self.user_storage_components[component_id] = component
+        self.calls.append(f"create_user_storage_component:{component_id}")
+        return component_id
 
-def _clone_directory_component(component: dict) -> dict:
-    """Return a defensive copy of one component representation."""
-    clone = dict(component)
-    config = component.get("config")
-    if isinstance(config, dict):
-        clone["config"] = {
-            key: list(values) if isinstance(values, list) else values
-            for key, values in config.items()
-        }
-    return clone
+    def update_user_storage_component(
+        self, component_id: str, component_payload: dict
+    ) -> None:
+        """Replace one existing deterministic in-memory component."""
+        if component_id not in self.user_storage_components:
+            raise KeyError(component_id)
+        component = self._clone_component(component_payload)
+        component["id"] = component_id
+        component.setdefault("parentId", "cwl")
+        self.user_storage_components[component_id] = component
+        self.calls.append(f"update_user_storage_component:{component_id}")
 
-
-def _mock_list_user_storage_components(
-    self: MockProductAdminApi,
-    name: str,
-) -> list[dict]:
-    """List every mock component with one exact name."""
-    self.calls.append(f"list_user_storage_components:{name}")
-    return [
-        _clone_directory_component(component)
-        for component in _directory_component_store(self).values()
-        if component.get("name") == name
-    ]
-
-
-def _mock_create_user_storage_component(
-    self: MockProductAdminApi,
-    payload: dict,
-) -> str:
-    """Create one mock component with a deterministic identifier."""
-    sequence = int(getattr(self, "_directory_component_sequence", 0)) + 1
-    setattr(self, "_directory_component_sequence", sequence)
-    component_id = f"directory-component-{sequence}"
-    component = _clone_directory_component(payload)
-    component["id"] = component_id
-    _directory_component_store(self)[component_id] = component
-    self.calls.append(f"create_user_storage_component:{component_id}")
-    return component_id
-
-
-def _mock_update_user_storage_component(
-    self: MockProductAdminApi,
-    component_id: str,
-    payload: dict,
-) -> None:
-    """Replace one existing mock component."""
-    store = _directory_component_store(self)
-    if component_id not in store:
-        raise KeyError(component_id)
-    component = _clone_directory_component(payload)
-    component["id"] = component_id
-    store[component_id] = component
-    self.calls.append(f"update_user_storage_component:{component_id}")
-
-
-def _mock_delete_user_storage_component(
-    self: MockProductAdminApi,
-    component_id: str,
-) -> None:
-    """Delete one existing mock component."""
-    del _directory_component_store(self)[component_id]
-    self.calls.append(f"delete_user_storage_component:{component_id}")
-
-
-setattr(
-    MockProductAdminApi,
-    "list_user_storage_components",
-    _mock_list_user_storage_components,
-)
-setattr(
-    MockProductAdminApi,
-    "create_user_storage_component",
-    _mock_create_user_storage_component,
-)
-setattr(
-    MockProductAdminApi,
-    "update_user_storage_component",
-    _mock_update_user_storage_component,
-)
-setattr(
-    MockProductAdminApi,
-    "delete_user_storage_component",
-    _mock_delete_user_storage_component,
-)
+    def delete_user_storage_component(self, component_id: str) -> None:
+        """Delete one existing deterministic in-memory component."""
+        del self.user_storage_components[component_id]
+        self.calls.append(f"delete_user_storage_component:{component_id}")
