@@ -3,7 +3,7 @@ name: Repair account-unification Ruff lock
 on:
   push:
     branches:
-      - dependabot/pip/services/account_unification/ruff-0.16.1
+      - fix/account-unification-ruff-lock-0.16.1
     paths:
       - services/account_unification/pyproject.toml
       - services/account_unification/uv.lock
