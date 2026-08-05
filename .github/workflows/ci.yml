@@ -53,8 +53,43 @@ jobs:
       - name: Apply the reviewed reconciliation
         run: |
           set -euo pipefail
-          python -m py_compile scripts/ci/reconcile_opencode_product_loop.py
-          python scripts/ci/reconcile_opencode_product_loop.py
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path(".github/workflows/hourly-product-development.yml")
+          content = path.read_text(encoding="utf-8")
+          for job_name in ("develop-product-gap", "reverify-product-gap"):
+              marker = f"  {job_name}:\n"
+              start = content.index(marker)
+              tail = content[start + len(marker) :]
+              next_job = re.search(r"(?m)^  [a-z0-9-]+:\n", tail)
+              end = (
+                  len(content)
+                  if next_job is None
+                  else start + len(marker) + next_job.start()
+              )
+              job = content[start:end]
+              block_marker = "          allowed-endpoints: |\n"
+              block_start = job.index(block_marker) + len(block_marker)
+              block_end = job.find("\n\n      - name:", block_start)
+              if block_end == -1:
+                  raise SystemExit(
+                      f"{job_name}: endpoint block terminator is missing"
+                  )
+              lines = job[block_start:block_end].rstrip("\n").splitlines()
+              exact_endpoints = {line.strip() for line in lines if line.strip()}
+              for endpoint in (
+                  "files.pythonhosted.org:443",
+                  "pypi.org:443",
+              ):
+                  if endpoint not in exact_endpoints:
+                      lines.append(f"            {endpoint}")
+              new_block = "\n".join(lines) + "\n"
+              new_job = job[:block_start] + new_block + job[block_end:]
+              content = content[:start] + new_job + content[end:]
+          path.write_text(content, encoding="utf-8")
+          PY
           git diff --check
 
       - name: Verify focused scheduler boundaries
