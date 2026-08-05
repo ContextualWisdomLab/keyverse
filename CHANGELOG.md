@@ -7,6 +7,8 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- An hourly fail-closed NVIDIA NIM OpenCode loop that isolates model credentials, requires a production-code/test/changelog vertical, independently verifies the sealed patch, and opens one draft PR through a dedicated publication token.
+
 - Fail-closed OIDC and Keycloak-OIDC federation preflight with pinned HTTPS
   endpoints, JWKS signature validation, PKCE `S256`, confidential-client
   authentication, and RFC 6749 scope validation before desired-state writes.

@@ -46,6 +46,7 @@ Full diagram and trust directions: [`docs/topology.md`](docs/topology.md).
 | `scripts/validate_realm.py` | Realm config-as-code validator (CI gate) |
 | `services/account_unification/` | FastAPI admin service (link + merge + SCIM + federation desired state) with unit tests |
 | `helm/cwl-idp/` | Helm chart (templated Keycloak + Postgres + admin service) |
+| `docs/operations/` | Scheduled maintenance and product-development operating procedures |
 | `docs/` | Topology, passwordless policy, federation, merge flow, RP onboarding, and papers |
 
 ## Quick start (standalone)
@@ -72,8 +73,8 @@ WebAuthn passwordless authenticator and **no password authenticator**, plus
 
 The portable realm contains no employer ADFS, LDAP/AD source, or other
 customer-specific federation. Render deployment values from KV, validate SAML
-desired state through the side-effect-free preflight endpoint, and converge it
-through `/federation/identity-providers`. See
+or OIDC desired state through the side-effect-free preflight endpoint, and
+converge it through `/federation/identity-providers`. See
 [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
 [`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
 [`deploy/templates/README.md`](deploy/templates/README.md).
@@ -125,3 +126,23 @@ federation; RFC 7644 SCIM; OIDC Core; SAML V2.0), with citations.
 ---
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## Hourly OpenCode product development
+
+At minute 41 UTC, and only when no pull request exists and the exact `main` SHA
+is healthy, Keyverse may run one bounded OpenCode development cycle through a
+loopback NVIDIA NIM credential broker. The model works from a disposable
+`git archive` without `.git`, GitHub credentials, Actions OIDC, publication
+authority, or the upstream NIM credential.
+
+A fresh job independently validates the sealed patch and re-runs the complete
+100% production docstring, statement, and branch coverage gates plus package,
+realm, Compose, and provider-template checks. Only then may a dedicated
+`OPENCODE_PRODUCT_DEVELOPMENT_TOKEN` create one draft PR. Existing review-agent
+workflows and credentials are unchanged; the development workflow cannot
+approve, merge, tag, or release.
+
+Operations are documented in
+[`docs/operations/hourly-product-development.md`](docs/operations/hourly-product-development.md).
+Standards traceability and APA 7th references are recorded in
+[`docs/doctoring/hourly-opencode-product-development.md`](docs/doctoring/hourly-opencode-product-development.md).
