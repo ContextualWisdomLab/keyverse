@@ -40,11 +40,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          failed=0
           while read -r expected_sha expected_size path; do
             actual_sha="$(sha256sum "$path" | cut -d' ' -f1)"
             actual_size="$(wc -c <"$path" | tr -d ' ')"
-            test "$actual_sha" = "$expected_sha"
-            test "$actual_size" = "$expected_size"
+            printf '%s expected_size=%s actual_size=%s expected_sha=%s actual_sha=%s\n' \
+              "$path" "$expected_size" "$actual_size" "$expected_sha" "$actual_sha"
+            if [ "$actual_sha" != "$expected_sha" ] || [ "$actual_size" != "$expected_size" ]; then
+              failed=1
+            fi
           done <<'PARTS'
           5d6db463e51169f0aa9eba3d18126460d4493b00264c82285f666a3d011ca21a 4000 scripts/ci/directory-gates.part-00
           a003d132d0cc01053af0ac4e8e9b1e6bbbedf7dfd77f0ca1582d68acbb940e65 4000 scripts/ci/directory-gates.part-01
@@ -55,17 +59,24 @@ jobs:
           dc575ce32d82c3a9222ebb200be8df5106ad276afb4b90505ea92e9b9a81f2a5 4000 scripts/ci/directory-gates.part-06
           43f087ca6ce75f36f94f193bbd6696e6500f55371d143bfad983a7206993c501 208 scripts/ci/directory-gates.part-07
           PARTS
+          if [ "$failed" -ne 0 ]; then
+            echo '::error::One or more directory repair payload parts differ from the reviewed bytes.'
+            exit 1
+          fi
+
           encoded="${RUNNER_TEMP}/directory-gates.patch.gz.b64"
           decoded="${RUNNER_TEMP}/directory-gates.patch"
           cat scripts/ci/directory-gates.part-* >"$encoded"
+          echo "aggregate_size=$(wc -c <"$encoded" | tr -d ' ') aggregate_sha=$(sha256sum "$encoded" | cut -d' ' -f1)"
           printf '%s  %s\n' \
             '36a1d20ec5af99fd4d6282ff29101046c6188c61149520ae95362434f365f5df' \
             "$encoded" | sha256sum -c -
           base64 --decode "$encoded" | gzip --decompress >"$decoded"
+          echo "decoded_size=$(wc -c <"$decoded" | tr -d ' ') decoded_sha=$(sha256sum "$decoded" | cut -d' ' -f1)"
           printf '%s  %s\n' \
             '2cb05e22fc1b615a30e8c22e832366e733d22cbde20be661b57d3d8c72d6eb6f' \
             "$decoded" | sha256sum -c -
-          git apply --check "$decoded"
+          git apply --check --verbose "$decoded"
           git apply "$decoded"
           rm -f scripts/ci/directory-gates.part-*
           rm -f .github/workflows/one-shot-restore-directory-gates.yml
