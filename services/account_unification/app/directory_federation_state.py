@@ -8,6 +8,7 @@ Storage critical sections never include Keycloak network I/O.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 import threading
@@ -387,7 +388,12 @@ def _validate_directory_name(directory_name: str) -> None:
 
 def _desired_digest(registration: DirectoryFederationRegistration) -> str:
     """Return one deterministic SHA-256 receipt for the private desired state."""
-    serialized = registration.model_dump_json(by_alias=True)
+    serialized = json.dumps(
+        registration.model_dump(by_alias=True),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 

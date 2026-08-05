@@ -38,7 +38,42 @@ _ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
     ("users", None, "execute-actions-email"),
     ("identity-provider", "instances"),
     ("identity-provider", "instances", None),
+    ("components",),
+    ("components", None),
 )
+
+
+_DIRECTORY_COMPONENT_PROVIDER_TYPE = "org.keycloak.storage.UserStorageProvider"
+_DIRECTORY_NAME_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
+_DIRECTORY_NAME_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
+
+
+def _validate_directory_name(name: str) -> str:
+    """Return one bounded lowercase ASCII directory slug."""
+    valid = (
+        isinstance(name, str)
+        and 1 <= len(name) <= 63
+        and name[0] in _DIRECTORY_NAME_EDGE_ALPHABET
+        and name[-1] in _DIRECTORY_NAME_EDGE_ALPHABET
+        and all(character in _DIRECTORY_NAME_ALPHABET for character in name)
+    )
+    if not valid:
+        raise ValueError("directory name is invalid")
+    return name
+
+
+def _validate_directory_component_id(component_id: str) -> str:
+    """Return one opaque Keycloak component ID or reject unsafe path material."""
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._~-"
+    valid = (
+        isinstance(component_id, str)
+        and 1 <= len(component_id) <= 255
+        and component_id not in {".", ".."}
+        and all(character in allowed for character in component_id)
+    )
+    if not valid:
+        raise ValueError("component_id is not a safe opaque path segment")
+    return component_id
 
 
 class ProductAdminApi(AdminApi, Protocol):
@@ -78,6 +113,24 @@ class ProductAdminApi(AdminApi, Protocol):
         """Delete an identity-provider instance."""
         ...
 
+    def list_user_storage_components(self, name: str) -> list[dict]:
+        """List exact-name LDAP user-storage component candidates."""
+        ...
+
+    def create_user_storage_component(self, component_payload: dict) -> str | None:
+        """Create one LDAP user-storage component and return its generated ID."""
+        ...
+
+    def update_user_storage_component(
+        self, component_id: str, component_payload: dict
+    ) -> None:
+        """Replace one validated LDAP user-storage component."""
+        ...
+
+    def delete_user_storage_component(self, component_id: str) -> None:
+        """Delete one validated LDAP user-storage component."""
+        ...
+
 
 class ProductHttpAdminApi(HttpAdminApi):
     """Keycloak client with registration, federation, and hardened transport."""
@@ -94,6 +147,7 @@ class ProductHttpAdminApi(HttpAdminApi):
     ) -> None:
         """Create a product adapter after validating all configured realms."""
         validate_path_segment(realm, field_name="keycloak_realm")
+        self._server_url = server_url.rstrip("/")
         if token_realm is not None:
             validate_path_segment(token_realm, field_name="token_realm")
         super().__init__(
@@ -432,113 +486,78 @@ class ProductHttpAdminApi(HttpAdminApi):
             f"{safe_alias}"
         )
 
-# LDAP user-storage component transport. The methods deliberately reuse the
-# existing client, admin URL builder, and exact one-shot 401 reauthentication
-# boundary instead of creating a second token cache.
-_DIRECTORY_COMPONENT_PROVIDER_TYPE = "org.keycloak.storage.UserStorageProvider"
 
+    def _absolute_admin_url(self, path: str) -> str:
+        """Return one guarded absolute Admin REST URL for direct response access."""
+        return f"{self._server_url}{self._guard_path(path)}"
 
-def _validate_directory_component_id(component_id: str) -> str:
-    """Return one opaque Keycloak component ID or reject unsafe path material."""
-    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._~-"
-    valid = (
-        isinstance(component_id, str)
-        and 1 <= len(component_id) <= 255
-        and component_id not in {".", ".."}
-        and all(character in allowed for character in component_id)
-    )
-    if not valid:
-        raise ValueError("component_id is not a safe opaque path segment")
-    return component_id
-
-
-def _list_user_storage_components(
-    self: ProductHttpAdminApi,
-    name: str,
-) -> list[dict]:
-    """List Keycloak LDAP user-storage components matching one safe name."""
-    if not isinstance(name, str) or not name or len(name) > 63:
-        raise ValueError("directory name is invalid")
-    response = self._send_with_reauth(
-        lambda: self._client.get(
-            self._admin_url("components"),
-            params={
-                "name": name,
-                "type": _DIRECTORY_COMPONENT_PROVIDER_TYPE,
-            },
+    def list_user_storage_components(self, name: str) -> list[dict]:
+        """List Keycloak LDAP user-storage components matching one safe name."""
+        safe_name = _validate_directory_name(name)
+        response = self._send_with_reauth(
+            lambda: self._client.get(
+                self._absolute_admin_url(
+                    f"/admin/realms/{self._realm}/components"
+                ),
+                params={
+                    "name": safe_name,
+                    "type": _DIRECTORY_COMPONENT_PROVIDER_TYPE,
+                },
+                headers=self._auth_header(),
+            )
         )
-    )
-    payload = response.json()
-    if not isinstance(payload, list) or any(
-        not isinstance(component, dict) for component in payload
-    ):
-        raise RuntimeError("Keycloak component list response is invalid")
-    return [dict(component) for component in payload]
+        payload = response.json()
+        if not isinstance(payload, list) or any(
+            not isinstance(component, dict) for component in payload
+        ):
+            raise RuntimeError("Keycloak component list response is invalid")
+        return [dict(component) for component in payload]
 
-
-def _create_user_storage_component(
-    self: ProductHttpAdminApi,
-    payload: dict,
-) -> str | None:
-    """Create one Keycloak LDAP component and return its Location identifier."""
-    response = self._send_with_reauth(
-        lambda: self._client.post(
-            self._admin_url("components"),
-            json=payload,
+    def create_user_storage_component(
+        self,
+        component_payload: dict,
+    ) -> str | None:
+        """Create one LDAP component and return its validated Location identifier."""
+        response = self._send_with_reauth(
+            lambda: self._client.post(
+                self._absolute_admin_url(
+                    f"/admin/realms/{self._realm}/components"
+                ),
+                json=component_payload,
+                headers=self._auth_header(),
+            )
         )
-    )
-    location = response.headers.get("Location")
-    if not location:
-        return None
-    component_id = location.rstrip("/").rsplit("/", 1)[-1]
-    return _validate_directory_component_id(component_id)
+        location = response.headers.get("Location")
+        if not location:
+            return None
+        component_id = location.rstrip("/").rsplit("/", 1)[-1]
+        return _validate_directory_component_id(component_id)
 
-
-def _update_user_storage_component(
-    self: ProductHttpAdminApi,
-    component_id: str,
-    payload: dict,
-) -> None:
-    """Replace one validated Keycloak LDAP component representation."""
-    safe_component_id = _validate_directory_component_id(component_id)
-    self._send_with_reauth(
-        lambda: self._client.put(
-            self._admin_url(f"components/{safe_component_id}"),
-            json=payload,
+    def update_user_storage_component(
+        self,
+        component_id: str,
+        component_payload: dict,
+    ) -> None:
+        """Replace one validated LDAP user-storage component representation."""
+        safe_component_id = _validate_directory_component_id(component_id)
+        self._send_with_reauth(
+            lambda: self._client.put(
+                self._absolute_admin_url(
+                    f"/admin/realms/{self._realm}/components/{safe_component_id}"
+                ),
+                json=component_payload,
+                headers=self._auth_header(),
+            )
         )
-    )
 
-
-def _delete_user_storage_component(
-    self: ProductHttpAdminApi,
-    component_id: str,
-) -> None:
-    """Delete one validated Keycloak LDAP component."""
-    safe_component_id = _validate_directory_component_id(component_id)
-    self._send_with_reauth(
-        lambda: self._client.delete(
-            self._admin_url(f"components/{safe_component_id}"),
+    def delete_user_storage_component(self, component_id: str) -> None:
+        """Delete one validated LDAP user-storage component."""
+        safe_component_id = _validate_directory_component_id(component_id)
+        self._send_with_reauth(
+            lambda: self._client.delete(
+                self._absolute_admin_url(
+                    f"/admin/realms/{self._realm}/components/{safe_component_id}"
+                ),
+                headers=self._auth_header(),
+            )
         )
-    )
-
-
-setattr(
-    ProductHttpAdminApi,
-    "list_user_storage_components",
-    _list_user_storage_components,
-)
-setattr(
-    ProductHttpAdminApi,
-    "create_user_storage_component",
-    _create_user_storage_component,
-)
-setattr(
-    ProductHttpAdminApi,
-    "update_user_storage_component",
-    _update_user_storage_component,
-)
-setattr(
-    ProductHttpAdminApi,
-    "delete_user_storage_component",
-    _delete_user_storage_component,
-)
