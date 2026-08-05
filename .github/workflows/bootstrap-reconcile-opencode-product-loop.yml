@@ -24,7 +24,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
+      actions: write
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -37,7 +38,7 @@ jobs:
         with:
           ref: feat/hourly-product-development-loop
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -95,8 +96,9 @@ jobs:
             .github/workflows/hourly-product-development.yml \
             README.md CHANGELOG.md docs/operations/hourly-product-development.md \
             docs/superpowers/specs/2026-08-04-keyverse-hourly-product-development-design.md \
-            docs/superpowers/plans/2026-08-04-keyverse-hourly-product-development.md; then
-            echo '::error::Superseded Copilot Agent Tasks contract remains.'
+            docs/superpowers/plans/2026-08-04-keyverse-hourly-product-development.md \
+            docs/doctoring/hourly-opencode-product-development.md; then
+            echo '::error::Superseded cloud-agent contract remains.'
             exit 1
           fi
           (
@@ -126,26 +128,41 @@ jobs:
           done < <(find deploy/templates -maxdepth 1 -type f -name '*.json' -print0)
           git diff --check
 
-      - name: Remove all one-shot reconciliation material
+      - name: Materialize the exact verified reconciliation artifact
         run: |
           set -euo pipefail
-          rm -f \
-            .github/workflows/bootstrap-finalize-opencode-product-loop.yml \
-            .github/workflows/bootstrap-reconcile-opencode-product-loop.yml \
-            scripts/ci/finalize_opencode_product_loop.py \
-            scripts/ci/reconcile_opencode_product_loop.py
-          git diff --check
+          artifact_root="${RUNNER_TEMP}/verified-reconciliation"
+          mkdir -p \
+            "$artifact_root/.github/workflows" \
+            "$artifact_root/docs/operations" \
+            "$artifact_root/docs/doctoring" \
+            "$artifact_root/docs/superpowers/specs" \
+            "$artifact_root/docs/superpowers/plans"
+          cp .github/workflows/hourly-product-development.yml \
+            "$artifact_root/.github/workflows/hourly-product-development.yml"
+          cp README.md CHANGELOG.md "$artifact_root/"
+          cp docs/operations/hourly-product-development.md \
+            "$artifact_root/docs/operations/hourly-product-development.md"
+          cp docs/doctoring/hourly-opencode-product-development.md \
+            "$artifact_root/docs/doctoring/hourly-opencode-product-development.md"
+          cp docs/superpowers/specs/2026-08-04-keyverse-hourly-product-development-design.md \
+            "$artifact_root/docs/superpowers/specs/2026-08-04-keyverse-hourly-product-development-design.md"
+          cp docs/superpowers/plans/2026-08-04-keyverse-hourly-product-development.md \
+            "$artifact_root/docs/superpowers/plans/2026-08-04-keyverse-hourly-product-development.md"
+          cat >"$artifact_root/deletions.txt" <<'EOF'
+          .github/workflows/bootstrap-finalize-opencode-product-loop.yml
+          .github/workflows/bootstrap-finalize-opencode-v3.yml
+          .github/workflows/bootstrap-reconcile-opencode-product-loop.yml
+          scripts/ci/finalize_opencode_product_loop.py
+          scripts/ci/reconcile_opencode_product_loop.py
+          EOF
+          find "$artifact_root" -type f -print0 | sort -z | xargs -0 sha256sum \
+            >"$artifact_root/SHA256SUMS"
 
-      - name: Commit the exact verified scheduler
-        run: |
-          set -euo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo '::error::OpenCode scheduler reconciliation produced no change.'
-            exit 1
-          fi
-          git commit -m 'ci: isolate hourly product development behind NVIDIA NIM OpenCode'
-          git push origin HEAD:feat/hourly-product-development-loop
+      - name: Upload the verified reconciliation artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-opencode-reconciliation-${{ github.run_id }}
+          path: ${{ runner.temp }}/verified-reconciliation/
+          if-no-files-found: error
+          retention-days: 3
