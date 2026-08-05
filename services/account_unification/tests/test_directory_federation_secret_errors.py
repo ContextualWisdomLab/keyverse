@@ -82,5 +82,5 @@ def test_malformed_directory_request_never_echoes_private_input(
     """Shape errors use bounded field diagnostics rather than reflected input."""
     response = _post(payload_factory(), auth_header, operator_token)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert private_value not in response.text
