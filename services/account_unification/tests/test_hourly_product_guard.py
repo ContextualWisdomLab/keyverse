@@ -57,6 +57,36 @@ def test_guard_rejects_deletion_binary_mode_and_control_plane_patches(tmp_path) 
 
     safe_patch = tmp_path / "safe.patch"
     safe_patch.write_text(
+        "diff --git a/CHANGELOG.md b/CHANGELOG.md\n"
+        "--- a/CHANGELOG.md\n"
+        "+++ b/CHANGELOG.md\n"
+        "@@ -1 +1 @@\n"
+        "-old\n"
+        "+new\n"
+        "diff --git a/services/account_unification/app/federation.py "
+        "b/services/account_unification/app/federation.py\n"
+        "--- a/services/account_unification/app/federation.py\n"
+        "+++ b/services/account_unification/app/federation.py\n"
+        "@@ -1 +1 @@\n"
+        "-old\n"
+        "+new\n"
+        "diff --git a/services/account_unification/tests/test_federation.py "
+        "b/services/account_unification/tests/test_federation.py\n"
+        "--- a/services/account_unification/tests/test_federation.py\n"
+        "+++ b/services/account_unification/tests/test_federation.py\n"
+        "@@ -1 +1 @@\n"
+        "-old\n"
+        "+new\n",
+        encoding="utf-8",
+    )
+    assert guard.validate_patch_text(safe_patch) == [
+        "CHANGELOG.md",
+        "services/account_unification/app/federation.py",
+        "services/account_unification/tests/test_federation.py",
+    ]
+
+    documentation_only_patch = tmp_path / "documentation-only.patch"
+    documentation_only_patch.write_text(
         "diff --git a/README.md b/README.md\n"
         "--- a/README.md\n"
         "+++ b/README.md\n"
@@ -65,7 +95,8 @@ def test_guard_rejects_deletion_binary_mode_and_control_plane_patches(tmp_path) 
         "+new\n",
         encoding="utf-8",
     )
-    assert guard.validate_patch_text(safe_patch) == ["README.md"]
+    with pytest.raises(guard.BoundaryError, match="no production code"):
+        guard.validate_patch_text(documentation_only_patch)
 
     unsafe_patches = (
         "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n",
