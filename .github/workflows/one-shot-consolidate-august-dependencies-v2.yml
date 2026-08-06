@@ -1,0 +1,417 @@
+name: Consolidate August 2026 dependency and packaging refresh
+
+on:
+  push:
+    branches:
+      - build/consolidate-august-2026-dependencies-v2
+    paths:
+      - .github/workflows/one-shot-consolidate-august-dependencies-v2.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-shot-consolidate-august-dependencies-v2
+  cancel-in-progress: true
+
+jobs:
+  update-verify-and-publish:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/build/consolidate-august-2026-dependencies-v2'
+      && github.actor == 'seonghobae'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+
+      - name: Check out the exact dependency branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: build/consolidate-august-2026-dependencies-v2
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify the immutable base
+        shell: bash
+        run: |
+          set -euo pipefail
+          readonly expected_main='18dcee9e73e468bb60960cde66ac4d88064e8327'
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$expected_main"
+          test "$(git merge-base HEAD origin/main)" = "$expected_main"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up the pinned package resolver
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.12.1'
+          prune-cache: true
+
+      - name: Update direct constraints, PEP 639 metadata, and doctoring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          project_path = Path('services/account_unification/pyproject.toml')
+          project = project_path.read_text(encoding='utf-8')
+          replacements = {
+              'requires = ["setuptools>=68"]': 'requires = ["setuptools==83.0.0"]',
+              'license = { text = "Apache-2.0" }': (
+                  'license = "Apache-2.0"\nlicense-files = ["LICENSE"]'
+              ),
+              '"fastapi==0.140.13"': '"fastapi==0.141.1"',
+              '"uvicorn==0.52.0"': '"uvicorn==0.52.1"',
+              '"coverage==7.14.3"': '"coverage==7.15.2"',
+              '"httpx2>=2.5.0"': '"httpx2==2.9.1"',
+          }
+          for old, new in replacements.items():
+              if project.count(old) != 1:
+                  raise SystemExit(f'expected exactly one project declaration: {old}')
+              project = project.replace(old, new)
+          dev_anchor = '    "ruff==0.16.1",\n'
+          setuptools_entry = '    "setuptools==83.0.0",\n'
+          if project.count(dev_anchor) != 1:
+              raise SystemExit('ruff development dependency anchor is missing or ambiguous')
+          if setuptools_entry not in project:
+              project = project.replace(
+                  dev_anchor,
+                  dev_anchor + setuptools_entry,
+                  1,
+              )
+          project_path.write_text(project, encoding='utf-8')
+
+          root_license = Path('LICENSE').read_bytes()
+          Path('services/account_unification/LICENSE').write_bytes(root_license)
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          marker = '### Changed\n\n'
+          entry = (
+              '- Consolidated the August 2026 runtime, transport, certificate, test,\n'
+              '  lint, and build-backend refresh into one lock-consistent dependency\n'
+              '  graph, and migrated package license metadata to the PEP 639 SPDX\n'
+              '  expression and license-file contract.\n'
+          )
+          if entry not in changelog:
+              if changelog.count(marker) != 1:
+                  raise SystemExit('CHANGELOG Changed section is missing or ambiguous')
+              changelog = changelog.replace(marker, marker + entry, 1)
+              changelog_path.write_text(changelog, encoding='utf-8')
+          PY
+
+          mkdir -p docs/doctoring
+          cat > docs/doctoring/2026-08-dependency-and-packaging-refresh.md <<'DOC'
+          # August 2026 Dependency and Packaging Refresh — Doctoring Record
+
+          ## Scope
+
+          This change consolidates the open account-unification dependency updates
+          into one reproducible graph. It updates the direct runtime, transport,
+          certificate, testing, linting, and build-backend surfaces together rather
+          than merging independently generated requirement fragments that disagree
+          with `pyproject.toml` or `uv.lock`.
+
+          The bounded package targets are:
+
+          | Package | Previous | Target | Surface |
+          |---|---:|---:|---|
+          | AnyIO | 4.14.1 | 4.14.2 | transitive runtime and development |
+          | Certifi | 2026.6.17 | 2026.7.22 | transitive runtime and development |
+          | Coverage | 7.14.3 | 7.15.2 | direct development |
+          | FastAPI | 0.140.13 | 0.141.1 | direct runtime |
+          | HTTPCore2 | 2.5.0 | 2.9.1 | transitive development transport |
+          | HTTPX2 | 2.5.0 | 2.9.1 | direct development transport |
+          | Ruff | 0.16.0 lock state | 0.16.1 | direct development; main already declares 0.16.1 |
+          | Uvicorn | 0.52.0 | 0.52.1 | direct runtime |
+          | Setuptools | unbounded `>=68` build requirement | 83.0.0 | build backend and direct development |
+
+          No application behavior, database schema, authentication policy, review
+          credential, or LLM integration is changed by this refresh.
+
+          ## Canonical dependency surfaces
+
+          `pyproject.toml` is the reviewed direct-requirement source. `uv.lock` is
+          the universal exact resolution. `requirements.lock` is the generated
+          runtime installation surface, and `requirements-dev.txt` is the generated
+          development installation surface. They are regenerated from one resolver
+          execution and must not be edited independently.
+
+          The verifier requires every target version to appear on its correct
+          surface and rejects the superseded exact versions. `uv lock --check` and
+          `uv sync --locked --extra dev` prove that the reviewed declarations and
+          universal lock remain mutually consistent.
+
+          ## PEP 639 license metadata
+
+          The legacy TOML table form `license = { text = "Apache-2.0" }` is
+          deprecated. The package now uses the standardized SPDX expression
+          `license = "Apache-2.0"` and declares `license-files = ["LICENSE"]`.
+          The service-local license bytes are copied from the repository's canonical
+          Apache License 2.0 text. Distribution verification requires the wheel
+          metadata to contain `License-Expression: Apache-2.0`, exactly one
+          `.dist-info/licenses/LICENSE` entry, and an identical license file in the
+          source distribution.
+
+          ## Verification contract
+
+          Exact completion requires:
+
+          - immutable-main ancestry;
+          - exact target and stale-version checks across all dependency surfaces;
+          - locked installation with Setuptools 83.0.0;
+          - Ruff, Python compilation, and production docstrings at 100%;
+          - full pytest with production statement and branch coverage at 100%;
+          - non-isolated wheel and source-distribution build with no legacy-license
+            deprecation warning;
+          - wheel metadata and packaged-license byte validation;
+          - Keycloak realm, Docker Compose, and deployment-template validation;
+          - current-head CI, CodeQL, Semgrep, Security Scan, independent review,
+            and protected merge policy.
+
+          ## Residual risk
+
+          A dependency version being current does not prove application
+          compatibility. Repository behavior and security tests remain the evidence
+          for this bounded graph. A later release still requires exact-main image,
+          SBOM, provenance, rollback, and operational acceptance evidence.
+
+          ## References — APA 7th
+
+          Astral Software, Inc. (2026a). *Locking and syncing*. Retrieved August 6,
+          2026, from https://docs.astral.sh/uv/concepts/projects/sync/
+
+          Astral Software, Inc. (2026b). *Structure and files*. Retrieved August 6,
+          2026, from https://docs.astral.sh/uv/concepts/projects/layout/
+
+          Ombredanne, P., Gerlach, C. A. M., & Surma, K. (2025). *PEP 639—Improving
+          license clarity with better package metadata*. Python Software Foundation.
+          https://peps.python.org/pep-0639/
+
+          Python Packaging Authority. (2026a). *Pyproject.toml specification*.
+          Retrieved August 6, 2026, from
+          https://packaging.python.org/en/latest/specifications/pyproject-toml/
+
+          Python Packaging Authority. (2026b). *Setuptools 83.0.0*. Retrieved August
+          6, 2026, from https://pypi.org/project/setuptools/83.0.0/
+
+          Python Packaging Authority. (2026c). *Writing your pyproject.toml*.
+          Retrieved August 6, 2026, from
+          https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+          DOC
+
+      - name: Regenerate every dependency lock surface
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv lock \
+            --upgrade-package anyio \
+            --upgrade-package certifi \
+            --upgrade-package coverage \
+            --upgrade-package fastapi \
+            --upgrade-package httpcore2 \
+            --upgrade-package httpx2 \
+            --upgrade-package ruff \
+            --upgrade-package setuptools \
+            --upgrade-package uvicorn
+          uv export \
+            --format requirements.txt \
+            --no-dev \
+            --no-emit-project \
+            --output-file requirements.lock
+          uv export \
+            --format requirements.txt \
+            --extra dev \
+            --no-emit-project \
+            --output-file requirements-dev.txt
+
+      - name: Verify the exact dependency graph and locked environment
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import tomllib
+
+          expected = {
+              'anyio': '4.14.2',
+              'certifi': '2026.7.22',
+              'coverage': '7.15.2',
+              'fastapi': '0.141.1',
+              'httpcore2': '2.9.1',
+              'httpx2': '2.9.1',
+              'ruff': '0.16.1',
+              'setuptools': '83.0.0',
+              'uvicorn': '0.52.1',
+          }
+          stale = {
+              'anyio': '4.14.1',
+              'certifi': '2026.6.17',
+              'coverage': '7.14.3',
+              'fastapi': '0.140.13',
+              'httpcore2': '2.5.0',
+              'httpx2': '2.5.0',
+              'ruff': '0.16.0',
+              'uvicorn': '0.52.0',
+          }
+          project_text = Path('pyproject.toml').read_text(encoding='utf-8')
+          project = tomllib.loads(project_text)
+          assert project['build-system']['requires'] == ['setuptools==83.0.0']
+          assert project['project']['license'] == 'Apache-2.0'
+          assert project['project']['license-files'] == ['LICENSE']
+          declarations = set(project['project']['dependencies']) | set(
+              project['project']['optional-dependencies']['dev']
+          )
+          for package in ('coverage', 'fastapi', 'httpx2', 'ruff', 'setuptools', 'uvicorn'):
+              declaration = f'{package}=={expected[package]}'
+              if declaration not in declarations:
+                  raise SystemExit(f'missing exact direct constraint: {declaration}')
+
+          lock = Path('uv.lock').read_text(encoding='utf-8')
+          runtime = Path('requirements.lock').read_text(encoding='utf-8')
+          development = Path('requirements-dev.txt').read_text(encoding='utf-8')
+          for package, version in expected.items():
+              lock_pattern = (
+                  rf'(?ms)^\[\[package\]\]\nname = "{re.escape(package)}"\n'
+                  rf'version = "{re.escape(version)}"$'
+              )
+              if re.search(lock_pattern, lock) is None:
+                  raise SystemExit(f'uv.lock does not contain {package}=={version}')
+              target = runtime if package in {
+                  'anyio', 'certifi', 'fastapi', 'uvicorn'
+              } else development
+              if re.search(
+                  rf'(?m)^{re.escape(package)}=={re.escape(version)}(?:\s|\\|$)',
+                  target,
+              ) is None:
+                  name = 'requirements.lock' if target is runtime else 'requirements-dev.txt'
+                  raise SystemExit(f'{name} does not contain {package}=={version}')
+
+          combined = '\n'.join((lock, runtime, development))
+          for package, version in stale.items():
+              pattern = (
+                  rf'(?m)^(?:name = "{re.escape(package)}"\n'
+                  rf'version = "{re.escape(version)}"|'
+                  rf'{re.escape(package)}=={re.escape(version)}(?:\s|\\|$))'
+              )
+              if re.search(pattern, combined):
+                  raise SystemExit(f'stale dependency remains: {package}=={version}')
+          PY
+          cmp --silent LICENSE ../../LICENSE
+          uv lock --check
+          uv sync --locked --extra dev
+          test "$(uv run python -c 'import setuptools; print(setuptools.__version__)')" = '83.0.0'
+
+      - name: Verify service quality and complete production coverage
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run python -m compileall -q app tests tools
+          uv run coverage erase
+          uv run coverage run --branch --source=app -m pytest -q
+          uv run coverage report --show-missing --fail-under=100
+
+      - name: Build and inspect PEP 639 distributions
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          uv build --no-build-isolation --out-dir dist 2>&1 | tee build.log
+          ! grep -F 'SetuptoolsDeprecationWarning' build.log
+          ! grep -F 'project.license' build.log
+          python - <<'PY'
+          from email.parser import BytesParser
+          from pathlib import Path
+          import tarfile
+          import zipfile
+
+          root_license = Path('../../LICENSE').read_bytes()
+          wheel = next(Path('dist').glob('*.whl'))
+          source = next(Path('dist').glob('*.tar.gz'))
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+              metadata_names = [name for name in names if name.endswith('.dist-info/METADATA')]
+              license_names = [
+                  name for name in names
+                  if name.endswith('.dist-info/licenses/LICENSE')
+              ]
+              assert len(metadata_names) == 1, metadata_names
+              assert len(license_names) == 1, license_names
+              metadata = BytesParser().parsebytes(archive.read(metadata_names[0]))
+              assert metadata['License-Expression'] == 'Apache-2.0'
+              assert archive.read(license_names[0]) == root_license
+          with tarfile.open(source, 'r:gz') as archive:
+              license_members = [
+                  member for member in archive.getmembers()
+                  if member.name.endswith('/LICENSE') and member.isfile()
+              ]
+              assert len(license_members) == 1, [member.name for member in license_members]
+              extracted = archive.extractfile(license_members[0])
+              assert extracted is not None
+              assert extracted.read() == root_license
+          PY
+
+      - name: Verify deployment and documentation contracts
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          while IFS= read -r -d '' template; do
+            python -m json.tool "$template" >/dev/null
+          done < <(find deploy/templates -maxdepth 1 -type f -name '*.json' -print0)
+          test -s docs/doctoring/2026-08-dependency-and-packaging-refresh.md
+          git diff --check
+
+      - name: Publish only the verified dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf services/account_unification/dist
+          rm -f services/account_unification/build.log
+          rm -f services/account_unification/.coverage
+          find services/account_unification -type d -name __pycache__ -prune -exec rm -rf {} +
+          rm -f .github/workflows/one-shot-consolidate-august-dependencies-v2.yml
+          git add -A
+          git diff --cached --check
+          expected_files="${RUNNER_TEMP}/expected-files.txt"
+          actual_files="${RUNNER_TEMP}/actual-files.txt"
+          cat >"$expected_files" <<'FILES'
+          CHANGELOG.md
+          docs/doctoring/2026-08-dependency-and-packaging-refresh.md
+          services/account_unification/LICENSE
+          services/account_unification/pyproject.toml
+          services/account_unification/requirements-dev.txt
+          services/account_unification/requirements.lock
+          services/account_unification/uv.lock
+          FILES
+          git diff --cached --name-only origin/main | sort >"$actual_files"
+          sort -o "$expected_files" "$expected_files"
+          diff --unified "$expected_files" "$actual_files"
+          test -z "$(git status --porcelain | awk '$1 == "??" {print; exit}')"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build(deps): consolidate August 2026 dependency refresh'
+          git push origin HEAD:build/consolidate-august-2026-dependencies-v2
