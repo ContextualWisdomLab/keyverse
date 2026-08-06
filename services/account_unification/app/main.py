@@ -27,9 +27,10 @@ from .path_security import (
     scim_path_security_dependency,
     scim_path_validation_exception_handler,
 )
-from .product_keycloak_client import ProductHttpAdminApi
 from .registration import registration_auth_dependency, registration_router
 from .relying_party import relying_party_router
+from .relying_party_admin import RelyingPartyHttpAdminApi
+from .relying_party_state import RelyingPartyService, relying_party_state_router
 from .scim import scim_router
 from .service import UnificationService
 from .user_locks import SqliteUserOperationLocks
@@ -63,7 +64,7 @@ def build_service(app: FastAPI) -> None:
     config = load_service_config(store, descriptor.namespace)
     _ensure_parent_directory(config.audit_database_path)
 
-    api = ProductHttpAdminApi(
+    api = RelyingPartyHttpAdminApi(
         server_url=config.keycloak_server_url,
         realm=config.keycloak_realm,
         client_id=config.keycloak_client_id,
@@ -89,6 +90,7 @@ def build_service(app: FastAPI) -> None:
     app.state.user_operation_lock_database_path = lock_database_path
     app.state.temporary_user_operation_lock_database = temporary_lock_database
     app.state.federation_service = FederationService(store, api)
+    app.state.relying_party_service = RelyingPartyService(store, api)
     app.state.operator_api_token = config.operator_api_token
     app.state.registration_api_token = config.registration_api_token
     app.state.registration_client_id = config.registration_client_id
@@ -189,6 +191,13 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         relying_party_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        relying_party_state_router,
         dependencies=[
             operator_auth_dependency,
             admin_path_security_dependency,
