@@ -1,0 +1,436 @@
+name: Finalize verified OIDC relying-party preflight
+
+on:
+  push:
+    branches:
+      - feat/oidc-rp-client-preflight
+    paths:
+      - .github/workflows/one-shot-finalize-oidc-rp-preflight.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-shot-finalize-oidc-rp-preflight
+  cancel-in-progress: true
+
+jobs:
+  finalize-verify-and-publish:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/feat/oidc-rp-client-preflight'
+      && github.actor == 'seonghobae'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+
+      - name: Check out the exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/oidc-rp-client-preflight
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Integrate the closed preflight contract and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main_path = Path('services/account_unification/app/main.py')
+          main = main_path.read_text(encoding='utf-8')
+          import_line = 'from .relying_party import relying_party_router\n'
+          if import_line not in main:
+              lines = main.splitlines(keepends=True)
+              relative_imports = [
+                  index for index, line in enumerate(lines) if line.startswith('from .')
+              ]
+              if not relative_imports:
+                  raise SystemExit('main.py has no relative-import anchor')
+              lines.insert(relative_imports[-1] + 1, import_line)
+              main = ''.join(lines)
+          include_block = (
+              '    app.include_router(\n'
+              '        relying_party_router, dependencies=protected_dependencies\n'
+              '    )\n'
+          )
+          if include_block not in main:
+              return_anchor = '    return app\n'
+              if main.count(return_anchor) != 1:
+                  raise SystemExit('main.py create_app return anchor is missing or ambiguous')
+              main = main.replace(return_anchor, include_block + return_anchor, 1)
+          main_path.write_text(main, encoding='utf-8')
+
+          test_path = Path(
+              'services/account_unification/tests/test_relying_party_preflight.py'
+          )
+          tests = test_path.read_text(encoding='utf-8')
+          typing_import = 'from typing import cast\n'
+          if typing_import not in tests:
+              anchor = 'from copy import deepcopy\n'
+              if tests.count(anchor) != 1:
+                  raise SystemExit('test typing-import anchor is missing or ambiguous')
+              tests = tests.replace(anchor, anchor + typing_import, 1)
+          tests = tests.replace(
+              '    return _parse_registration(payload or _secure_client())\n',
+              '    source = payload if payload is not None else _secure_client()\n'
+              '    return _parse_registration(source)\n',
+              1,
+          )
+          test_path.write_text(tests, encoding='utf-8')
+
+          template = '''{
+            "clientId": "{{ OIDC_CLIENT_ID }}",
+            "name": "{{ OIDC_CLIENT_ID }}",
+            "enabled": true,
+            "protocol": "openid-connect",
+            "publicClient": false,
+            "clientAuthenticatorType": "client-secret",
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "redirectUris": [
+              "https://{{ OIDC_APP_HOST }}/auth/callback"
+            ],
+            "webOrigins": [
+              "https://{{ OIDC_APP_HOST }}"
+            ],
+            "attributes": {
+              "pkce.code.challenge.method": "S256",
+              "post.logout.redirect.uris": "https://{{ OIDC_APP_HOST }}/auth/logout",
+              "access.token.lifespan": "300",
+              "backchannel.logout.session.required": "true",
+              "require.pushed.authorization.requests": "false"
+            },
+            "fullScopeAllowed": false,
+            "defaultClientScopes": [
+              "basic",
+              "profile",
+              "email"
+            ]
+          }
+          '''
+          Path('deploy/templates/oidc-rp-client.json').write_text(
+              template, encoding='utf-8'
+          )
+
+          onboarding = '''# OIDC Relying-Party Onboarding
+
+## Purpose
+
+Onboard one browser relying party through a Keyverse-owned, side-effect-free
+policy boundary before any privileged Keycloak Admin REST apply. The validated
+payload is a closed subset of Keycloak `ClientRepresentation`; it contains no
+client secret or registration access token.
+
+## Required order
+
+1. Render `deploy/templates/oidc-rp-client.json` into a private working file.
+2. Replace `{{ OIDC_CLIENT_ID }}` with a lowercase ASCII slug of at most 63
+   characters.
+3. Replace `{{ OIDC_APP_HOST }}` with the exact ASCII or punycode application
+   host. Use an explicit non-default TLS port when required.
+4. Call authenticated `POST /clients/relying-parties:validate` with the rendered
+   JSON body.
+5. Require HTTP 200 and `ready_to_apply=true`.
+6. Compare the returned alias-preserving registration with the rendered input.
+7. Only then allow a separately authorized deployment controller to apply the
+   same secret-free representation through private Keycloak Admin REST.
+8. Provision a confidential client secret through the secret-management plane;
+   never add it to this payload, Git, logs, readiness receipts, or CI artifacts.
+9. Execute controlled authorization-code, PKCE, callback, logout, and negative
+   redirect tests against the deployed client.
+
+## Closed policy
+
+- authorization-code flow is enabled;
+- PKCE uses `S256`;
+- implicit, password/direct-access, and service-account flows are disabled;
+- redirects, origins, and post-logout URIs use exact HTTPS metadata;
+- wildcards, `+`, userinfo, fragments, control characters, ambiguous whitespace,
+  encoded separators, and dot segments are rejected;
+- public clients use `clientAuthenticatorType=none`;
+- confidential clients use `clientAuthenticatorType=client-secret` but carry no
+  secret in the representation;
+- `fullScopeAllowed` is false;
+- default scopes are exactly `basic`, `profile`, and `email` in canonical order;
+- token lifetime is between 60 and 900 seconds;
+- the first profile requires backchannel logout session tracking and does not
+  require pushed authorization requests.
+
+## Evidence boundary
+
+A readiness receipt proves only that the submitted local representation passed
+Keyverse policy. It does not prove DNS ownership, TLS certificate validity,
+application possession, a successful Keycloak write, or an end-to-end login.
+Those require separately recorded deployment and runtime evidence.
+
+## Failure handling
+
+HTTP 400 indicates a policy violation. HTTP 401 indicates absent or invalid
+operator authentication. HTTP 422 indicates malformed, oversized, non-UTF-8, or
+unsupported JSON shape. Errors never echo submitted values. Correct the source
+configuration and repeat preflight; do not bypass it with a direct browser or
+public Keycloak Admin REST call.
+'''
+          Path('docs/rp-onboarding.md').write_text(onboarding, encoding='utf-8')
+
+          templates_readme_path = Path('deploy/templates/README.md')
+          templates_readme = templates_readme_path.read_text(encoding='utf-8')
+          policy_note = (
+              '\nOIDC relying-party payloads must be rendered without secrets and sent to '
+              '`POST /clients/relying-parties:validate` before any private Keycloak '
+              'Admin REST apply. A successful readiness receipt is policy evidence, '
+              'not proof of deployment or login.\n'
+          )
+          if policy_note.strip() not in templates_readme:
+              oidc_lines = [
+                  line for line in templates_readme.splitlines()
+                  if 'oidc-rp-client.json' in line
+              ]
+              if len(oidc_lines) != 1:
+                  raise SystemExit('template README OIDC entry is missing or ambiguous')
+              anchor = oidc_lines[0]
+              templates_readme = templates_readme.replace(
+                  anchor, anchor + policy_note, 1
+              )
+              templates_readme_path.write_text(
+                  templates_readme, encoding='utf-8'
+              )
+
+          architecture_path = Path('ARCHITECTURE.md')
+          architecture = architecture_path.read_text(encoding='utf-8')
+          architecture_section = '''
+
+## OIDC relying-party preflight boundary
+
+```mermaid
+flowchart LR
+    Operator[Authenticated operator] --> Render[Render secret-free client payload]
+    Render --> Preflight[Keyverse OIDC RP preflight]
+    Preflight -->|readiness receipt| Controller[Private deployment controller]
+    Controller -->|separately authorized apply| Keycloak[Keycloak Admin REST]
+    SecretPlane[Secret-management plane] -->|out-of-band client secret| Keycloak
+    Keycloak --> Runtime[Authorization-code + PKCE runtime tests]
+```
+
+The preflight module is a pure policy component behind the account-unification
+service's existing operator and admin-path dependencies. It can run in standalone
+Keyverse or be embedded by CWL and Naruon controllers without importing a
+Keycloak client or a storage backend. Privileged apply and secret provisioning
+remain separate ports so validation cannot accidentally mutate production.
+'''
+          if '## OIDC relying-party preflight boundary' not in architecture:
+              architecture_path.write_text(
+                  architecture.rstrip() + architecture_section + '\n',
+                  encoding='utf-8',
+              )
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          added_marker = '### Added\n\n'
+          added_entry = (
+              '- Authenticated, side-effect-free OIDC relying-party preflight with '
+              'closed Keycloak client metadata, authorization-code plus PKCE `S256`, '
+              'exact HTTPS redirect/origin/logout policy, portable scopes, bounded '
+              'non-reflective parsing, and no persistence or network effects.\n'
+          )
+          changed_marker = '### Changed\n\n'
+          changed_entry = (
+              '- OIDC relying-party onboarding now requires a Keyverse readiness '
+              'receipt before a separately authorized private Keycloak apply; the '
+              'deployment template is exact-origin and secret-free.\n'
+          )
+          if added_entry not in changelog:
+              if changelog.count(added_marker) != 1:
+                  raise SystemExit('CHANGELOG Added section is missing or ambiguous')
+              changelog = changelog.replace(
+                  added_marker, added_marker + added_entry, 1
+              )
+          if changed_entry not in changelog:
+              if changelog.count(changed_marker) != 1:
+                  raise SystemExit('CHANGELOG Changed section is missing or ambiguous')
+              changelog = changelog.replace(
+                  changed_marker, changed_marker + changed_entry, 1
+              )
+          changelog_path.write_text(changelog, encoding='utf-8')
+
+          doctoring = '''# OIDC Relying-Party Client Preflight — Doctoring Record
+
+## Decision
+
+Keyverse validates one secret-free, closed Keycloak OIDC client representation
+before any privileged apply. Validation is authenticated but side-effect-free.
+It does not call Keycloak, resolve DNS, inspect certificates, create secrets, or
+persist configuration.
+
+## Evidence categories
+
+- **Standards requirements:** authorization-code redirect matching, PKCE, public
+  client protection, and OAuth threat mitigations.
+- **Vendor behavior:** Keycloak `ClientRepresentation` field names and Admin REST
+  apply surface.
+- **Product policy:** exact HTTPS metadata, canonical portable scopes, short token
+  lifetime, no implicit/password/service-account flow, and no secret-bearing
+  fields in preflight.
+- **Measured evidence:** repository tests, production statement and branch
+  coverage, package build, realm/template validation, and protected Checks.
+- **Limitations:** readiness does not prove deployment, DNS/TLS ownership, client
+  possession, secret delivery, or successful authorization.
+
+No formal OAuth, OpenID Connect, RFC, NIST, or Keycloak conformance claim is made.
+
+## Security interpretation
+
+RFC 9700 updates OAuth deployment guidance and deprecates weaker patterns,
+including the implicit grant. RFC 7636 defines PKCE and the `S256` transformation.
+RFC 8252 demonstrates the security value of exact redirect handling and public
+client PKCE, although Keyverse applies a browser-client profile rather than
+claiming native-app conformance. OpenID Connect Dynamic Client Registration
+provides the client metadata vocabulary; Keycloak maps that vocabulary into its
+administrative representation.
+
+The first Keyverse profile is intentionally stricter than general Keycloak
+capability. Redirects and browser origins are exact HTTPS values; wildcard and
+ambiguous URI syntax fail closed. Confidential client credentials are provisioned
+out of band so readiness receipts and deployment payloads remain non-secret.
+
+## Modularity
+
+The validator depends only on FastAPI request/response types and Pydantic models.
+It imports neither `KvStore` nor a Keycloak transport. Standalone Keyverse, CWL
+control-plane services, and Naruon deployment controllers can therefore use the
+same policy module while supplying their own privileged apply and secret ports.
+
+## Verification contract
+
+Completion requires tests for confidential and public clients, missing operator
+authentication, body bounds and UTF-8/JSON errors, unsupported and missing fields,
+strict scalar types, OAuth flow inconsistencies, exact URI collection bounds,
+DNS/IPv4/IPv6 authorities, wildcard/userinfo/fragment/port/dot-segment/encoded
+syntax attacks, exact attributes, canonical scopes, and zero Keycloak calls.
+Production docstrings, statement coverage, and branch coverage remain 100%.
+
+## References — APA 7th
+
+Denniss, W., & Bradley, J. (2017). *OAuth 2.0 for native apps* (RFC 8252).
+Internet Engineering Task Force. https://doi.org/10.17487/RFC8252
+
+Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
+practice for OAuth 2.0 security* (RFC 9700). Internet Engineering Task Force.
+https://doi.org/10.17487/RFC9700
+
+OpenID Foundation. (2023). *OpenID Connect Dynamic Client Registration 1.0
+incorporating errata set 2*.
+https://openid.net/specs/openid-connect-registration-1_0.html
+
+Sakimura, N., Bradley, J., Agarwal, N., de Medeiros, B., & Jones, M. B. (2015).
+*Proof Key for Code Exchange by OAuth public clients* (RFC 7636). Internet
+Engineering Task Force. https://doi.org/10.17487/RFC7636
+
+Keycloak. (n.d.). *Keycloak Admin REST API*. Retrieved August 6, 2026, from
+https://www.keycloak.org/docs-api/latest/rest-api/index.html
+'''
+          doctoring_path = Path(
+              'docs/doctoring/oidc-rp-client-preflight.md'
+          )
+          doctoring_path.parent.mkdir(parents=True, exist_ok=True)
+          doctoring_path.write_text(doctoring, encoding='utf-8')
+
+          adr = '''# ADR: Separate OIDC Client Preflight from Privileged Apply
+
+- **Status:** Accepted
+- **Date:** 2026-08-06
+
+## Context
+
+Directly posting a rendered client template to Keycloak couples untrusted
+configuration parsing, policy judgment, privileged mutation, and secret handling.
+A malformed origin or flow flag can therefore reach production before Keyverse
+has produced reviewable policy evidence.
+
+## Decision
+
+Expose an authenticated, side-effect-free preflight endpoint as a pure module.
+Keep Keycloak mutation and client-secret provisioning behind separate deployment
+and secret-management ports. Accept only the closed first-party browser profile.
+
+## Consequences
+
+- operators receive stable non-secret readiness evidence;
+- standalone, CWL, and Naruon deployments share one policy implementation;
+- validation cannot accidentally create a client or leak a credential;
+- new flow, scope, or URI capabilities require an explicit profile revision,
+  threat review, tests, doctoring update, and protected merge;
+- deployment and runtime evidence remain mandatory after readiness.
+'''
+          adr_path = Path('docs/adr/oidc-client-preflight-boundary.md')
+          adr_path.parent.mkdir(parents=True, exist_ok=True)
+          adr_path.write_text(adr, encoding='utf-8')
+          PY
+          rm -f .github/workflows/one-shot-finalize-oidc-rp-preflight.yml
+          git diff --check
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up the pinned package runner
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.12.1'
+          prune-cache: true
+
+      - name: Install locked dependencies
+        working-directory: services/account_unification
+        run: uv sync --locked --extra dev
+
+      - name: Verify service quality and production coverage
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run python -m compileall -q app tests tools
+          uv run coverage erase
+          uv run coverage run --branch --source=app -m pytest -q
+          uv run coverage report --show-missing --fail-under=100
+          uv build --out-dir dist
+
+      - name: Verify deployment and documentation contracts
+        env:
+          IDP_DB_PASSWORD: ci-placeholder
+          IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          docker compose -f docker-compose.yml config >/dev/null
+          python -m json.tool deploy/templates/oidc-rp-client.json >/dev/null
+          grep -F 'POST /clients/relying-parties:validate' docs/rp-onboarding.md
+          grep -F 'RFC 9700' docs/doctoring/oidc-rp-client-preflight.md
+          test ! -e scripts/ci/oidc-rp-preflight.patch.gz
+          test ! -e .github/workflows/one-shot-publish-oidc-rp-preflight.yml
+          git diff --check
+
+      - name: Commit and push the exact verified feature tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m 'feat(clients): validate OIDC relying parties before apply'
+          git push origin HEAD:feat/oidc-rp-client-preflight
