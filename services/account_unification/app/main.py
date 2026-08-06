@@ -35,6 +35,10 @@ from .scim import scim_router
 from .service import UnificationService
 from .user_locks import SqliteUserOperationLocks
 
+# Preserve the established wiring seam used by lifecycle tests and embedders
+# while constructing the expanded relying-party-capable implementation.
+ProductHttpAdminApi = RelyingPartyHttpAdminApi
+
 
 def _ensure_parent_directory(database_path: str) -> None:
     """Create a filesystem parent for a persistent SQLite database path."""
@@ -64,7 +68,7 @@ def build_service(app: FastAPI) -> None:
     config = load_service_config(store, descriptor.namespace)
     _ensure_parent_directory(config.audit_database_path)
 
-    api = RelyingPartyHttpAdminApi(
+    api = ProductHttpAdminApi(
         server_url=config.keycloak_server_url,
         realm=config.keycloak_realm,
         client_id=config.keycloak_client_id,
