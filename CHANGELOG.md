@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Authenticated, side-effect-free OIDC relying-party client preflight with
+  authorization code plus PKCE `S256`, exact HTTPS redirect/origin/logout
+  closure, public/confidential consistency, portable scopes, and non-reflective
+  hostile-input handling.
 - Authenticated, side-effect-free LDAP and Active Directory component preflight
   with LDAPS-only transport, RFC 4514 distinguished-name validation, closed
   read-only policy, bounded timeouts, and bind-secret redaction.
@@ -40,6 +44,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- The OIDC RP deployment template is now a closed, secret-free Keycloak client
+  representation with exact origins and the portable `basic`, `profile`, and
+  `email` scope profile; deployment controllers must preflight it before apply.
 - The LDAP deployment template is now a closed, preflight-ready Keycloak
   component payload with `trustEmail=false`, `useTruststoreSpi=always`,
   disabled Kerberos, and no synthetic comment fields.
