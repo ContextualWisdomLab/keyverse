@@ -1,0 +1,90 @@
+name: Repair OIDC finalizer v5
+
+on:
+  push:
+    branches:
+      - feat/oidc-rp-client-preflight
+    paths:
+      - .github/workflows/one-shot-repair-oidc-finalizer-v5.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-shot-finalize-oidc-rp-preflight
+  cancel-in-progress: true
+
+jobs:
+  repair-and-retrigger:
+    if: >-
+      github.repository == 'ContextualWisdomLab/keyverse'
+      && github.ref == 'refs/heads/feat/oidc-rp-client-preflight'
+      && github.actor == 'seonghobae'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+
+      - name: Check out the exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/oidc-rp-client-preflight
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply the complete finalizer repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path(
+              '.github/workflows/one-shot-finalize-oidc-rp-preflight-v2.yml'
+          )
+          if not path.exists():
+              raise SystemExit('OIDC v2 finalizer is missing before product publication')
+          content = path.read_text(encoding='utf-8')
+          content = content.replace(
+              'insert_at = max(cast(int, node.end_lineno) for node in imports)',
+              'insert_at = max((node.end_lineno or 0) for node in imports)',
+              1,
+          )
+          anchor = "          module = module.replace(unreachable_ipv6, '')\n"
+          rewrite = (
+              "          module = module.replace(\n"
+              "              '        address = ipaddress.ip_address(hostname)\\n',\n"
+              "              '        ipaddress.ip_address(hostname)\\n',\n"
+              "              1,\n"
+              "          )\n"
+          )
+          if rewrite not in content:
+              if content.count(anchor) != 1:
+                  raise SystemExit('OIDC module-rewrite anchor is missing or ambiguous')
+              content = content.replace(anchor, anchor + rewrite, 1)
+          if 'cast(int, node.end_lineno)' in content:
+              raise SystemExit('OIDC import-anchor defect remains')
+          path.write_text(content, encoding='utf-8')
+          PY
+          rm -f \
+            .github/workflows/one-shot-repair-oidc-finalizer-v3.yml \
+            .github/workflows/one-shot-repair-oidc-finalizer-v4.yml \
+            .github/workflows/one-shot-repair-oidc-finalizer-v5.yml
+          git diff --check
+
+      - name: Publish the corrected finalizer trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m 'ci: complete OIDC finalizer repair'
+          git push origin HEAD:feat/oidc-rp-client-preflight
