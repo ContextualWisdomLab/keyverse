@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Durable, secret-free OIDC relying-party desired-state CRUD and reconciliation
+  with exact `clientId` matching, duplicate fail-closed behavior, post-mutation
+  re-observation, canonical apply receipts, realm-rebuild recovery, per-client
+  serialization, and remote-first deletion.
 - Authenticated, side-effect-free OIDC relying-party client preflight with
   authorization code plus PKCE `S256`, exact HTTPS redirect/origin/logout
   closure, public/confidential consistency, portable scopes, and non-reflective
@@ -44,6 +48,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Relying-party deployment controllers now send validated, secret-free metadata
+  to Keyverse desired-state PUT instead of applying client representations
+  directly to Keycloak; confidential credential placement remains a separate
+  secret-management operation.
 - Consolidated the August 2026 runtime, transport, certificate, test,
   lint, and build-backend refresh into one lock-consistent dependency
   graph, and migrated package license metadata to the PEP 639 SPDX
