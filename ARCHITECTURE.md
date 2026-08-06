@@ -5,8 +5,9 @@
 Keyverse is the ContextualWisdomLab identity control plane. It operates as a
 standalone Keycloak-based identity provider and as a reusable module in CWL,
 Naruon, and sibling products. The design keeps portable realm configuration,
-customer-specific federation, account unification, SCIM provisioning, and
-review/development automation behind explicit trust boundaries.
+customer-specific federation, account unification, SCIM provisioning, relying-
+party lifecycle, and review/development automation behind explicit trust
+boundaries.
 
 ## Runtime topology
 
@@ -24,7 +25,7 @@ review/development automation behind explicit trust boundaries.
                 +---------------------+---------------------+
                 |                     |                     |
         idp_engine              account_unification   deployment controller
-        Keycloak 26             FastAPI service       KV-render/apply owner
+        Keycloak 26             FastAPI service       KV-render/secret owner
                 |                     |
                 +----------+----------+
                            |
@@ -48,9 +49,11 @@ explicit WAF policy.
 - passwordless WebAuthn authentication;
 - external identity-provider brokering;
 - LDAP user-storage components;
+- OIDC relying-party clients;
 - user, session, role, and group system of record.
 
-The portable realm contains no customer-specific SAML, OIDC, or LDAP source.
+The portable realm contains no customer-specific SAML, OIDC, LDAP source, or
+application relying-party registration.
 
 ### Account-unification service
 
@@ -58,36 +61,42 @@ The portable realm contains no customer-specific SAML, OIDC, or LDAP source.
 - verified-email and exact-subject match policy;
 - tombstone-safe SCIM provisioning;
 - password-free registration action-email flow;
-- SAML/OIDC desired-state validation and reconciliation;
-- LDAP/Active Directory component preflight;
-- OIDC relying-party client preflight before private Keycloak apply;
+- SAML/OIDC identity-provider desired-state validation and reconciliation;
+- LDAP/Active Directory component preflight and desired-state reconciliation;
+- OIDC relying-party preflight and secret-free desired-state reconciliation;
 - audit and user-operation lock boundaries.
 
 The core merge and SCIM layer depends on the narrow `AdminApi` protocol.
-Product extensions are isolated behind `ProductAdminApi`; deterministic LDAP
-preflight does not require either protocol or any network client.
+Product extensions are isolated behind `ProductAdminApi`; relying-party client
+CRUD is further narrowed behind `RelyingPartyAdminApi`. Deterministic preflight
+modules require neither protocol nor any network client.
 
 ### Deployment controller
 
 - resolves every `{{placeholder}}` from KV or a secret manager;
 - owns private bearer, bind, client-secret, and certificate files;
-- invokes Keyverse preflight endpoints;
-- applies SAML/OIDC desired state through Keyverse;
-- applies the current LDAP component payload directly to private Keycloak Admin
-  REST only after Keyverse preflight succeeds;
-- applies rendered OIDC RP clients only after Keyverse preflight and stores any
-  generated confidential-client secret in the approved secret backend;
-- enforces approved-host egress, TLS trust, and rollback.
+- invokes Keyverse preflight and desired-state endpoints;
+- applies SAML/OIDC identity-provider desired state through Keyverse;
+- applies LDAP and OIDC relying-party desired state through Keyverse;
+- provisions confidential relying-party credentials through a separate approved
+  secret-management port;
+- enforces approved-host egress, TLS trust, controlled acceptance tests, and
+  rollback.
 
 ### Persistence
 
 - Keycloak state: PostgreSQL;
 - Keyverse configuration: `idp_config_entries` or the configured KV backend;
+- directory intent and receipt:
+  `directory_federation_sources`, `directory_federation_apply_receipts`;
+- relying-party intent and receipt:
+  `relying_party_sources`, `relying_party_apply_receipts`;
 - merge audit: `account_merge_audit`;
 - cross-process user mutation lock sidecar:
   `user_operation_lock_state`.
 
-Database objects use descriptive two-word-or-longer snake_case names.
+Database objects and namespaces use descriptive two-word-or-longer snake_case
+names.
 
 ## Federation boundaries
 
@@ -108,21 +117,22 @@ policy and Keycloak perform remote interaction only after explicit apply.
 
 ### LDAP and Active Directory
 
-The first LDAP increment is a preflight boundary around the existing Keycloak
-component representation:
+Directory sources use a separate private desired-state lifecycle:
 
 ```text
 private rendered component
     -> authenticated local preflight
-    -> redacted readiness receipt
-    -> deployment-owned private Keycloak component apply
+    -> KV/DB private desired state
+    -> exact Keycloak component reconciliation
+    -> redacted observable status
+    -> controlled bind/search/login evidence
 ```
 
 Preflight performs no DNS lookup, socket connection, bind, search, store write,
 or Keycloak call. It requires LDAPS, read-only operation, no trusted-email
 auto-linking, no Kerberos, bounded timeouts, valid RFC 4514 DN syntax, and a
-closed config shape. Desired-state CRUD and reconciliation are a later module.
-
+closed config shape. Reconciliation stores intent before network I/O, fails
+closed on duplicates, re-observes mutations, and deletes remote-first.
 
 ### OIDC relying-party clients
 
@@ -131,17 +141,26 @@ Relying-party registration is deployment data rather than portable realm code:
 ```text
 secret-free rendered client representation
     -> authenticated local Keyverse preflight
-    -> alias-preserving readiness receipt
-    -> deployment-owned private Keycloak client apply
+    -> KV/DB desired state
+    -> exact Keycloak client reconciliation
+    -> observable apply receipt
+    -> separate confidential-secret placement
     -> controlled login/logout acceptance evidence
 ```
 
 The preflight route has no KV, Keycloak, DNS, HTTP, secret-generation, or file
 side effect. It enforces authorization code plus PKCE `S256`, exact HTTPS
 redirect/origin/logout policy, public/confidential client consistency, bounded
-token metadata, and an exact portable scope set. Native loopback/private-use
-redirects and deployment-specific claim expansion remain separate reviewed
-profiles.
+token metadata, and an exact portable scope set.
+
+Stateful reconciliation keys intent by validated `clientId`, classifies zero,
+one, or multiple exact Keycloak clients, and never mutates duplicates. Create or
+update is re-observed before a canonical receipt is written. Delete is remote-
+first. The accepted representation has no client-secret field; credential
+provisioning remains an independent secret-management responsibility.
+
+Native loopback/private-use redirects and deployment-specific claim expansion
+remain separate reviewed profiles.
 
 ## Account and provisioning invariants
 
@@ -154,21 +173,24 @@ profiles.
    fails.
 6. Privileged dynamic path segments are validated before transport.
 7. Secrets never appear in operator responses, logs, command arguments, source,
-   or templates.
+   or desired-state templates.
+8. Preflight readiness is not reported as deployment or login success.
+9. Mutation receipts are written only after exact live re-observation.
 
 ## Deployment modes
 
 ### Standalone
 
 `docker-compose.yml` or `helm/cwl-idp` provides Keycloak, PostgreSQL, and the
-admin service with readiness probes and persistent audit/lock storage.
+admin service with readiness probes and persistent audit/lock/configuration
+storage.
 
 ### CWL/Naruon module
 
 Parent systems may include the Compose definition, depend on the Helm chart, or
 call the stable HTTP and protocol boundaries. Parent systems must not bypass
-Keyverse validation or reach the private Keycloak Admin REST API except through
-the deployment-controller contract.
+Keyverse validation or reach private Keycloak Admin REST except through an
+explicitly documented deployment-controller responsibility.
 
 ## Automation boundaries
 
