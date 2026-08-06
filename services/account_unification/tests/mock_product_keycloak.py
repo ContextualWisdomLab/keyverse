@@ -12,7 +12,9 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
         super().__init__()
         self.identity_providers: dict[str, dict] = {}
         self.user_storage_components: dict[str, dict] = {}
+        self.relying_party_clients: dict[str, dict] = {}
         self._directory_component_sequence = 0
+        self._relying_party_sequence = 0
         self.action_emails: dict[str, dict] = {}
 
     @staticmethod
@@ -25,6 +27,19 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
                 key: list(values) if isinstance(values, list) else values
                 for key, values in config.items()
             }
+        return clone
+
+    @staticmethod
+    def _clone_client(client: dict) -> dict:
+        """Return a defensive copy of one Keycloak client representation."""
+        clone = dict(client)
+        for field_name in ("redirectUris", "webOrigins", "defaultClientScopes"):
+            values = client.get(field_name)
+            if isinstance(values, list):
+                clone[field_name] = list(values)
+        attributes = client.get("attributes")
+        if isinstance(attributes, dict):
+            clone["attributes"] = dict(attributes)
         return clone
 
     def send_execute_actions_email(
@@ -125,3 +140,40 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
         """Delete one existing deterministic in-memory component."""
         del self.user_storage_components[component_id]
         self.calls.append(f"delete_user_storage_component:{component_id}")
+
+    def list_relying_party_clients(self, client_id: str) -> list[dict]:
+        """Return defensive copies of clients with one exact public ID."""
+        self.calls.append(f"list_relying_party_clients:{client_id}")
+        return [
+            self._clone_client(client)
+            for client in self.relying_party_clients.values()
+            if client.get("clientId") == client_id
+        ]
+
+    def create_relying_party_client(self, client_payload: dict) -> str:
+        """Create one deterministic in-memory relying-party client."""
+        self._relying_party_sequence += 1
+        client_uuid = f"relying-party-{self._relying_party_sequence}"
+        client = self._clone_client(client_payload)
+        client["id"] = client_uuid
+        self.relying_party_clients[client_uuid] = client
+        self.calls.append(f"create_relying_party_client:{client_uuid}")
+        return client_uuid
+
+    def update_relying_party_client(
+        self,
+        client_uuid: str,
+        client_payload: dict,
+    ) -> None:
+        """Replace one existing deterministic in-memory relying party."""
+        if client_uuid not in self.relying_party_clients:
+            raise KeyError(client_uuid)
+        client = self._clone_client(client_payload)
+        client["id"] = client_uuid
+        self.relying_party_clients[client_uuid] = client
+        self.calls.append(f"update_relying_party_client:{client_uuid}")
+
+    def delete_relying_party_client(self, client_uuid: str) -> None:
+        """Delete one existing deterministic in-memory relying party."""
+        del self.relying_party_clients[client_uuid]
+        self.calls.append(f"delete_relying_party_client:{client_uuid}")
