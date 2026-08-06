@@ -29,6 +29,7 @@ from .path_security import (
 )
 from .product_keycloak_client import ProductHttpAdminApi
 from .registration import registration_auth_dependency, registration_router
+from .relying_party import relying_party_router
 from .scim import scim_router
 from .service import UnificationService
 from .user_locks import SqliteUserOperationLocks
@@ -181,6 +182,13 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         directory_federation_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        relying_party_router,
         dependencies=[
             operator_auth_dependency,
             admin_path_security_dependency,

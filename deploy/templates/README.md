@@ -8,7 +8,7 @@ all `{{placeholders}}` must be resolved from the platform KV before use.
 | `saml-idp-employer-adfs.json` | Keyverse desired-state API | external IdP → Keyverse | `POST /federation/identity-providers:validate` | `PUT /federation/identity-providers/employer-adfs` |
 | `oidc-idp-partner.json` | Keyverse desired-state API | external OIDC IdP → Keyverse | `POST /federation/identity-providers:validate` | `PUT /federation/identity-providers/partner-oidc` |
 | `ldap-source.json` | Keycloak component contract | external directory → Keycloak | `POST /federation/user-directories:validate` | `POST /admin/realms/{realm}/components` |
-| `oidc-rp-client.json` | Keycloak Admin REST | Keyverse → RP | deployment review | `POST /admin/realms/{realm}/clients` |
+| `oidc-rp-client.json` | Keyverse RP preflight | Keyverse → RP | `POST /clients/relying-parties:validate` | `POST /admin/realms/{realm}/clients` |
 
 The portable realm contains no employer-specific federation. External SAML and
 OIDC providers are customer or deployment data stored in the Keyverse KV/DB
@@ -117,8 +117,27 @@ is not accepted. Every network endpoint is HTTPS, token signatures and JWKS
 retrieval are enabled, PKCE is fixed to `S256`, and `openid` is mandatory.
 Keep `trust_email=false` until the upstream verification and claim-mapping
 contract has been independently reviewed. `oidc-rp-client.json` is a
-different artifact: it registers Keyverse as an RP and is applied directly
-to Keycloak Admin REST rather than the Keyverse federation API.
+different artifact: it registers an ecosystem application as an RP of Keyverse.
+The rendered payload must pass `POST /clients/relying-parties:validate` before
+the deployment controller sends the original private file to Keycloak Admin
+REST. See [`../../docs/rp-onboarding.md`](../../docs/rp-onboarding.md).
+
+
+## OIDC relying-party client preflight pattern
+
+`oidc-rp-client.json` is a closed, secret-free Keycloak client representation.
+Render its four placeholders into a private file, call the authenticated
+Keyverse `POST /clients/relying-parties:validate` route, require exact HTTP 200
+and `ready_to_apply=true`, then apply the **original rendered file** through the
+private Keycloak administration channel.
+
+The first profile requires authorization code plus PKCE `S256`, exact HTTPS
+redirects and origins, public/confidential authentication consistency, a bounded
+access-token lifetime, backchannel logout, and exactly the portable `basic`,
+`profile`, and `email` scopes. Wildcards, `+`, queries, fragments, userinfo,
+encoded path delimiters, unresolved placeholders, credential fields, and broad
+scope expansion fail closed. Preflight performs no client creation, secret
+generation, KV write, DNS lookup, HTTP request, or Keycloak call.
 
 ## LDAP and Active Directory preflight pattern
 

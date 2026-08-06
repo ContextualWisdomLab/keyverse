@@ -1,37 +1,16 @@
 {
-  "$comment": [
-    "OIDC / OAuth 2.1 relying-party (RP) client registration template.",
-    "cwl-idp is the OIDC PROVIDER; each ecosystem app is an RP. Register one",
-    "client per RP via the Keycloak Admin REST API:",
-    "  POST /admin/realms/{realm}/clients   (this body)",
-    "",
-    "The generated client secret is stored by Keycloak and mirrored into the",
-    "ecosystem KV under secret/idp/rp/<name> — NOT in any RP env file. RPs read",
-    "their client secret from KV at boot. See docs/rp-onboarding.md. Known RPs:",
-    "naruon, pg-erd-cloud, semantic-data-portal, clearfolio,",
-    "contextual-orchestrator, newsdom-api.",
-    "",
-    "OAuth 2.1 posture: authorization-code + PKCE (S256), refresh tokens, NO",
-    "implicit/hybrid grant, exact HTTPS redirect URIs only."
-  ],
-
   "clientId": "{{rp_name}}",
   "name": "{{rp_name}}",
   "enabled": true,
   "protocol": "openid-connect",
-
   "publicClient": false,
-  "$publicClient_note": "SPA/native RPs: set publicClient=true, omit secret, keep PKCE.",
-
+  "clientAuthenticatorType": "client-secret",
   "standardFlowEnabled": true,
   "implicitFlowEnabled": false,
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": false,
-
   "redirectUris": ["{{rp_redirect_uri}}"],
-  "$redirect_example": "https://naruon.example/auth/callback",
-  "webOrigins": ["+"],
-
+  "webOrigins": ["{{rp_web_origin}}"],
   "attributes": {
     "pkce.code.challenge.method": "S256",
     "post.logout.redirect.uris": "{{rp_post_logout_uri}}",
@@ -39,7 +18,6 @@
     "backchannel.logout.session.required": "true",
     "require.pushed.authorization.requests": "false"
   },
-
   "fullScopeAllowed": false,
-  "defaultClientScopes": ["openid", "profile", "email", "roles"]
+  "defaultClientScopes": ["basic", "profile", "email"]
 }
