@@ -44,6 +44,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Consolidated the August 2026 runtime, transport, certificate, test,
+  lint, and build-backend refresh into one lock-consistent dependency
+  graph, and migrated package license metadata to the PEP 639 SPDX
+  expression and license-file contract.
 - The OIDC RP deployment template is now a closed, secret-free Keycloak client
   representation with exact origins and the portable `basic`, `profile`, and
   `email` scope profile; deployment controllers must preflight it before apply.

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools==83.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,23 +8,25 @@ version = "0.1.0"
 description = "Account-unification admin service for cwl-idp (Keycloak)"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 dependencies = [
     "cryptography==50.0.0",
-    "fastapi==0.140.13",
+    "fastapi==0.141.1",
     "pydantic==2.13.4",
     "httpx==0.28.1",
     "pyyaml==6.0.3",
-    "uvicorn==0.52.0",
+    "uvicorn==0.52.1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "coverage==7.14.3",
-    "httpx2>=2.5.0",
+    "coverage==7.15.2",
+    "httpx2==2.9.1",
     "interrogate==1.7.0",
     "pytest==9.1.1",
     "ruff==0.16.1",
+    "setuptools==83.0.0",
 ]
 
 [tool.setuptools]
