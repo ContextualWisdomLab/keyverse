@@ -55,7 +55,7 @@ def _client_payload() -> dict:
 
 
 def test_client_list_uses_exact_query_and_authenticated_guarded_path() -> None:
-    """Client discovery sends only one exact validated collection query."""
+    """Client discovery sends only one documented exact-ID collection query."""
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -78,7 +78,7 @@ def test_client_list_uses_exact_query_and_authenticated_guarded_path() -> None:
     assert request.url.path == "/admin/realms/cwl/clients"
     assert dict(request.url.params) == {
         "clientId": "naruon-web",
-        "exact": "true",
+        "search": "false",
     }
     assert request.headers["Authorization"] == "Bearer cached-token"
 
