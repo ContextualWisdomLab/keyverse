@@ -561,7 +561,10 @@ def validate_relying_party_registration(
             "post.logout.redirect.uris",
             "must use a registered web origin",
         )
-    return RelyingPartyValidationResult(registration=registration)
+    return RelyingPartyValidationResult(
+        registration=registration,
+        ready_to_apply=True,
+    )
 
 
 relying_party_router = APIRouter(prefix="/clients", tags=["relying-parties"])
@@ -577,7 +580,4 @@ def validate_relying_party(
     payload: Any = Body(...),
 ) -> RelyingPartyValidationResult:
     """Return a readiness receipt for one closed OIDC client representation."""
-    return RelyingPartyValidationResult(
-        registration=_parse_registration(payload),
-        ready_to_apply=True,
-    )
+    return validate_relying_party_registration(_parse_registration(payload))
