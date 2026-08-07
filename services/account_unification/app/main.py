@@ -27,12 +27,17 @@ from .path_security import (
     scim_path_security_dependency,
     scim_path_validation_exception_handler,
 )
-from .product_keycloak_client import ProductHttpAdminApi
 from .registration import registration_auth_dependency, registration_router
 from .relying_party import relying_party_router
+from .relying_party_admin import RelyingPartyHttpAdminApi
+from .relying_party_state import RelyingPartyService, relying_party_state_router
 from .scim import scim_router
 from .service import UnificationService
 from .user_locks import SqliteUserOperationLocks
+
+# Preserve the established wiring seam used by lifecycle tests and embedders
+# while constructing the expanded relying-party-capable implementation.
+ProductHttpAdminApi = RelyingPartyHttpAdminApi
 
 
 def _ensure_parent_directory(database_path: str) -> None:
@@ -89,6 +94,7 @@ def build_service(app: FastAPI) -> None:
     app.state.user_operation_lock_database_path = lock_database_path
     app.state.temporary_user_operation_lock_database = temporary_lock_database
     app.state.federation_service = FederationService(store, api)
+    app.state.relying_party_service = RelyingPartyService(store, api)
     app.state.operator_api_token = config.operator_api_token
     app.state.registration_api_token = config.registration_api_token
     app.state.registration_client_id = config.registration_client_id
@@ -189,6 +195,13 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         relying_party_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        relying_party_state_router,
         dependencies=[
             operator_auth_dependency,
             admin_path_security_dependency,
