@@ -80,11 +80,11 @@ class RelyingPartyHttpAdminApi(ProductHttpAdminApi):
         )
 
     def list_relying_party_clients(self, client_id: str) -> list[dict]:
-        """List client candidates using one validated exact client-ID query."""
+        """List candidates through Keycloak's exact client-ID query mode."""
         safe_client_id = self._safe_segment(client_id, "client_id")
         payload = self._get(
             f"/admin/realms/{self._realm}/clients",
-            params={"clientId": safe_client_id, "exact": "true"},
+            params={"clientId": safe_client_id, "search": "false"},
         )
         if not isinstance(payload, list) or any(
             not isinstance(client, dict) for client in payload
