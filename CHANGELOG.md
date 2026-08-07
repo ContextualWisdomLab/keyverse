@@ -82,7 +82,13 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
-- Restored authenticated, allowlisted Keycloak component transport for LDAP reconciliation, canonicalized private apply receipts across JSON key order, and removed completed one-shot implementation workflows and scripts.
+- Prevented relying-party inventory from silently accepting a KV key/body
+  identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
+  and aligned exact client discovery with Keycloak's documented
+  `clientId` plus `search=false` query mode.
+- Restored authenticated, allowlisted Keycloak component transport for LDAP
+  reconciliation, canonicalized private apply receipts across JSON key order,
+  and removed completed one-shot implementation workflows and scripts.
 - Prevented LDAP and Active Directory source configuration from reaching
   Keycloak with cleartext transport, unresolved private values, malformed DNs,
   writable or Kerberos-enabled policy, trusted-email linking, unsafe component
