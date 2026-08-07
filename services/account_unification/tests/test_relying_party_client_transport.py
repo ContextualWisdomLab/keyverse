@@ -76,7 +76,10 @@ def test_client_list_uses_exact_query_and_authenticated_guarded_path() -> None:
     request = requests[0]
     assert request.method == "GET"
     assert request.url.path == "/admin/realms/cwl/clients"
-    assert request.url.params == {"clientId": "naruon-web", "exact": "true"}
+    assert dict(request.url.params) == {
+        "clientId": "naruon-web",
+        "exact": "true",
+    }
     assert request.headers["Authorization"] == "Bearer cached-token"
 
 
@@ -125,7 +128,17 @@ def test_client_create_parses_safe_location_and_tolerates_missing_location() -> 
     assert json.loads(requests[0].content) == _client_payload()
 
 
-def test_client_create_rejects_unsafe_body_id_and_location() -> None:
+@pytest.mark.parametrize(
+    "unsafe_location",
+    [
+        "https://keycloak.internal/admin/realms/cwl/clients/../escape",
+        "https://keycloak.internal/admin/realms/cwl/clients/client-uuid?query=1",
+        "https://keycloak.internal/admin/realms/cwl/clients",
+    ],
+)
+def test_client_create_rejects_unsafe_body_id_and_location(
+    unsafe_location: str,
+) -> None:
     """Unsafe public or generated identifiers never enter later transport."""
     requests: list[httpx.Request] = []
 
@@ -134,7 +147,7 @@ def test_client_create_rejects_unsafe_body_id_and_location() -> None:
         requests.append(request)
         return httpx.Response(
             201,
-            headers={"Location": "https://keycloak.internal/clients/../escape"},
+            headers={"Location": unsafe_location},
             request=request,
         )
 
