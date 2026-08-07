@@ -48,14 +48,23 @@ and registration-access-token fields.
 ## Stable identity and duplicate policy
 
 Keycloak generates an opaque internal UUID, but the deployment-owned stable key
-is the validated public `clientId`. Exact live discovery therefore classifies:
+is the validated public `clientId`. Exact live discovery uses Keycloak's
+current documented collection query with `clientId=<stable-id>` and
+`search=false`, then independently filters the returned representations by
+exact `clientId`. This two-layer check avoids treating vendor-side search
+behavior as the product identity boundary.
+
+Discovery classifies:
 
 - zero exact matches: create one client;
 - one exact match: compare and update when required;
 - more than one exact match: `ambiguous`, with no mutation.
 
-The generated UUID is diagnostic operational state and is validated before it
-can enter a resource path. It is never used as the durable desired-state key.
+The generated UUID is diagnostic operational state. Every non-empty live UUID
+and every UUID parsed from a create `Location` header must be one safe opaque
+path segment before it enters a status response or resource path. A malformed,
+encoded, navigating, or control-bearing UUID fails closed with a bounded error.
+The UUID is never used as the durable desired-state key.
 
 ## Storage and receipt model
 
@@ -70,9 +79,12 @@ Both are multi-word `snake_case`. The standalone implementation reuses the
 existing `idp_config_entries` SQLite object and introduces no schema migration.
 
 The desired record is alias-preserving JSON for the exact validated
-representation. The receipt is SHA-256 over canonical UTF-8 JSON with sorted
-keys and compact separators. Equivalent mapping order therefore produces one
-stable digest.
+representation. Inventory retains both the KV key and the parsed body identity;
+a record whose stored key differs from its `clientId` is invalid rather than
+being silently reported under the body identity.
+
+The receipt is SHA-256 over canonical UTF-8 JSON with sorted keys and compact
+separators. Equivalent mapping order therefore produces one stable digest.
 
 The receipt is not a credential. It means Keyverse re-observed one exact live
 client whose closed observable metadata matched the desired revision when the
@@ -111,9 +123,9 @@ the receipt.
 ## Keycloak vendor relationship
 
 Keycloak Admin REST exposes realm client collection and individual client
-resources. Keyverse queries the collection with validated `clientId`, filters
-exact matches, creates at the collection, and updates or deletes only a
-validated opaque UUID resource.
+resources. Keyverse queries the collection with validated `clientId` and
+`search=false`, post-filters exact matches, creates at the collection, and
+updates or deletes only a validated opaque UUID resource.
 
 The adapter subclasses the established product HTTP client and therefore reuses
 one httpx pool, bearer-token cache, absolute realm route guard, and exactly-once
@@ -133,15 +145,17 @@ Realistic tests cover:
 - missing, duplicated, identity-changed, mismatched, or unavailable post-apply
   observation;
 - duplicate pre-apply fail-closed behavior;
-- malformed or mis-keyed stored state without reflection;
+- malformed or mis-keyed stored state without reflection, including inventory;
+- unsafe or missing live UUIDs and hostile create `Location` values;
 - remote-first delete failure and success;
 - deterministic sorted inventory;
 - canonical key-order-independent receipt;
 - blocked network I/O while another state read advances;
 - stale key snapshots that cannot resurrect deleted intent;
 - exact authenticated HTTP lifecycle;
-- exact collection query, Location parsing, body-ID pinning, unsafe UUID
-  rejection, malformed response rejection, and one-shot 401 refresh.
+- the documented `clientId` plus `search=false` collection query, body-ID
+  pinning, unsafe UUID rejection, malformed response rejection, and one-shot
+  401 refresh.
 
 Completion requires locked installation, Ruff, compilation, production
 docstrings 100%, production statement coverage 100%, production branch coverage
