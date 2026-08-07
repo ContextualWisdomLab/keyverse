@@ -1,0 +1,96 @@
+name: One-shot fix RP endpoint policy
+
+on:
+  push:
+    branches:
+      - feat/oidc-rp-claim-profile
+    paths:
+      - .github/workflows/one-shot-fix-rp-endpoint-policy.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-fix-rp-endpoint-policy
+  cancel-in-progress: false
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/oidc-rp-claim-profile
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+
+      - name: Restore the policy validator at the HTTP boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("services/account_unification/app/relying_party.py")
+          source = path.read_text(encoding="utf-8")
+
+          old_result = "    return RelyingPartyValidationResult(registration=registration)\n"
+          new_result = """    return RelyingPartyValidationResult(
+              registration=registration,
+              ready_to_apply=True,
+          )
+          """
+          if source.count(old_result) != 1:
+              raise SystemExit("unexpected validation-result return shape")
+          source = source.replace(old_result, new_result, 1)
+
+          old_endpoint = """    return RelyingPartyValidationResult(
+              registration=_parse_registration(payload),
+              ready_to_apply=True,
+          )
+          """
+          new_endpoint = (
+              "    return validate_relying_party_registration("
+              "_parse_registration(payload))\n"
+          )
+          if source.count(old_endpoint) != 1:
+              raise SystemExit("unexpected HTTP endpoint return shape")
+          source = source.replace(old_endpoint, new_endpoint, 1)
+          path.write_text(source, encoding="utf-8")
+          PY
+
+      - name: Verify focused regression and full production contract
+        working-directory: services/account_unification
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --locked --extra dev
+          uv run pytest -q tests/test_relying_party_endpoint_policy.py
+          uv run ruff check app tests tools
+          uv run interrogate .
+          uv run coverage erase
+          uv run coverage run --branch --source=app -m pytest -q
+          uv run coverage report --show-missing --fail-under=100
+          uv run python -m compileall -q app tests tools
+          uv build --out-dir dist
+
+      - name: Commit verified fix and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-fix-rp-endpoint-policy.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/account_unification/app/relying_party.py \
+            .github/workflows/one-shot-fix-rp-endpoint-policy.yml
+          git commit -m "fix(clients): enforce mapper policy at HTTP preflight"
+          git push origin HEAD:feat/oidc-rp-claim-profile
