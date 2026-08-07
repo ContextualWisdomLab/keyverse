@@ -44,20 +44,22 @@ jobs:
           source = path.read_text(encoding="utf-8")
 
           old_result = "    return RelyingPartyValidationResult(registration=registration)\n"
-          new_result = """    return RelyingPartyValidationResult(
-              registration=registration,
-              ready_to_apply=True,
+          new_result = (
+              "    return RelyingPartyValidationResult(\n"
+              "        registration=registration,\n"
+              "        ready_to_apply=True,\n"
+              "    )\n"
           )
-          """
           if source.count(old_result) != 1:
               raise SystemExit("unexpected validation-result return shape")
           source = source.replace(old_result, new_result, 1)
 
-          old_endpoint = """    return RelyingPartyValidationResult(
-              registration=_parse_registration(payload),
-              ready_to_apply=True,
+          old_endpoint = (
+              "    return RelyingPartyValidationResult(\n"
+              "        registration=_parse_registration(payload),\n"
+              "        ready_to_apply=True,\n"
+              "    )\n"
           )
-          """
           new_endpoint = (
               "    return validate_relying_party_registration("
               "_parse_registration(payload))\n"
