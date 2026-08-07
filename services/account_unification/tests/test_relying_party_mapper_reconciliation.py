@@ -1,8 +1,8 @@
 """OIDC relying-party mapper observation and reconciliation regressions."""
 from __future__ import annotations
 
-from copy import deepcopy
 from collections.abc import Callable
+from copy import deepcopy
 
 import pytest
 
@@ -81,9 +81,19 @@ def _replace_with_too_many(client: dict) -> None:
     client["protocolMappers"] = [deepcopy(mapper) for _ in range(5)]
 
 
+def _add_non_string_mapper_key(client: dict) -> None:
+    """Attach a malformed non-string key to a live mapper object."""
+    _live_mappers_from_client(client)[0][7] = "not-owned"
+
+
 def _set_non_string_mapper_id(client: dict) -> None:
-    """Attach a malformed vendor-generated mapper identifier."""
+    """Attach a malformed non-string vendor-generated mapper identifier."""
     _live_mappers_from_client(client)[0]["id"] = 7
+
+
+def _set_empty_mapper_id(client: dict) -> None:
+    """Attach an empty vendor-generated mapper identifier."""
+    _live_mappers_from_client(client)[0]["id"] = ""
 
 
 def _add_unknown_mapper_field(client: dict) -> None:
@@ -94,6 +104,20 @@ def _add_unknown_mapper_field(client: dict) -> None:
 def _set_non_mapping_config(client: dict) -> None:
     """Replace mapper configuration with an invalid scalar."""
     _live_mappers_from_client(client)[0]["config"] = []
+
+
+def _add_non_string_config_key(client: dict) -> None:
+    """Attach a malformed non-string mapper-configuration key."""
+    config = _live_mappers_from_client(client)[0]["config"]
+    assert isinstance(config, dict)
+    config[7] = "not-owned"
+
+
+def _add_non_string_config_value(client: dict) -> None:
+    """Attach a malformed non-string mapper-configuration value."""
+    config = _live_mappers_from_client(client)[0]["config"]
+    assert isinstance(config, dict)
+    config["access.token.claim"] = 7
 
 
 def _set_unsupported_mapper_type(client: dict) -> None:
@@ -107,6 +131,11 @@ def _duplicate_mapper_identity(client: dict) -> None:
     """Make two live mappers claim the same canonical identity."""
     mappers = _live_mappers_from_client(client)
     mappers[2] = deepcopy(mappers[1])
+
+
+def _set_policy_invalid_audience_name(client: dict) -> None:
+    """Keep a recognized mapper type but violate its closed product policy."""
+    _live_mappers_from_client(client)[0]["name"] = "wrong-audience-name"
 
 
 def _live_mappers_from_client(client: dict) -> list[dict]:
@@ -124,11 +153,16 @@ def _live_mappers_from_client(client: dict) -> list[dict]:
         _replace_with_non_list,
         _replace_with_non_object,
         _replace_with_too_many,
+        _add_non_string_mapper_key,
         _set_non_string_mapper_id,
+        _set_empty_mapper_id,
         _add_unknown_mapper_field,
         _set_non_mapping_config,
+        _add_non_string_config_key,
+        _add_non_string_config_value,
         _set_unsupported_mapper_type,
         _duplicate_mapper_identity,
+        _set_policy_invalid_audience_name,
     ],
 )
 def test_malformed_or_unowned_live_mapper_state_is_drift(
