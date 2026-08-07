@@ -16,15 +16,13 @@ _OBSERVED_CLAIM_RANKS: Final = {"role": 1, "org": 2, "workspace": 3}
 
 
 def _observed_mapper_rank(mapper: dict) -> int | None:
-    """Return the canonical rank for one known live mapper identity."""
+    """Return the canonical rank for one structurally valid live mapper."""
     mapper_type = mapper.get("protocolMapper")
     if mapper_type == "oidc-audience-mapper":
         return 0
     if mapper_type != "oidc-hardcoded-claim-mapper":
         return None
-    config = mapper.get("config")
-    if not isinstance(config, dict):
-        return None
+    config = mapper["config"]
     claim_name = config.get("claim.name")
     return _OBSERVED_CLAIM_RANKS.get(claim_name)
 
