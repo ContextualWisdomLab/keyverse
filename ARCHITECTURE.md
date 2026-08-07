@@ -60,6 +60,7 @@ The portable realm contains no customer-specific SAML, OIDC, or LDAP source.
 - password-free registration action-email flow;
 - SAML/OIDC desired-state validation and reconciliation;
 - LDAP/Active Directory component preflight;
+- OIDC relying-party client preflight before private Keycloak apply;
 - audit and user-operation lock boundaries.
 
 The core merge and SCIM layer depends on the narrow `AdminApi` protocol.
@@ -74,6 +75,8 @@ preflight does not require either protocol or any network client.
 - applies SAML/OIDC desired state through Keyverse;
 - applies the current LDAP component payload directly to private Keycloak Admin
   REST only after Keyverse preflight succeeds;
+- applies rendered OIDC RP clients only after Keyverse preflight and stores any
+  generated confidential-client secret in the approved secret backend;
 - enforces approved-host egress, TLS trust, and rollback.
 
 ### Persistence
@@ -119,6 +122,26 @@ Preflight performs no DNS lookup, socket connection, bind, search, store write,
 or Keycloak call. It requires LDAPS, read-only operation, no trusted-email
 auto-linking, no Kerberos, bounded timeouts, valid RFC 4514 DN syntax, and a
 closed config shape. Desired-state CRUD and reconciliation are a later module.
+
+
+### OIDC relying-party clients
+
+Relying-party registration is deployment data rather than portable realm code:
+
+```text
+secret-free rendered client representation
+    -> authenticated local Keyverse preflight
+    -> alias-preserving readiness receipt
+    -> deployment-owned private Keycloak client apply
+    -> controlled login/logout acceptance evidence
+```
+
+The preflight route has no KV, Keycloak, DNS, HTTP, secret-generation, or file
+side effect. It enforces authorization code plus PKCE `S256`, exact HTTPS
+redirect/origin/logout policy, public/confidential client consistency, bounded
+token metadata, and an exact portable scope set. Native loopback/private-use
+redirects and deployment-specific claim expansion remain separate reviewed
+profiles.
 
 ## Account and provisioning invariants
 

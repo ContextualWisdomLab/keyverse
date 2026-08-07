@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Authenticated, side-effect-free OIDC relying-party client preflight with
+  authorization code plus PKCE `S256`, exact HTTPS redirect/origin/logout
+  closure, public/confidential consistency, portable scopes, and non-reflective
+  hostile-input handling.
 - Authenticated, side-effect-free LDAP and Active Directory component preflight
   with LDAPS-only transport, RFC 4514 distinguished-name validation, closed
   read-only policy, bounded timeouts, and bind-secret redaction.
@@ -40,6 +44,13 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Consolidated the August 2026 runtime, transport, certificate, test,
+  lint, and build-backend refresh into one lock-consistent dependency
+  graph, and migrated package license metadata to the PEP 639 SPDX
+  expression and license-file contract.
+- The OIDC RP deployment template is now a closed, secret-free Keycloak client
+  representation with exact origins and the portable `basic`, `profile`, and
+  `email` scope profile; deployment controllers must preflight it before apply.
 - The LDAP deployment template is now a closed, preflight-ready Keycloak
   component payload with `trustEmail=false`, `useTruststoreSpi=always`,
   disabled Kerberos, and no synthetic comment fields.
@@ -63,6 +74,7 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Restored authenticated, allowlisted Keycloak component transport for LDAP reconciliation, canonicalized private apply receipts across JSON key order, and removed completed one-shot implementation workflows and scripts.
 - Prevented LDAP and Active Directory source configuration from reaching
   Keycloak with cleartext transport, unresolved private values, malformed DNs,
   writable or Kerberos-enabled policy, trusted-email linking, unsafe component
