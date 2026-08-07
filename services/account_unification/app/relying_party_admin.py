@@ -8,8 +8,9 @@ relying-party reconciliation.
 from __future__ import annotations
 
 from typing import Protocol
+from urllib.parse import urlsplit
 
-from .identifiers import validate_path_segment
+from .identifiers import InvalidIdentifierError, validate_path_segment
 from .product_keycloak_client import ProductHttpAdminApi
 
 
@@ -53,6 +54,31 @@ class RelyingPartyHttpAdminApi(ProductHttpAdminApi):
             return
         ProductHttpAdminApi._validate_admin_suffix(path_segments)
 
+    def _created_client_uuid(self, location: str) -> str:
+        """Extract one UUID from an exact absolute Keycloak client Location."""
+        parsed = urlsplit(location)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise InvalidIdentifierError(
+                "Keycloak client Location must be an absolute HTTP(S) resource URI"
+            )
+        guarded_path = self._guard_path(parsed.path)
+        expected_prefix = f"/admin/realms/{self._realm}/clients/"
+        if not guarded_path.startswith(expected_prefix):
+            raise InvalidIdentifierError(
+                "Keycloak client Location must target the configured realm client resource"
+            )
+        return validate_path_segment(
+            guarded_path[len(expected_prefix) :],
+            field_name="keycloak_client_uuid",
+        )
+
     def list_relying_party_clients(self, client_id: str) -> list[dict]:
         """List client candidates using one validated exact client-ID query."""
         safe_client_id = self._safe_segment(client_id, "client_id")
@@ -85,11 +111,7 @@ class RelyingPartyHttpAdminApi(ProductHttpAdminApi):
         location = response.headers.get("Location")
         if not location:
             return None
-        client_uuid = location.rstrip("/").rsplit("/", 1)[-1]
-        return validate_path_segment(
-            client_uuid,
-            field_name="keycloak_client_uuid",
-        )
+        return self._created_client_uuid(location)
 
     def update_relying_party_client(
         self,
