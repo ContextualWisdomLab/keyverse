@@ -17,6 +17,7 @@ from typing import Any, Final
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict
 
+from .identifiers import InvalidIdentifierError, validate_path_segment
 from .kv_store import KvStore
 from .relying_party import (
     RelyingPartyRegistration,
@@ -69,8 +70,13 @@ class RelyingPartyService:
     def list_registrations(self) -> list[RelyingPartyStatus]:
         """Return every stored relying party with a live observable status."""
         with self._state_lock:
-            snapshot = list(self._store.get_all(RELYING_PARTY_NAMESPACE).values())
-        registrations = [self._parse_registration(value) for value in snapshot]
+            snapshot = list(self._store.get_all(RELYING_PARTY_NAMESPACE).items())
+        registrations: list[RelyingPartyRegistration] = []
+        for stored_client_id, raw_value in snapshot:
+            registration = self._parse_registration(raw_value)
+            if registration.client_id != stored_client_id:
+                raise HTTPException(status_code=500, detail="stored_state_invalid")
+            registrations.append(registration)
         statuses = [self._status_for(registration) for registration in registrations]
         return sorted(statuses, key=lambda item: item.registration.client_id)
 
@@ -430,14 +436,23 @@ def _desired_digest(registration: RelyingPartyRegistration) -> str:
 
 
 def _client_uuid(client: dict) -> str:
-    """Return one bounded live Keycloak UUID or fail closed."""
+    """Return one bounded safe live Keycloak UUID or fail closed."""
     client_uuid = client.get("id")
     if not isinstance(client_uuid, str) or not client_uuid:
         raise HTTPException(
             status_code=500,
             detail="keycloak client omitted its identifier",
         )
-    return client_uuid
+    try:
+        return validate_path_segment(
+            client_uuid,
+            field_name="keycloak_client_uuid",
+        )
+    except InvalidIdentifierError:
+        raise HTTPException(
+            status_code=500,
+            detail="keycloak client identifier is invalid",
+        ) from None
 
 
 def _observable_client_matches(
