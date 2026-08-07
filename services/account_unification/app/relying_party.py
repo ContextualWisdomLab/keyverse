@@ -577,4 +577,7 @@ def validate_relying_party(
     payload: Any = Body(...),
 ) -> RelyingPartyValidationResult:
     """Return a readiness receipt for one closed OIDC client representation."""
-    return validate_relying_party_registration(_parse_registration(payload))
+    return RelyingPartyValidationResult(
+        registration=_parse_registration(payload),
+        ready_to_apply=True,
+    )
