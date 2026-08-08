@@ -217,6 +217,50 @@ def test_github_inventory_transport_failures_are_not_false_green() -> None:
     assert "Default branch has pending or unsuccessful latest check evidence" in gate_run
 
 
+def test_default_branch_check_evidence_requires_success() -> None:
+    """Neutral or skipped default-main checks never qualify as healthy evidence."""
+    gate = _step_by_id("develop-product-gap", "gate")
+    gate_run = gate.get("run")
+    assert isinstance(gate_run, str)
+
+    accepted_start = gate_run.index("accepted =")
+    accepted_block = gate_run[accepted_start : accepted_start + 120]
+    assert 'accepted = {"success"}' in accepted_block
+    assert '"neutral"' not in accepted_block
+    assert '"skipped"' not in accepted_block
+
+
+def test_model_fallback_budget_fits_outer_job_timeout() -> None:
+    """All sequential model candidates plus setup reserve fit the job deadline."""
+    document = _workflow_document()
+    env = document.get("env")
+    assert isinstance(env, dict)
+    candidates = str(env.get("OPENCODE_MODEL_CANDIDATES", "")).split()
+    per_model_seconds = int(str(env.get("OPENCODE_RUN_TIMEOUT_SECONDS", "0")))
+    timeout_minutes = int(str(_job("develop-product-gap").get("timeout-minutes", 0)))
+
+    assert candidates
+    setup_and_packaging_reserve_seconds = 15 * 60
+    assert timeout_minutes * 60 >= (
+        len(candidates) * per_model_seconds + setup_and_packaging_reserve_seconds
+    )
+
+
+def test_nvidia_secret_is_materialized_only_by_broker() -> None:
+    """The raw NVIDIA secret exists only in the conditional loopback broker step."""
+    secret_expression = "${{ secrets.NVIDIA_NIM_API_KEY }}"
+    materializing_steps: list[str] = []
+    for step in _steps("develop-product-gap"):
+        env = step.get("env")
+        if not isinstance(env, dict) or secret_expression not in env.values():
+            continue
+        name = step.get("name")
+        assert isinstance(name, str)
+        materializing_steps.append(name)
+
+    assert materializing_steps == ["Start the loopback-only NIM credential broker"]
+
+
 def test_nvidia_secret_is_required_only_on_the_model_backed_path() -> None:
     """The NVIDIA secret is checked only after deterministic gates select development."""
     broker = _step_by_name(
