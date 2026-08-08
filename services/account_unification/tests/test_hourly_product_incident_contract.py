@@ -188,13 +188,13 @@ def test_github_inventory_transport_failures_are_not_false_green() -> None:
 
     malformed_evidence_contracts = (
         (
-            "Unsupported workflow-run response shape",
+            "if not isinstance(pages, list) or not required:",
             "raise SystemExit(2)",
             "workflow_evidence_status",
             "Unable to interpret default-branch workflow evidence",
         ),
         (
-            "Unsupported check-run response shape",
+            "if not isinstance(pages, list):",
             "raise SystemExit(2)",
             "check_evidence_status",
             "Unable to interpret default-branch check evidence",
