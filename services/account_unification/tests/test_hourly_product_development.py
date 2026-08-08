@@ -49,9 +49,7 @@ def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
         assert isinstance(inputs, dict)
         endpoint_block = inputs.get("allowed-endpoints")
         assert isinstance(endpoint_block, str)
-        return tuple(
-            line.strip() for line in endpoint_block.splitlines() if line.strip()
-        )
+        return tuple(endpoint_block.split())
     raise AssertionError(f"{job_name} has no harden-runner endpoint policy")
 
 
