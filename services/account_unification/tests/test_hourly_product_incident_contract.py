@@ -104,8 +104,8 @@ def _step_by_name(job_name: str, step_name: str) -> dict[str, object]:
     raise AssertionError(f"{job_name} has no step named {step_name}")
 
 
-def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
-    """Return the exact ordered Harden Runner endpoint allowlist for a job."""
+def _harden_runner_endpoint_scalar(job_name: str) -> str:
+    """Return the serialized Harden Runner endpoint input for one workflow job."""
     for step in _steps(job_name):
         action = step.get("uses")
         if not isinstance(action, str) or not action.startswith(
@@ -117,10 +117,13 @@ def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
         assert inputs.get("egress-policy") == "block"
         endpoint_block = inputs.get("allowed-endpoints")
         assert isinstance(endpoint_block, str)
-        return tuple(
-            line.strip() for line in endpoint_block.splitlines() if line.strip()
-        )
+        return endpoint_block
     raise AssertionError(f"{job_name} has no Harden Runner step")
+
+
+def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
+    """Return the exact ordered Harden Runner endpoint allowlist for a job."""
+    return tuple(_harden_runner_endpoint_scalar(job_name).split())
 
 
 def test_github_api_jobs_use_exact_fail_closed_endpoint_sets() -> None:
@@ -130,6 +133,14 @@ def test_github_api_jobs_use_exact_fail_closed_endpoint_sets() -> None:
         assert actual == expected
         assert "api.github.com:443.evil" not in actual
         assert "*.github.com:443" not in actual
+
+
+def test_harden_runner_endpoint_input_is_space_delimited_for_runtime() -> None:
+    """Harden Runner receives one folded, space-delimited endpoint scalar per job."""
+    for job_name, expected in EXPECTED_ENDPOINTS.items():
+        endpoint_scalar = _harden_runner_endpoint_scalar(job_name)
+        assert endpoint_scalar == " ".join(expected)
+        assert "\n" not in endpoint_scalar
 
 
 def test_deterministic_repository_gates_precede_optional_model_credential() -> None:
