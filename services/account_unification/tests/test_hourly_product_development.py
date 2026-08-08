@@ -55,6 +55,21 @@ def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
     raise AssertionError(f"{job_name} has no harden-runner endpoint policy")
 
 
+def _step_by_name(job_name: str, step_name: str) -> dict[str, object]:
+    """Return one exact named workflow step from ``job_name``."""
+    jobs = _workflow_document().get("jobs")
+    assert isinstance(jobs, dict)
+    job = jobs.get(job_name)
+    assert isinstance(job, dict)
+    steps = job.get("steps")
+    assert isinstance(steps, list)
+
+    for step in steps:
+        if isinstance(step, dict) and step.get("name") == step_name:
+            return step
+    raise AssertionError(f"{job_name} has no step named {step_name}")
+
+
 def _permissions_block(source: str, marker: str, terminator: str) -> str:
     """Return one indentation-sensitive workflow permissions block."""
     block_start = source.index(marker)
@@ -147,8 +162,20 @@ def test_product_development_does_not_reuse_review_agent_credentials() -> None:
 def test_product_development_fails_closed_without_queue_ownership() -> None:
     """Unhealthy main or open work stops before entering the model-backed path."""
     workflow = _workflow_source()
+    broker = _step_by_name(
+        "develop-product-gap",
+        "Start the loopback-only NIM credential broker",
+    )
+    broker_env = broker.get("env")
+    broker_run = broker.get("run")
 
-    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in workflow
+    assert isinstance(broker_env, dict)
+    assert isinstance(broker_run, str)
+    assert broker.get("if") == "steps.gate.outputs.develop == 'true'"
+    assert broker_env.get("NIM_UPSTREAM_API_KEY") == (
+        "${{ secrets.NVIDIA_NIM_API_KEY }}"
+    )
+    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in broker_run
     assert "pulls?state=open&per_page=1" in workflow
     assert "An open pull request exists" in workflow
     assert "CORE_WORKFLOWS" in workflow
