@@ -186,6 +186,36 @@ def test_github_inventory_transport_failures_are_not_false_green() -> None:
         assert "exit 1" in branch_tail
         assert f"::warning::{message}" not in gate_run
 
+    malformed_evidence_contracts = (
+        (
+            "Unsupported workflow-run response shape",
+            "raise SystemExit(2)",
+            "workflow_evidence_status",
+            "Unable to interpret default-branch workflow evidence",
+        ),
+        (
+            "Unsupported check-run response shape",
+            "raise SystemExit(2)",
+            "check_evidence_status",
+            "Unable to interpret default-branch check evidence",
+        ),
+    )
+    for parser_marker, malformed_exit, status_name, error_message in (
+        malformed_evidence_contracts
+    ):
+        parser_start = gate_run.index(parser_marker)
+        parser_tail = gate_run[parser_start : parser_start + 180]
+        assert malformed_exit in parser_tail
+        assert f"{status_name}=$?" in gate_run
+        assert f"::error::{error_message}" in gate_run
+
+    assert 'workflow_evidence_status=3' not in gate_run
+    assert 'check_evidence_status=3' not in gate_run
+    assert "Missing required default-branch workflow evidence" in gate_run
+    assert "Default branch has pending or unsuccessful required workflow evidence" in gate_run
+    assert "Missing latest default-branch check evidence" in gate_run
+    assert "Default branch has pending or unsuccessful latest check evidence" in gate_run
+
 
 def test_nvidia_secret_is_required_only_on_the_model_backed_path() -> None:
     """The NVIDIA secret is checked only after deterministic gates select development."""
