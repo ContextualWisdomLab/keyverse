@@ -82,7 +82,7 @@ def test_product_development_runs_hourly_without_cancelling_a_decision() -> None
     assert 'cron: "41 * * * *"' in workflow
     assert "hourly-product-development-${{ github.repository }}" in workflow
     assert "cancel-in-progress: false" in workflow
-    assert "timeout-minutes: 45" in workflow
+    assert "timeout-minutes: 180" in workflow
     assert "timeout-minutes: 30" in workflow
     assert "timeout-minutes: 15" in workflow
 
@@ -141,9 +141,9 @@ def test_nim_credential_is_brokered_outside_the_agent_environment() -> None:
 
     assert "Start the loopback-only NIM credential broker" in workflow
     assert "NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}" in workflow
+    assert workflow.count("${{ secrets.NVIDIA_NIM_API_KEY }}") == 1
     assert "NVIDIA_API_KEY=keyverse-local-broker" in workflow
     assert "env -i" in workflow
-    assert "KEYVERSE_FORBIDDEN_SECRET: ${{ secrets.NVIDIA_NIM_API_KEY }}" in workflow
     assert "NVIDIA_API_KEY=${{ secrets.NVIDIA_NIM_API_KEY }}" not in workflow
 
 
