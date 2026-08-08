@@ -8,13 +8,16 @@ all `{{placeholders}}` must be resolved from the platform KV before use.
 | `saml-idp-employer-adfs.json` | Keyverse desired-state API | external IdP → Keyverse | `POST /federation/identity-providers:validate` | `PUT /federation/identity-providers/employer-adfs` |
 | `oidc-idp-partner.json` | Keyverse desired-state API | external OIDC IdP → Keyverse | `POST /federation/identity-providers:validate` | `PUT /federation/identity-providers/partner-oidc` |
 | `ldap-source.json` | Keycloak component contract | external directory → Keycloak | `POST /federation/user-directories:validate` | `POST /admin/realms/{realm}/components` |
-| `oidc-rp-client.json` | Keyverse RP preflight | Keyverse → RP | `POST /clients/relying-parties:validate` | `POST /admin/realms/{realm}/clients` |
+| `oidc-rp-client.json` | Keyverse RP desired-state API | Keyverse → RP | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/{client_id}` |
+| `oidc-rp-naruon.json` | Keyverse RP desired-state API | Keyverse → Naruon | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/naruon-web` |
 
 The portable realm contains no employer-specific federation. External SAML and
 OIDC providers are customer or deployment data stored in the Keyverse KV/DB
-desired-state registry and reconciled into Keycloak. LDAP is still applied as a
-Keycloak user-storage component in this release, but its rendered payload must
-first pass the authenticated Keyverse directory preflight described below.
+desired-state registry and reconciled into Keycloak. OIDC relying-party clients
+are likewise reconciled through Keyverse desired state rather than applied
+straight from a public deployment path. LDAP is still applied as a Keycloak
+user-storage component in this release, but its rendered payload must first pass
+the authenticated Keyverse directory preflight described below.
 
 ## Employer ADFS apply pattern
 
@@ -116,28 +119,58 @@ JWKS, and optional UserInfo endpoints explicitly; runtime discovery import
 is not accepted. Every network endpoint is HTTPS, token signatures and JWKS
 retrieval are enabled, PKCE is fixed to `S256`, and `openid` is mandatory.
 Keep `trust_email=false` until the upstream verification and claim-mapping
-contract has been independently reviewed. `oidc-rp-client.json` is a
-different artifact: it registers an ecosystem application as an RP of Keyverse.
-The rendered payload must pass `POST /clients/relying-parties:validate` before
-the deployment controller sends the original private file to Keycloak Admin
-REST. See [`../../docs/rp-onboarding.md`](../../docs/rp-onboarding.md).
+contract has been independently reviewed. The OIDC RP templates are different
+artifacts: they register ecosystem applications as relying parties of Keyverse.
+Their rendered payloads pass `POST /clients/relying-parties:validate` and are
+then reconciled through the Keyverse RP desired-state `PUT`. See
+[`../../docs/rp-onboarding.md`](../../docs/rp-onboarding.md).
 
+## OIDC relying-party desired-state pattern
 
-## OIDC relying-party client preflight pattern
+`oidc-rp-client.json` is the generic closed, secret-free Keycloak client
+representation. Render its placeholders into a private file, call the
+authenticated Keyverse `POST /clients/relying-parties:validate` route, require
+exact HTTP 200 and `ready_to_apply=true`, then send the **same original rendered
+file** to `PUT /clients/relying-parties/{client_id}`. Require
+`convergence_state=in_sync` and `last_apply_receipt_matches=true` after Keyverse
+re-observes the live client. Do not apply the representation directly from the
+public deployment path to Keycloak Admin REST.
 
-`oidc-rp-client.json` is a closed, secret-free Keycloak client representation.
-Render its four placeholders into a private file, call the authenticated
-Keyverse `POST /clients/relying-parties:validate` route, require exact HTTP 200
-and `ready_to_apply=true`, then apply the **original rendered file** through the
-private Keycloak administration channel.
-
-The first profile requires authorization code plus PKCE `S256`, exact HTTPS
+The base profile requires authorization code plus PKCE `S256`, exact HTTPS
 redirects and origins, public/confidential authentication consistency, a bounded
 access-token lifetime, backchannel logout, and exactly the portable `basic`,
 `profile`, and `email` scopes. Wildcards, `+`, queries, fragments, userinfo,
 encoded path delimiters, unresolved placeholders, credential fields, and broad
 scope expansion fail closed. Preflight performs no client creation, secret
 generation, KV write, DNS lookup, HTTP request, or Keycloak call.
+
+### Naruon runtime mapper profile
+
+`oidc-rp-naruon.json` is the reviewed public `naruon-web` runtime artifact. It
+adds six deployment placeholders: exact redirect, web-origin, and post-logout
+URIs plus bounded `role`, `org`, and `workspace` routing values. The claim values
+are visible product routing/authorization data and must not carry credentials,
+bearer material, personal secrets, or unreviewed tenant data.
+
+The template carries this exact mapper order:
+
+1. `keyverse-audience` using `oidc-audience-mapper`, with
+   `included.client.audience=naruon-web`;
+2. `keyverse-claim-role`;
+3. `keyverse-claim-org`;
+4. `keyverse-claim-workspace`.
+
+The three claim entries use only `oidc-hardcoded-claim-mapper`. The closed policy
+rejects scripts, user attributes, groups, regex, arbitrary claim names, unknown
+mapper types, extra nested fields, and credential material. Keycloak-generated
+mapper IDs and vendor return ordering may be normalized for observation, but an
+unknown, malformed, duplicate, or semantically changed live mapper is drift.
+
+Render → preflight → Keyverse desired-state PUT → exact `in_sync` receipt is the
+configuration path. It is not authentication or authorization proof. Before
+routing users, run controlled authorization-code/PKCE acceptance and verify that
+the downstream boundary validates token signature, issuer, expiry, the reviewed
+`naruon-web` audience, and expected `role`, `org`, and `workspace` semantics.
 
 ## LDAP and Active Directory preflight pattern
 
