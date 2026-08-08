@@ -89,7 +89,8 @@ chart has the same shape):
 - **account_unification_service** — FastAPI admin service (Python ≥3.11) on port
   8099. It talks to Keycloak only through the Admin REST API using a confidential
   service-account client. It provides account inspect/link/merge, inbound SCIM,
-  passwordless registration, SAML/OIDC desired state, and LDAP/AD preflight.
+  passwordless registration, SAML/OIDC desired state, LDAP/AD preflight, and
+  secret-free OIDC relying-party desired state.
 
 Networks: `idp_internal_network` (database, engine, and admin service; never
 public) and `idp_edge_network` (Keycloak OIDC endpoints and the admin/SCIM API
@@ -104,9 +105,11 @@ is required by the normal suite.
 - `deploy/keycloak/` — portable realm config-as-code and
   `kcadm-bootstrap.sh`. The realm contains no employer-specific federation.
 - `deploy/templates/` — explicit private deployment contracts. SAML/OIDC use
-  Keyverse desired-state endpoints. LDAP is preflighted through Keyverse and
-  then applied through private Keycloak Admin REST in this release. All
-  `{{placeholders}}` are resolved from KV before use.
+  Keyverse desired-state endpoints. `oidc-rp-naruon.json` is the reviewed public
+  Naruon runtime RP profile with one audience mapper and bounded routing claims.
+  LDAP is preflighted through Keyverse and then applied through private Keycloak
+  Admin REST in this release. All `{{placeholders}}` are resolved from KV before
+  use.
 - `deploy/bootstrap/` — the bootstrap pointer locating the KV/DB config store.
 - `helm/cwl-idp/` — the same three components; Keycloak and Postgres may be
   disabled in favor of externally managed services. Secrets come from
@@ -132,6 +135,16 @@ is required by the normal suite.
   single-valued config shape. Preflight performs no DNS lookup, socket, bind,
   search, storage write, or Keycloak call. Its redacted response is never an
   apply payload.
+- **OIDC relying-party metadata is secret-free desired state.** Validate with
+  `POST /clients/relying-parties:validate`, persist with `PUT`, and require exact
+  post-mutation observation before accepting a receipt. The optional mapper
+  profile permits exactly one audience mapper plus only canonical `role`, `org`,
+  and `workspace` hardcoded claims. Never expand mapper classes, claim names,
+  resource audiences, or token destinations by configuration alone.
+- **Treat mapper normalization narrowly.** Ignore only a valid generated mapper
+  `id` and canonicalize known mapper order. Unknown, malformed, duplicate, or
+  semantically changed live mapper state is drift. Mapper configuration does not
+  replace downstream token signature/issuer/expiry/audience acceptance tests.
 - **Never link or merge accounts on an unverified email.** Matching precedence
   is exact `(identity_provider, subject)` → verified email → explicit operator
   link. Merges are survivor-wins, tombstone the duplicate, and audit every step
