@@ -43,8 +43,10 @@ Per-service commands matching CI, from `services/account_unification/`:
 uv sync --locked --extra dev
 uv run ruff check app tests tools
 uv run interrogate .
+uv run python -m compileall -q app tests tools
 uv run coverage run --branch --source=app -m pytest -q
 uv run coverage report --show-missing --fail-under=100
+uv build --out-dir dist
 uv run pytest tests/test_directory_federation_preflight.py -q
 ```
 
@@ -59,13 +61,15 @@ uvicorn app.main:app --port 8099
 ## CI gates (`.github/workflows/ci.yml`)
 
 1. **account-unification-tests** — locked dependencies, Ruff, 100% interrogate
-   docstring coverage, complete pytest, and 100% production statement and branch
-   coverage on Python 3.12.
-2. **realm-config-validates** — validates the portable realm export. The bound
-   browser flow must contain WebAuthn passwordless and no password
-   authenticator; registration and reset-password remain off; no external IdP or
-   user-storage federation may be committed; public RP access-token lifetime is
-   bounded; real client secrets are forbidden.
+   docstring coverage, Python compilation, complete pytest, 100% production
+   statement and branch coverage, and a clean `uv build` distribution on Python
+   3.12.
+2. **realm-config-validates** — validates the portable realm export and parses
+   every committed deployment-template JSON artifact. The bound browser flow
+   must contain WebAuthn passwordless and no password authenticator;
+   registration and reset-password remain off; no external IdP or user-storage
+   federation may be committed; public RP access-token lifetime is bounded; real
+   client secrets are forbidden.
 3. **compose-config-validates** — validates `docker-compose.yml` with placeholder
    bootstrap passwords.
 
