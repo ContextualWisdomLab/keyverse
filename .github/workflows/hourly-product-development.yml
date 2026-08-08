@@ -53,7 +53,7 @@ jobs:
         with:
           egress-policy: block
           disable-telemetry: true
-          allowed-endpoints: |
+          allowed-endpoints: >-
             api.github.com:443
             cafe.github.com:443
             codeload.github.com:443
@@ -136,22 +136,27 @@ jobs:
             echo "::error::Unable to read default-branch workflow evidence; GitHub inventory is unavailable."
             exit 1
           fi
-          if ! python3 - "$workflow_runs_file" "$CORE_WORKFLOWS" <<'PY'
+          workflow_evidence_status=0
+          python3 - "$workflow_runs_file" "$CORE_WORKFLOWS" <<'PY' || workflow_evidence_status=$?
           import json
           import sys
 
-          with open(sys.argv[1], encoding="utf-8") as stream:
-              pages = json.load(stream)
-          required = set(json.loads(sys.argv[2]))
+          try:
+              with open(sys.argv[1], encoding="utf-8") as stream:
+                  pages = json.load(stream)
+              required = set(json.loads(sys.argv[2]))
+          except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+              print(f"Malformed workflow-run evidence: {exc}", file=sys.stderr)
+              raise SystemExit(2) from exc
           if not isinstance(pages, list) or not required:
-              raise SystemExit("Unsupported workflow-run response shape")
+              raise SystemExit(2)
 
           runs = []
           for page in pages:
               if not isinstance(page, dict) or not isinstance(
                   page.get("workflow_runs"), list
               ):
-                  raise SystemExit("Unsupported workflow-run response shape")
+                  raise SystemExit(2)
               runs.extend(page["workflow_runs"])
 
           latest = {}
@@ -168,10 +173,12 @@ jobs:
 
           missing = sorted(required.difference(latest))
           if missing:
-              raise SystemExit(
+              print(
                   "Missing required default-branch workflow evidence: "
-                  + ", ".join(missing)
+                  + ", ".join(missing),
+                  file=sys.stderr,
               )
+              raise SystemExit(3)
           unhealthy = sorted(
               name
               for name, run in latest.items()
@@ -179,15 +186,28 @@ jobs:
               or run.get("conclusion") != "success"
           )
           if unhealthy:
-              raise SystemExit(
+              print(
                   "Default branch has pending or unsuccessful required workflow evidence: "
-                  + ", ".join(unhealthy)
+                  + ", ".join(unhealthy),
+                  file=sys.stderr,
               )
+              raise SystemExit(3)
           PY
-          then
-            echo "::warning::Default-branch core workflow evidence is incomplete or unhealthy; refusing to create work."
-            exit 0
-          fi
+          case "$workflow_evidence_status" in
+            0) ;;
+            2)
+              echo "::error::Unable to interpret default-branch workflow evidence; GitHub inventory is malformed."
+              exit 1
+              ;;
+            3)
+              echo "::warning::Default-branch core workflow evidence is incomplete or unhealthy; refusing to create work."
+              exit 0
+              ;;
+            *)
+              echo "::error::Default-branch workflow evidence parser failed unexpectedly."
+              exit 1
+              ;;
+          esac
 
           check_runs_file="${RUNNER_TEMP}/keyverse-main-check-runs.json"
           if ! gh api \
@@ -199,22 +219,27 @@ jobs:
             echo "::error::Unable to read default-branch check evidence; GitHub inventory is unavailable."
             exit 1
           fi
-          if ! python3 - "$check_runs_file" "$CURRENT_RUN_ID" <<'PY'
+          check_evidence_status=0
+          python3 - "$check_runs_file" "$CURRENT_RUN_ID" <<'PY' || check_evidence_status=$?
           import json
           import sys
 
-          with open(sys.argv[1], encoding="utf-8") as stream:
-              pages = json.load(stream)
+          try:
+              with open(sys.argv[1], encoding="utf-8") as stream:
+                  pages = json.load(stream)
+          except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+              print(f"Malformed check-run evidence: {exc}", file=sys.stderr)
+              raise SystemExit(2) from exc
           current_run_fragment = f"/actions/runs/{sys.argv[2]}"
           if not isinstance(pages, list):
-              raise SystemExit("Unsupported check-run response shape")
+              raise SystemExit(2)
 
           checks = []
           for page in pages:
               if not isinstance(page, dict) or not isinstance(
                   page.get("check_runs"), list
               ):
-                  raise SystemExit("Unsupported check-run response shape")
+                  raise SystemExit(2)
               checks.extend(page["check_runs"])
 
           latest = {}
@@ -234,7 +259,8 @@ jobs:
                   latest[key] = check
 
           if not latest:
-              raise SystemExit("Missing latest default-branch check evidence")
+              print("Missing latest default-branch check evidence", file=sys.stderr)
+              raise SystemExit(3)
           accepted = {"success", "neutral", "skipped"}
           unhealthy = sorted(
               f"{key[0]}/{key[1]}"
@@ -243,15 +269,28 @@ jobs:
               or check.get("conclusion") not in accepted
           )
           if unhealthy:
-              raise SystemExit(
+              print(
                   "Default branch has pending or unsuccessful latest check evidence: "
-                  + ", ".join(unhealthy)
+                  + ", ".join(unhealthy),
+                  file=sys.stderr,
               )
+              raise SystemExit(3)
           PY
-          then
-            echo "::warning::Default-branch check evidence is incomplete or unhealthy; refusing to create work."
-            exit 0
-          fi
+          case "$check_evidence_status" in
+            0) ;;
+            2)
+              echo "::error::Unable to interpret default-branch check evidence; GitHub inventory is malformed."
+              exit 1
+              ;;
+            3)
+              echo "::warning::Default-branch check evidence is incomplete or unhealthy; refusing to create work."
+              exit 0
+              ;;
+            *)
+              echo "::error::Default-branch check evidence parser failed unexpectedly."
+              exit 1
+              ;;
+          esac
 
           if [ "$DRY_RUN" = "true" ]; then
             echo "Dry run: deterministic repository gates are healthy; model access was not requested." \
@@ -582,7 +621,7 @@ jobs:
         with:
           egress-policy: block
           disable-telemetry: true
-          allowed-endpoints: |
+          allowed-endpoints: >-
             api.github.com:443
             cafe.github.com:443
             github.com:443
@@ -723,7 +762,7 @@ jobs:
         with:
           egress-policy: block
           disable-telemetry: true
-          allowed-endpoints: |
+          allowed-endpoints: >-
             api.github.com:443
             cafe.github.com:443
             github.com:443
