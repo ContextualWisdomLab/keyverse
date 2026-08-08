@@ -36,10 +36,14 @@ jobs:
         run: uv run ruff check app tests tools
       - name: Docstrings
         run: uv run interrogate .
+      - name: Compile Python sources
+        run: uv run python -m compileall -q app tests tools
       - name: Test and enforce production coverage
         run: |
           uv run coverage run --branch --source=app -m pytest -q
           uv run coverage report --show-missing --fail-under=100
+      - name: Build distribution
+        run: uv build --out-dir dist
 
   realm-config-validates:
     runs-on: ubuntu-latest
@@ -50,6 +54,15 @@ jobs:
           python-version: "3.12"
       - name: Validate Keycloak realm config-as-code
         run: python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+      - name: Validate deployment template JSON
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in sorted(Path("deploy/templates").glob("*.json")):
+              json.loads(path.read_text(encoding="utf-8"))
+          PY
 
   compose-config-validates:
     runs-on: ubuntu-latest

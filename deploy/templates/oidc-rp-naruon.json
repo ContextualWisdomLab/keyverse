@@ -1,0 +1,82 @@
+{
+  "clientId": "naruon-web",
+  "name": "naruon-web",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": true,
+  "clientAuthenticatorType": "none",
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "redirectUris": ["{{naruon_redirect_uri}}"],
+  "webOrigins": ["{{naruon_web_origin}}"],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "{{naruon_post_logout_uri}}",
+    "access.token.lifespan": "300",
+    "backchannel.logout.session.required": "true",
+    "require.pushed.authorization.requests": "false"
+  },
+  "fullScopeAllowed": false,
+  "defaultClientScopes": ["basic", "profile", "email"],
+  "protocolMappers": [
+    {
+      "name": "keyverse-audience",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.client.audience": "naruon-web",
+        "access.token.claim": "true",
+        "id.token.claim": "false",
+        "introspection.token.claim": "true"
+      }
+    },
+    {
+      "name": "keyverse-claim-role",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "role",
+        "claim.value": "{{naruon_role}}",
+        "jsonType.label": "String",
+        "access.token.claim": "true",
+        "id.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "true"
+      }
+    },
+    {
+      "name": "keyverse-claim-org",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "org",
+        "claim.value": "{{naruon_org}}",
+        "jsonType.label": "String",
+        "access.token.claim": "true",
+        "id.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "true"
+      }
+    },
+    {
+      "name": "keyverse-claim-workspace",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "workspace",
+        "claim.value": "{{naruon_workspace}}",
+        "jsonType.label": "String",
+        "access.token.claim": "true",
+        "id.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "true"
+      }
+    }
+  ]
+}
