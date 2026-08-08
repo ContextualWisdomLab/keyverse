@@ -145,10 +145,10 @@ def test_product_development_does_not_reuse_review_agent_credentials() -> None:
 
 
 def test_product_development_fails_closed_without_queue_ownership() -> None:
-    """Missing NIM access, unhealthy main, or open work suppresses the agent."""
+    """Unhealthy main or open work stops before entering the model-backed path."""
     workflow = _workflow_source()
 
-    assert "NVIDIA_NIM_API_KEY is not configured" in workflow
+    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in workflow
     assert "pulls?state=open&per_page=1" in workflow
     assert "An open pull request exists" in workflow
     assert "CORE_WORKFLOWS" in workflow
