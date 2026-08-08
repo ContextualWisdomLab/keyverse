@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- A closed optional OIDC relying-party mapper profile with one self-pinned
+  access-token audience, bounded `role`, `org`, and `workspace` hardcoded claims,
+  canonical mapper ordering, Keycloak-generated-ID/order normalization, and a
+  secret-free `naruon-web` runtime desired-state template.
 - Durable, secret-free OIDC relying-party desired-state CRUD and reconciliation
   with exact `clientId` matching, duplicate fail-closed behavior, post-mutation
   re-observation, canonical apply receipts, realm-rebuild recovery, per-client
