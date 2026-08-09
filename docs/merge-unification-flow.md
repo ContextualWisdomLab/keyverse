@@ -80,18 +80,27 @@ resolve to the survivor.
 can set `active: true`. Its tombstone check and replacement PUT therefore execute
 inside the **same user-operation lock** used by the complete merge transaction.
 A merge cannot create `merged_into_user_id` between those two Admin API calls,
-and SCIM cannot wipe a newly-created tombstone or reactivate the duplicate.
+and SCIM PUT cannot wipe a newly-created tombstone or reactivate the duplicate.
+
+Protected `main` does **not** currently extend that shared-lock guarantee to
+`PATCH /scim/v2/Users/{id}`. The implemented PATCH surface only supports the
+`active=false` deprovisioning shape and executes its read/deactivate/read path
+without `user_operation_locks.hold(user_id)`. Operators and documentation must
+therefore not treat PATCH and merge as transactionally serialized. If PATCH is
+expanded or needs the same tombstone/survivor concurrency guarantee, the source
+path must join the shared lock and add a merge/PATCH race regression before the
+stronger contract is promoted.
 
 Standalone deployments use a dedicated SQLite sidecar lock database and hold a
 `BEGIN IMMEDIATE` transaction for the complete critical section. This provides a
 crash-safe mutex shared by every worker/process using the same database path;
 process death closes the connection and releases the lock. The current backend
-serializes all user mutations conservatively rather than risking a multi-user
-deadlock. Lock acquisition waits up to 10 seconds, then returns retryable HTTP
-`503` without performing a partial mutation. A clustered Postgres deployment
-must provide the same `UserOperationLocks` contract (for example, ordered
-advisory locks) and wire one shared instance into both the merge service and SCIM
-router.
+serializes operations that participate in the shared lock conservatively rather
+than risking a multi-user deadlock. Lock acquisition waits up to 10 seconds,
+then returns retryable HTTP `503` without performing a partial mutation. A
+clustered Postgres deployment must provide the same `UserOperationLocks`
+contract and wire one shared instance into the merge service and every SCIM
+operation that claims this serialization guarantee.
 
 ## Audit
 
