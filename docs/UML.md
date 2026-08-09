@@ -11,23 +11,29 @@ flowchart LR
     EXT[External IdPs / LDAP / HR-IGA]
     EDGE[WAF / public edge]
     KC[Keycloak engine]
+    KCAPI[Keycloak Admin REST API]
     ADMIN[Account-unification + SCIM API]
     DEPLOY[Private deployment controller]
     KV[(KV / secret manager)]
-    PG[(PostgreSQL)]
+    KCDB[(Keycloak-owned PostgreSQL)]
+    KVS[(Keyverse-owned config / intent / receipt / audit store)]
     RP[CWL relying parties]
 
     USER --> EDGE
     EXT --> EDGE
     EDGE --> KC
     EDGE --> ADMIN
-    KC --> PG
-    ADMIN --> PG
+    KC --> KCDB
+    KCAPI --> KC
+    ADMIN --> KCAPI
+    ADMIN --> KVS
     DEPLOY --> KV
     DEPLOY --> ADMIN
-    DEPLOY --> KC
+    DEPLOY --> KCAPI
     KC --> RP
 ```
+
+The two storage nodes are authority boundaries, even when a deployment places them on the same physical database service. Keycloak owns and migrates its internal schema. Keyverse reads/writes only its own supported store and reaches Keycloak user/client/federation state through the supported Admin API rather than direct private-table access.
 
 ## Federation desired-state sequence
 
@@ -36,19 +42,19 @@ sequenceDiagram
     actor Operator
     participant Deploy as Deployment controller
     participant Keyverse
-    participant Store as KV/PostgreSQL
-    participant Keycloak
+    participant Store as Keyverse state store
+    participant Keycloak as Keycloak Admin API/engine
 
     Operator->>Deploy: private rendered federation payload
     Deploy->>Keyverse: authenticated preflight
     Keyverse->>Keyverse: local closed-schema validation
     Keyverse-->>Deploy: redacted readiness result
     Deploy->>Keyverse: desired-state apply/reconcile
-    Keyverse->>Store: persist intent
+    Keyverse->>Store: persist versioned intent
     Keyverse->>Keycloak: exact lookup / create or update
     Keycloak-->>Keyverse: live remote state
     Keyverse->>Keyverse: canonical re-observation
-    Keyverse->>Store: write canonical receipt
+    Keyverse->>Store: write desired-version-bound receipt
     Keyverse-->>Deploy: redacted outcome
     Deploy->>Operator: controlled acceptance evidence
 ```
@@ -61,7 +67,7 @@ sequenceDiagram
     participant Deploy as Deployment controller
     participant Keyverse
     participant Store as Desired-state store
-    participant Keycloak
+    participant Keycloak as Keycloak Admin API/engine
     participant Secret as Secret-management port
     participant App as Relying party
 
@@ -69,10 +75,10 @@ sequenceDiagram
     Deploy->>Keyverse: preflight
     Keyverse-->>Deploy: policy result
     Deploy->>Keyverse: reconcile desired state
-    Keyverse->>Store: intent
+    Keyverse->>Store: versioned intent
     Keyverse->>Keycloak: exact client search/create/update
     Keycloak-->>Keyverse: exact live representation
-    Keyverse->>Store: apply receipt
+    Keyverse->>Store: version-bound apply receipt
     opt confidential client
         Deploy->>Secret: provision secret separately
         Secret-->>App: controlled credential placement
@@ -105,17 +111,21 @@ Unverified email cannot enter `candidate_link` by itself.
 
 ```mermaid
 flowchart LR
-    SCIM[SCIM mutation]
+    PUT[SCIM full replacement PUT]
+    PATCH[SCIM PATCH active=false — current narrower path]
     MERGE[Merge/link mutation]
     LOCK[user_operation_lock_state]
     USER[Keycloak user state]
     AUDIT[account_merge_audit / operation evidence]
 
-    SCIM --> LOCK
+    PUT --> LOCK
     MERGE --> LOCK
     LOCK --> USER
+    PATCH -. not currently in shared-lock guarantee .-> USER
     USER --> AUDIT
 ```
+
+Protected `main` guarantees the shared cross-process lock for merge/link and full SCIM replacement. The current `PATCH active=false` path is explicitly not represented as serialized with merge. Extending that guarantee is a source-and-concurrency-test change, not a documentation relabel.
 
 ## Automation authority
 
