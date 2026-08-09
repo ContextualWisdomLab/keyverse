@@ -85,7 +85,7 @@ Mirror `docs/THREAT_MODEL.md`: malicious IdP/LDAP URLs, path/resource IDs, dupli
 
 ## Documentation contract
 
-CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and authoritative doctoring/operations links. It must assert PR #72/#74 remain active-PR claims until integrated.
+CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 remain active-PR claims until integrated.
 
 ## Release acceptance
 
