@@ -56,11 +56,11 @@ Do not put raw tokens, secrets, passwords/bind credentials, protected private pa
 6. run authorization-code/PKCE login/logout/token audience/claim acceptance;
 7. validate downstream authorization separately from authentication.
 
-PR #72 claim mapper profile requires the same acceptance after merge; unit mapper tests alone do not prove naruon authorization readiness.
+PR #72's mapper profile requires the same acceptance after merge: operators must test the **Naruon** product login/token/authorization journey using the `naruon-web` RP client ID and verify the expected audience and bounded claims. Mapper unit tests alone do not prove Naruon product authorization readiness.
 
 ## Account merge recovery
 
-User merge/SCIM mutation must hold the shared operation lock. On failure, classify whether state changed in Keycloak, Keyverse audit, linked identities, or tombstone status. Re-observe before retry. Never infer a retry is safe solely from the previous HTTP response. Preserve survivor and duplicate lineage in audit.
+Merge and SCIM full replacement (`PUT`) must hold the shared operation lock. Protected-main `PATCH active=false` is not currently inside that shared-lock guarantee and must not be treated as transactionally serialized with merge. On failure, classify whether state changed in Keycloak, Keyverse audit, linked identities, or tombstone status. Re-observe before retry. Never infer a retry is safe solely from the previous HTTP response. Preserve survivor and duplicate lineage in audit.
 
 ## Desired-state recovery
 
@@ -70,7 +70,7 @@ On controller/API crash after intent but before receipt:
 - query exact remote Keycloak state;
 - classify converged, absent, duplicate, or drifted;
 - reconcile idempotently;
-- write receipt only after exact re-observation.
+- write receipt only after exact re-observation and bind it to the desired-state version/hash that was applied.
 
 On delete, keep local intent until remote-first deletion has succeeded where required.
 
