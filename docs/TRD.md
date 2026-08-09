@@ -12,17 +12,17 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 - **Keycloak engine:** OIDC/OAuth, SAML brokering, WebAuthn, users/sessions/roles/groups, external IdP and LDAP component execution, RP clients.
 - **Account-unification FastAPI service:** merge/link, SCIM, federation/directory/RP validation and desired-state/reconciliation, audit/locking boundaries.
 - **PostgreSQL/KV:** Keycloak state plus Keyverse configuration, intent, receipts, merge audit, and user-operation locks.
-- **Deployment controller:** private secret rendering, egress/TLS policy, explicit apply, controlled acceptance, rollback.
+- **Deployment controller:** private configuration rendering, egress/TLS policy, explicit apply, controlled acceptance, rollback.
 - **Compose/Helm:** standalone deployment topology and probes.
 
 ## 3. Trust/authority rules
 
-- Portable realm policy may contain public client/scope/authentication definitions but no tenant/customer federation secrets.
+- Portable realm policy may contain public client/scope/authentication definitions but no tenant/customer federation private values.
 - Deterministic preflight never performs network, DNS, Keycloak, bind/search, file, or store mutation.
 - Apply/reconciliation endpoints use exact remote identity lookup and fail on zero/multiple states according to operation semantics.
-- Desired-state intent is persisted before external mutation where recovery requires it; receipt is persisted only after exact re-observation.
-- Secret-free RP desired state cannot gain confidential client secrets through normalization or logs.
-- Deployment controller, not public API, owns private bind/client credentials and certificate material.
+- Desired-state intent is persisted before external mutation where recovery requires it; receipt is persisted only after exact re-observation and binds the desired-state hash/version acted on.
+- RP desired state remains separate from confidential client material.
+- Deployment controller, not public API, owns private bind/client and certificate material.
 
 ## 4. Identity evidence
 
@@ -30,7 +30,7 @@ Identity matching precedence is exact `(identity_provider, subject)` → verifie
 
 ## 5. Concurrency and transactions
 
-User merge and SCIM replacement share one cross-process operation-lock boundary. Desired-state records and apply receipts require deterministic keys, transaction-safe update semantics, and reconciliation after crash/retry. Remote deletion precedes local desired-state removal when local-first deletion could falsely report success.
+User merge and SCIM full replacement (`PUT`) share one cross-process operation-lock boundary. Protected-main `PATCH active=false` is currently outside that shared-lock guarantee and must not be represented as serialized with merge. Any PATCH or future SCIM read-modify-write operation that can affect tombstone/survivor invariants must join the same lock boundary and add a concurrency regression before the stronger guarantee is promoted. Desired-state records and apply receipts require deterministic keys, transaction-safe update semantics, exact desired-version binding, and reconciliation after crash/retry. Remote deletion precedes local desired-state removal when local-first deletion could falsely report success.
 
 ## 6. Federation requirements
 
@@ -44,21 +44,21 @@ Current accepted profile is LDAPS-only, read-only, Kerberos-disabled, `trustEmai
 
 ### RP clients
 
-Authorization code + PKCE S256, exact HTTPS redirect/origin/logout rules except separately reviewed native loopback profile, exact scope policy, secret-free desired state, exact client lookup and UUID integrity, post-mutation re-observation, separate credential provisioning.
+Authorization code + PKCE S256, exact HTTPS redirect/origin/logout rules, exact scope policy, secret-free desired state, exact client lookup and UUID integrity, post-mutation re-observation, separate confidential-material provisioning. Native loopback redirects are not part of the protected-main RP profile; introducing them requires a separately accepted trust-policy change plus synchronized product, threat, test, and traceability evidence.
 
 PR #72 claim mapper behavior remains active-PR until merged.
 
 ## 7. API/error boundary
 
-Authenticated operator APIs accept closed versioned schemas. Errors must not echo secrets, bind DNs/credentials, bearer values, raw provider responses, or arbitrary Keycloak Location/header content. Remote resource IDs parsed from Keycloak are validated before use in privileged paths.
+Authenticated operator APIs accept closed versioned schemas. Errors must not echo private values, raw provider responses, or arbitrary Keycloak Location/header content. Remote resource IDs parsed from Keycloak are validated before use in privileged paths.
 
 ## 8. Persistence/data model
 
-Current architecture owns PostgreSQL/KV state for configuration, desired-state sources, apply receipts, merge audit, and operation locks. Database objects use descriptive two-word-or-longer `snake_case` names. `docs/ERD.md` defines relationships and lifecycle; migrations must preserve tenant/identity/audit integrity.
+Current architecture owns PostgreSQL/KV state for configuration, desired-state sources, apply receipts, merge audit, and operation locks. Database objects use descriptive two-word-or-longer `snake_case` names. `docs/ERD.md` defines tenant-scoped uniqueness, receipt identity/version binding, relationships, and lifecycle; migrations must preserve tenant/identity/audit integrity.
 
 ## 9. Security and privacy
 
-Use standards-backed OIDC/OAuth/SAML/SCIM/LDAP/WebAuthn/JWT validation; least-privilege private credentials; encrypted stores/transport; bounded retention/export; controlled admin egress; append-only/auditable privileged outcomes where appropriate. Do not mask identity fields in ways that break identity matching; protect them through access and lifecycle controls.
+Use standards-backed OIDC/OAuth/SAML/SCIM/LDAP/WebAuthn/JWT validation, least privilege, encrypted stores/transport, bounded retention/export, controlled admin egress, and auditable privileged outcomes. Do not mask identity fields in ways that break identity matching; protect them through access and lifecycle controls.
 
 ## 10. Quality gates
 
@@ -76,8 +76,8 @@ Readiness is component/lifecycle specific. Preflight success does not imply Keyc
 
 ## 12. Automation boundary
 
-Autonomous development uses NVIDIA NIM/OpenCode through a secret broker and isolated workspace. Repository/model execution has no publication/reviewer/release authority. PR #74 is active remediation of this boundary and must be proven again after protected-main merge.
+Autonomous development uses NVIDIA NIM/OpenCode through an isolated model phase. Model execution has no publication/reviewer/release authority. PR #74 is active remediation of this boundary and must be proven again after protected-main merge.
 
 ## 13. Change control
 
-Changes to identity matching, passwordless policy, federation trust, secret ownership, desired-state/reconciliation order, persistence, external admin authority, or automation credentials require an ADR plus PRD/TRD/Architecture/UML/ERD/Threat/Test/Operability/Traceability reconciliation.
+Changes to identity matching, passwordless policy, federation trust, private-value ownership, desired-state/reconciliation order, persistence, external admin authority, or automation authority require an ADR plus PRD/TRD/Architecture/UML/ERD/Threat/Test/Operability/Traceability reconciliation.
