@@ -31,7 +31,7 @@ erDiagram
     IDP_CONFIG_ENTRY {
       uuid idp_config_entry_id PK
       uuid tenant_deployment_id FK
-      text config_key UK
+      text config_key
       text protected_value_ref
       text config_version
       timestamptz updated_at
@@ -40,7 +40,7 @@ erDiagram
     FEDERATION_SOURCE {
       uuid federation_source_id PK
       uuid tenant_deployment_id FK
-      text federation_alias UK
+      text federation_alias
       text protocol_code
       jsonb secret_free_desired_state
       text desired_state_hash
@@ -51,6 +51,8 @@ erDiagram
     FEDERATION_APPLY_RECEIPT {
       uuid federation_apply_receipt_id PK
       uuid federation_source_id FK
+      uuid apply_attempt_id UK
+      text desired_state_hash
       text keycloak_resource_id
       text observed_state_hash
       text apply_outcome_code
@@ -60,7 +62,7 @@ erDiagram
     DIRECTORY_FEDERATION_SOURCE {
       uuid directory_federation_source_id PK
       uuid tenant_deployment_id FK
-      text directory_alias UK
+      text directory_alias
       jsonb private_desired_state
       text desired_state_hash
       text lifecycle_status_code
@@ -70,6 +72,8 @@ erDiagram
     DIRECTORY_FEDERATION_APPLY_RECEIPT {
       uuid directory_federation_apply_receipt_id PK
       uuid directory_federation_source_id FK
+      uuid apply_attempt_id UK
+      text desired_state_hash
       text keycloak_component_id
       text observed_state_hash
       text apply_outcome_code
@@ -79,7 +83,7 @@ erDiagram
     RELYING_PARTY_SOURCE {
       uuid relying_party_source_id PK
       uuid tenant_deployment_id FK
-      text client_id UK
+      text client_id
       jsonb secret_free_desired_state
       text desired_state_hash
       text lifecycle_status_code
@@ -89,6 +93,8 @@ erDiagram
     RELYING_PARTY_APPLY_RECEIPT {
       uuid relying_party_apply_receipt_id PK
       uuid relying_party_source_id FK
+      uuid apply_attempt_id UK
+      text desired_state_hash
       text keycloak_client_uuid
       text observed_state_hash
       text apply_outcome_code
@@ -98,7 +104,7 @@ erDiagram
     KEYCLOAK_USER_REFERENCE {
       uuid keycloak_user_reference_id PK
       uuid tenant_deployment_id FK
-      text keycloak_user_uuid UK
+      text keycloak_user_uuid
       text lifecycle_status_code
     }
 
@@ -130,6 +136,23 @@ erDiagram
     }
 ```
 
+## Logical uniqueness constraints
+
+UUID primary identifiers are globally unique. Human/provider identifiers are scoped to the owning tenant or federation source and MUST NOT be interpreted as global keys.
+
+| Entity | Required logical uniqueness |
+|---|---|
+| `IDP_CONFIG_ENTRY` | `(tenant_deployment_id, config_key)` |
+| `FEDERATION_SOURCE` | `(tenant_deployment_id, federation_alias)` |
+| `DIRECTORY_FEDERATION_SOURCE` | `(tenant_deployment_id, directory_alias)` |
+| `RELYING_PARTY_SOURCE` | `(tenant_deployment_id, client_id)` |
+| `KEYCLOAK_USER_REFERENCE` | `(tenant_deployment_id, keycloak_user_uuid)` |
+| `EXTERNAL_IDENTITY_LINK` | `(federation_source_id, external_subject_hash)` |
+
+`federation_source_id` defines the identity-provider scope for the external-subject uniqueness rule. Within one federation source, one normalized/hashed external subject may link to at most one Keycloak user reference. This prevents one issuer/provider subject from being attached to multiple users while still allowing unrelated providers to use the same subject string.
+
+Physical migrations must enforce these constraints in the owning Keyverse store. Documentation labels such as `client_id`, `federation_alias`, or Keycloak UUID never authorize cross-tenant lookup by themselves.
+
 ## Identity and authorization rules
 
 - Keycloak UUIDs, federation aliases, RP client IDs, email values, and external subjects are data identifiers, not authorization by themselves.
@@ -137,15 +160,15 @@ erDiagram
 - `tenant_deployment_id` is explicit in Keyverse-owned records; deployment/customer separation must not be inferred from realm/resource names.
 - Secrets are referenced through protected values/handles where possible; secret-free desired-state tables must never gain client/bind credentials accidentally.
 
-## Desired-state invariant
+## Desired-state and receipt invariant
 
 ```mermaid
 flowchart LR
     PRIVATE[Private rendered input]
     VALID[Preflight validation]
-    INTENT[Desired-state source]
+    INTENT[Versioned desired-state source]
     REMOTE[Keycloak live state]
-    RECEIPT[Apply receipt]
+    RECEIPT[Version-bound apply receipt]
 
     PRIVATE --> VALID
     VALID --> INTENT
@@ -153,7 +176,9 @@ flowchart LR
     REMOTE --> RECEIPT
 ```
 
-A receipt is valid only after exact post-mutation re-observation. Delete flows that require remote-first semantics cannot remove local desired state before remote deletion succeeds.
+Every apply receipt records the exact `desired_state_hash` that was acted on as well as the canonical `observed_state_hash`, outcome, unique `apply_attempt_id`, and observation time. A receipt is current for a source only when its `desired_state_hash` equals that source's current desired-state hash. The latest current receipt is the greatest `observed_at` among receipts for that exact desired-state hash; a receipt for an older hash is historical evidence and cannot establish convergence for a newer desired state.
+
+Retry handling is idempotency-aware. Reusing the same `apply_attempt_id` must return/reuse the same receipt rather than create a second logical attempt. A retry under a new attempt ID may create another receipt, but it remains a distinct attempt and must still bind to the exact desired-state hash. Delete flows that require remote-first semantics cannot remove local desired state before remote deletion succeeds.
 
 ## Keycloak ownership
 
