@@ -23,12 +23,30 @@ REQUIRED_DOCUMENTS = (
     "CLAUDE.md",
     "CHANGELOG.md",
 )
+GOVERNING_ADRS = (
+    "0001-keycloak-hub.md",
+    "0002-passwordless-local-accounts.md",
+    "0003-identity-matching.md",
+    "0004-desired-state-reconciliation.md",
+    "0005-secret-ownership.md",
+    "0006-user-operation-lock.md",
+    "0007-automation-authority.md",
+)
 
 
 def _read(relative_path: str) -> str:
     """Read one repository document using the canonical UTF-8 encoding."""
 
     return (ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _row_with(text: str, marker: str) -> str:
+    """Return the Markdown table row containing ``marker``."""
+
+    for line in text.splitlines():
+        if line.startswith("|") and marker in line:
+            return line
+    raise AssertionError(f"missing Markdown table row containing {marker!r}")
 
 
 def test_canonical_identity_documents_exist() -> None:
@@ -39,11 +57,13 @@ def test_canonical_identity_documents_exist() -> None:
 
 
 def test_documentation_map_links_cross_cutting_contracts() -> None:
-    """Require the documentation map to point at the cross-cutting records."""
+    """Require the documentation map to link every canonical record."""
 
     documentation = _read("DOCUMENTATION.md")
-    for path in REQUIRED_DOCUMENTS[1:11]:
-        assert path in documentation, f"documentation map does not link {path}"
+    for path in REQUIRED_DOCUMENTS[1:]:
+        assert f"]({path})" in documentation, (
+            f"documentation map does not link {path}"
+        )
 
 
 def test_active_pr_features_are_not_promoted_to_main() -> None:
@@ -51,10 +71,20 @@ def test_active_pr_features_are_not_promoted_to_main() -> None:
 
     prd = _read("docs/PRD.md")
     traceability = _read("docs/TRACEABILITY.md")
-    assert "PR #72" in prd and "active-PR" in prd
-    assert "PR #74" in prd and "active-PR" in prd
-    assert "RP #72" not in traceability
-    assert "active-PR" in traceability
+    assert any(
+        "PR #72" in line and "active-PR" in line
+        for line in prd.splitlines()
+    )
+    assert any(
+        "PR #74" in line and "active-PR" in line
+        for line in prd.splitlines()
+    )
+    mapper_row = _row_with(traceability, "RP audience/role/org/workspace mapper profile")
+    hourly_row = _row_with(traceability, "work-conserving fail-closed hourly API gate")
+    assert mapper_row.rstrip().endswith("| active-PR |")
+    assert "PR #72" in mapper_row
+    assert hourly_row.rstrip().endswith("| active-PR |")
+    assert "PR #74" in hourly_row
 
 
 def test_erd_keeps_keycloak_internal_schema_external() -> None:
@@ -66,16 +96,10 @@ def test_erd_keeps_keycloak_internal_schema_external() -> None:
 
 
 def test_adr_index_contains_governing_identity_decisions() -> None:
-    """Keep the architecture decision register complete and reviewable."""
+    """Keep every indexed architecture decision present and reviewable."""
 
     index = _read("docs/adr/README.md")
-    for adr in (
-        "0001-keycloak-hub.md",
-        "0002-passwordless-local-accounts.md",
-        "0003-identity-matching.md",
-        "0004-desired-state-reconciliation.md",
-        "0005-secret-ownership.md",
-        "0006-user-operation-lock.md",
-        "0007-automation-authority.md",
-    ):
-        assert adr in index, f"ADR index is missing {adr}"
+    for adr in GOVERNING_ADRS:
+        adr_path = ROOT / "docs" / "adr" / adr
+        assert adr_path.is_file(), f"ADR file is missing: {adr}"
+        assert f"]({adr})" in index, f"ADR index does not link {adr}"
