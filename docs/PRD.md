@@ -15,7 +15,7 @@ Its job is to let CWL products consume stable standards-based identity without e
 - OIDC/OAuth relying-party service for CWL applications and SAML brokering for external identity providers;
 - inbound SCIM v2 shim for lifecycle provisioning;
 - account linking/unification and survivor-wins merge with verified-email policy and tombstone behavior;
-- user-operation locking across merge/SCIM replacement paths;
+- user-operation locking across merge and SCIM full-replacement (`PUT`) paths;
 - password-free registration enrollment action flow;
 - deterministic, side-effect-free SAML/OIDC federation preflight and durable desired-state reconciliation;
 - deterministic LDAPS-only directory preflight and durable Keycloak component desired-state reconciliation;
@@ -24,10 +24,12 @@ Its job is to let CWL products consume stable standards-based identity without e
 - configuration/secret bootstrap via KV/DB boundary rather than application environment as runtime source of truth;
 - 100% production statement/branch/docstring quality gates and protected review/security workflows.
 
+The current SCIM `PATCH active=false` deprovisioning path is not protected by the shared cross-process user-operation lock used by merge and full replacement. It must not be represented as transactionally serialized with merge until a source change and concurrency regression prove that boundary.
+
 ## 3. Active-PR boundaries
 
-- PR #72 adds a closed OIDC RP mapper profile for exactly one audience mapper plus bounded `role`, `org`, and `workspace` hardcoded claims. It is not protected-main behavior until merged.
-- PR #74 repairs the hourly product-development GitHub API/egress/time-budget/evidence boundary. It is operational governance active-PR work, not current-main closure until merged and then proven by a protected-main run.
+- PR #72 adds a closed OIDC RP mapper profile for exactly one audience mapper plus bounded `role`, `org`, and `workspace` hardcoded claims; it remains **active-PR** and is not protected-main behavior until merged.
+- PR #74 repairs the hourly product-development GitHub API/egress/time-budget/evidence boundary; it remains **active-PR** operational-governance work until merged and then proven by a protected-main run.
 
 ## 4. Primary users
 
@@ -66,15 +68,15 @@ Keyverse SHALL support deployment-owned external SAML/OIDC and LDAP/AD onboardin
 
 ### PRD-FR-003 Account unification
 
-Account matching and merge SHALL follow exact subject → verified email → explicit operator link precedence. Merge SHALL preserve a canonical survivor, disable/tombstone duplicates, retain auditable lineage, and coordinate with SCIM mutations through a shared user-operation lock.
+Account matching and merge SHALL follow exact subject → verified email → explicit operator link precedence. Merge SHALL preserve a canonical survivor, disable/tombstone duplicates, retain auditable lineage, and coordinate full-replacement SCIM writes through the shared user-operation lock. Any additional SCIM read-modify-write operation may claim the same serialization guarantee only after it uses that lock and has a concurrency regression covering merge/tombstone interaction.
 
 ### PRD-FR-004 SCIM
 
-Inbound SCIM SHALL map authoritative enterprise lifecycle operations into Keycloak while preserving Keyverse merge/tombstone/locking invariants and failing closed on unsafe identity ambiguity.
+Inbound SCIM SHALL map authoritative enterprise lifecycle operations into Keycloak while preserving Keyverse merge/tombstone invariants and failing closed on unsafe identity ambiguity. Protected-main currently serializes merge with full SCIM `PUT` replacement; the `PATCH active=false` path is a narrower deprovisioning path and is not yet part of that shared-lock guarantee.
 
 ### PRD-FR-005 Relying-party lifecycle
 
-RP registration SHALL validate exact redirect/origin/logout and authorization-code + PKCE profile, store secret-free desired state, reconcile an exact Keycloak client, re-observe before receipt, and keep confidential secret placement separate.
+RP registration SHALL validate exact HTTPS redirect/origin/logout and authorization-code + PKCE profile, store secret-free desired state, reconcile an exact Keycloak client, re-observe before receipt, and keep confidential secret placement separate. Native loopback redirect profiles are not part of the current protected-main RP trust contract unless separately introduced with an Accepted ADR and synchronized security/test/traceability rules.
 
 ### PRD-FR-006 Claims/profile lifecycle
 
