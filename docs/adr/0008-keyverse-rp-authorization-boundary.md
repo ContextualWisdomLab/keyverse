@@ -25,7 +25,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 - `semantic-data-portal`: PR #58 at `46b9fdb4480c665f6f513acfef4edfdb5848ca64`;
 - `clearfolio`: `main` at `55d7ae8647208e301f282350f076eeddaba61d11`;
 - `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`;
-- `newsdom-api`: PR #595 at `3025be1518a78f469d686644bde8b82f5f7bed05` (open; based on `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`).
+- `newsdom-api`: protected `develop` at `3d0426bf45ad9d3395effb602811a75cbe700cf4` (PR #595 squash-merged; based on `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`).
 
 | Application | Keyverse recognition | Current authorization | Finding and required direction |
 |---|---|---|---|
@@ -34,7 +34,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 | `semantic-data-portal` | OIDC verification exists, but the mapper recognizes `tenant_id`/`tid`/`organization` and plural `roles`, not Keyverse `org` and singular `role` | RBAC and ABAC/purpose/sensitivity/evidence policy exists in `src/sdp/policy.py` | Add the bounded Keyverse aliases and regression tests in the app repository; preserve tenant, purpose, row-filter, masking, and evidence checks. This is an immediate application fix, not a documentation-only exception. Keep the repo-wide security gate green: `cryptography` must be pinned at `50.0.0` or newer in the source and every hash-locked requirements artifact after CVE-2026-69247. |
 | `clearfolio` | No production OIDC/JWT verifier; current runtime is a gateway/header tenant scaffold documented in `docs/security/2026-07-02-auth-tenant-model.md` | Permission checks and tenant ownership are implemented, with optional gateway HMAC; the caller identity is not yet a Keyverse-verified token | Keep production fail-closed. Replace public header trust with Keyverse issuer/audience/JWKS verification at the service or a cryptographically trusted gateway, then map `org`/`sub`/roles/scopes and retain same-tenant checks. |
 | `contextual-orchestrator` | Bearer-token configuration distinguishes `admin` and `inference` scopes but has no OIDC/JWT Keyverse validation | Coarse token-scope RBAC exists; resource/tenant ABAC is not established | Add a user-facing Keyverse OIDC resource-server boundary or a separately authenticated service-token/mTLS boundary for internal calls. Keep admin and inference scopes separate and add tenant/resource ownership conditions before exposing multi-tenant work. |
-| `newsdom-api` | No Keyverse OIDC integration; PR #595 makes the local bearer boundary fail closed by default and permits anonymous parsing only through explicit `NEWSDOM_ALLOW_ANONYMOUS=true` | No application RBAC/ABAC; it is a PDF-to-DOM sidecar | Keep it private infrastructure while it has no user authorization model. If reachable beyond a trusted internal gateway, require a Keyverse-aware gateway or verified service boundary; never enable the anonymous opt-in on an exposed deployment. The same PR also remediates the current `pypdf` Trivy findings and incorporates the review fixes at `3025be1` (startup credential registry, authenticated examples, healthcheck executable-bit check, and complete 401 assertions). |
+| `newsdom-api` | No Keyverse OIDC integration; protected `develop` now contains PR #595, which makes the local bearer boundary fail closed by default and permits anonymous parsing only through explicit `NEWSDOM_ALLOW_ANONYMOUS=true` | No application RBAC/ABAC; it is a PDF-to-DOM sidecar | Keep it private infrastructure while it has no user authorization model. If reachable beyond a trusted internal gateway, require a Keyverse-aware gateway or verified service boundary; never enable the anonymous opt-in on an exposed deployment. The merged change also remediates the current `pypdf` Trivy findings and includes the review fixes at `3025be1` (startup credential registry, authenticated examples, healthcheck executable-bit check, and complete 401 assertions). |
 
 Keyverse itself also has two boundaries that must not be confused with
 downstream application authorization:
@@ -88,9 +88,11 @@ downstream application authorization:
    and `tests/test_api.py::test_oidc_jwks_verification_rejects_wrong_audience`.
    pg-erd-cloud PR #855 adds
    `backend/tests/test_auth_security.py::test_keyverse_organization_claim_is_required_and_exact`
-   and an API-key bypass regression; NewsDOM PR #595 adds default-deny and
-   explicit-anonymous-mode tests, with the review follow-up at `3025be1`. Both remain `active-PR` evidence until
-   their application changes reach protected branches.
+   and an API-key bypass regression and remains `active-PR` evidence; NewsDOM
+   PR #595 adds default-deny and explicit-anonymous-mode tests, with the review
+   follow-up at `3025be1`, and is now present on protected `develop` at
+   `3d0426bf`. The maturity label records merge evidence, not Keyverse-aware
+   authorization readiness.
    The contract is not a promise that every application supports every claim;
    each other RP must add and record its own exact acceptance-test paths before
    it can leave `deployment-restricted` status.
