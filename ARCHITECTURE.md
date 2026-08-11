@@ -153,14 +153,27 @@ side effect. It enforces authorization code plus PKCE `S256`, exact HTTPS
 redirect/origin/logout policy, public/confidential client consistency, bounded
 token metadata, and an exact portable scope set.
 
+An optional closed `protocolMappers` profile carries exactly one self-pinned
+`oidc-audience-mapper` plus zero to three canonical hardcoded claims named
+`role`, `org`, and `workspace`. Mapper count, names, classes, destinations,
+claim values, and ordering are bounded; scripts, user attributes, groups, regex,
+arbitrary claims, unknown fields, and credential material are rejected.
+`deploy/templates/oidc-rp-naruon.json` is the reviewed public-client instance of
+that profile. Its routing claim values are deployment data and must not contain
+credentials or personal secrets.
+
 Stateful reconciliation keys intent by validated `clientId`, classifies zero,
 one, or multiple exact Keycloak clients, and never mutates duplicates. Create or
 update is re-observed before a canonical receipt is written. Delete is remote-
-first. The accepted representation has no client-secret field; credential
-provisioning remains an independent secret-management responsibility.
+first. For mapper comparison, Keyverse ignores only a valid generated mapper
+`id`, canonicalizes the known mapper order, revalidates the closed shape, and
+treats unknown, malformed, duplicate, or semantically changed mappers as drift.
+The accepted representation has no client-secret field; credential provisioning
+remains an independent secret-management responsibility.
 
-Native loopback/private-use redirects and deployment-specific claim expansion
-remain separate reviewed profiles.
+Native loopback/private-use redirects, different resource audiences, and claim
+expansion beyond `role`, `org`, and `workspace` remain separate reviewed
+profiles.
 
 Each downstream RP is a separate trust boundary. The RP must validate the
 Keyverse issuer, signature/algorithm, expiry, subject, and audience, map the
@@ -183,6 +196,9 @@ non-fork application matrix and remediation gates.
    or desired-state templates.
 8. Preflight readiness is not reported as deployment or login success.
 9. Mutation receipts are written only after exact live re-observation.
+10. Mapper configuration is issuer-side evidence only; downstream token
+    signature, issuer, expiry, and audience validation remain separate runtime
+    acceptance boundaries.
 
 ## Deployment modes
 

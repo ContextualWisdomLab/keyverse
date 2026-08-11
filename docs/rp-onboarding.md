@@ -11,11 +11,17 @@ redirects require a separate reviewed profile and are not accepted here.
 
 ## Render, validate, then reconcile
 
-Render `deploy/templates/oidc-rp-client.json` into a private temporary file.
-Resolve every placeholder from deployment configuration or KV. For a public
-browser client set `publicClient=true` and
-`clientAuthenticatorType=none`; the committed template defaults to a
-confidential web client with `client-secret` authentication.
+Use `deploy/templates/oidc-rp-client.json` for the generic closed RP profile.
+For the reviewed Naruon browser-client path, use
+`deploy/templates/oidc-rp-naruon.json`. The Naruon template is already a public
+client (`publicClient=true`, `clientAuthenticatorType=none`) and contains the
+closed audience/session-claim mapper profile.
+
+Resolve every placeholder from deployment configuration or KV before preflight.
+For Naruon this includes exact HTTPS redirect, web-origin, and post-logout URIs
+plus the bounded `role`, `org`, and `workspace` routing values. Those claim
+values are visible product routing/authorization data: they must not contain
+credentials, bearer material, personal secrets, or unreviewed tenant data.
 
 The same original secret-free payload must pass pure preflight and then the
 durable Keyverse desired-state boundary:
@@ -45,7 +51,7 @@ if [ "$XTRACE_WAS_ON" -eq 1 ]; then
   set -x
 fi
 
-render deploy/templates/oidc-rp-client.json >"$PAYLOAD"
+render deploy/templates/oidc-rp-naruon.json >"$PAYLOAD"
 
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \
@@ -96,14 +102,15 @@ state before attempting Keycloak convergence. It classifies exact `clientId`
 matches, creates or repairs one client, re-observes the live metadata, and writes
 a canonical receipt only after exact verification.
 
-Neither response proves successful login. The deployment controller remains
-responsible for private network routing, Keycloak availability, TLS trust,
-credential placement, live authorization-code tests, rollback, and operating
-SLO evidence.
+Neither response proves successful login or correct token consumption. The
+deployment controller remains responsible for private network routing, Keycloak
+availability, TLS trust, confidential credential placement where applicable,
+controlled authorization-code/PKCE login, downstream JWT validation, rollback,
+and operating SLO evidence.
 
 ## Closed first-profile policy
 
-The payload must satisfy all of the following:
+Every RP payload must satisfy all of the following:
 
 - authorization code flow enabled;
 - implicit, password/direct-access, and service-account flows disabled;
@@ -121,9 +128,22 @@ The payload must satisfy all of the following:
 - backchannel logout session handling enabled;
 - unresolved template markers rejected.
 
-Role and audience claims remain server-owned realm/client mapper policy. The RP
-template does not widen its default scope set to request deployment-specific
-claims.
+When `protocolMappers` is present, the mapper profile is additionally closed:
+
+- exactly one `oidc-audience-mapper` is required and its
+  `included.client.audience` must equal the validated `clientId`;
+- optional hardcoded claims are limited to `role`, `org`, and `workspace`;
+- mapper names, protocols, token destinations, nested fields, and list order are
+  canonical and exact;
+- script, user-attribute, group, regex, arbitrary-claim, unknown mapper, and
+  credential-bearing configuration is rejected;
+- generated Keycloak mapper IDs and vendor return ordering are normalized only
+  for observation; unknown, malformed, duplicate, or semantically changed live
+  mapper state is reported as drift rather than silently accepted.
+
+The mapper profile does not widen the portable default scope set. It is
+issuer-side configuration evidence, not proof that the relying party correctly
+validates the resulting tokens.
 
 ## Desired-state lifecycle
 
@@ -155,30 +175,38 @@ a secret for a confidential client, but reading and placing it is a separate
 approved secret-management operation. Store it, for example, under:
 
 ```text
-secret/idp/rp/naruon-web/client-id
-secret/idp/rp/naruon-web/client-secret
+secret/idp/rp/example-web/client-id
+secret/idp/rp/example-web/client-secret
 ```
 
 The RP receives a bootstrap reference or workload identity, not a literal
 secret in source, a checked-in environment file, a command argument, a
-Keyverse desired-state record, or an operator response. Public clients have no
-client secret.
+Keyverse desired-state record, or an operator response. Public clients such as
+the Naruon runtime profile have no client secret.
 
 ## Acceptance evidence
 
 Before routing production users, record the desired payload digest, canonical
 apply receipt, Keyverse version, Keycloak version, client UUID, operator
 identity, controlled authorization-code/PKCE login result, refresh result,
-logout result, and rollback reference. Do not record bearer tokens,
-authorization codes, code verifiers, or client-secret bytes.
+logout result, and rollback reference. For the Naruon mapper profile, also prove
+that the downstream boundary rejects invalid issuer/signature/expiry/audience
+and accepts the exact reviewed `naruon-web` audience plus expected `role`, `org`,
+and `workspace` values. Mapper configuration alone is not that proof.
+
+Do not record bearer tokens, authorization codes, code verifiers, client-secret
+bytes, or private routing values beyond the minimum non-secret acceptance
+evidence required by the deployment record.
 
 ## Checklist
 
 - [ ] placeholders resolved in a mode-0600 file
+- [ ] Naruon routing values independently reviewed as non-secret product data
 - [ ] authenticated preflight returned exact HTTP 200
 - [ ] `ready_to_apply=true` verified without applying the response body
 - [ ] original rendered file sent to Keyverse PUT, not directly to public Admin REST
 - [ ] `convergence_state=in_sync` and receipt match verified
 - [ ] confidential secret stored only through the approved secret-management port
 - [ ] exact redirect/origin/logout values independently reviewed
-- [ ] controlled login, refresh, logout, and rollback evidence recorded
+- [ ] expected mapper audience and claim profile re-observed without drift
+- [ ] controlled login, downstream JWT acceptance/rejection, refresh, logout, and rollback evidence recorded

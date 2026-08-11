@@ -35,8 +35,20 @@ queue owner.
 - Never link or merge on an unverified email.
 - SAML/OIDC preflight performs no metadata/discovery fetch. LDAP preflight
   performs no DNS, socket, bind, search, storage, or Keycloak call.
+- OIDC relying-party mapper support stays closed: one self-pinned audience plus
+  only canonical `role`, `org`, and `workspace` hardcoded claims. Do not add
+  scripts, user attributes, groups, regex, arbitrary claims, new audiences, or
+  extra token destinations without a separately reviewed profile and RED test.
+- Treat generated Keycloak mapper IDs and vendor ordering as normalization-only
+  metadata. Unknown, malformed, duplicate, or semantically changed live mappers
+  are drift and must not be silently discarded.
+- Mapper configuration is issuer-side evidence, not proof that a relying party
+  validates token signature, issuer, expiry, or audience. Keep controlled login
+  acceptance as a separate runtime evidence boundary.
 - Secrets do not appear in source, templates, responses, logs, command
-  arguments, screenshots, issues, PR text, or artifacts.
+  arguments, screenshots, issues, PR text, or artifacts. Hardcoded RP routing
+  claim values are visible product data and must not carry credentials or
+  personal secrets.
 - Database objects use descriptive two-word-or-longer snake_case names.
 - Preserve permissive licensing; do not add GPL/AGPL dependencies.
 - Preserve standalone Compose/Helm operation and stable module boundaries for
