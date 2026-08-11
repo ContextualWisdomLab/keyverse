@@ -37,9 +37,11 @@ publication token, or upstream NVIDIA key.
 
 ### `NVIDIA_NIM_API_KEY`
 
-This repository secret is available only to the eligibility check, the local
-credential broker, and the post-agent secret scanner. It is not placed in the
-OpenCode process environment. The model process receives
+This repository secret is available only to the local credential broker. The
+broker derives one-way fingerprints for the raw and common encoded forms,
+publishes only those fingerprints to the later patch scanner, and then removes
+the raw value from its process environment. It is not placed in the OpenCode
+process environment. The model process receives
 `NVIDIA_API_KEY=keyverse-local-broker` and sends requests to
 `http://127.0.0.1:8765/v1`.
 
@@ -57,7 +59,10 @@ The broker:
 - limits request size, response size, and concurrent upstream requests.
 
 The patch guard rejects the raw key and common Base64, URL-safe Base64, and hex
-representations from changed files, the generated patch, and PR metadata.
+representations from changed files, the generated patch, and PR metadata when
+the trusted broker can hold the raw key. The post-model scanner receives only
+the broker-derived `length:sha256` fingerprints and hashes candidate
+non-whitespace tokens; it never receives the raw key.
 
 ### `OPENCODE_PRODUCT_DEVELOPMENT_TOKEN`
 
@@ -86,7 +91,8 @@ A run proceeds only when all of these statements are true.
 - The current `main` SHA can be resolved unambiguously.
 - The exact `main` SHA has completed successful `ci` and `CodeQL` push runs.
 - The latest check run for every observed app/name pair is complete with a
-  successful, neutral, or skipped conclusion.
+  `success` conclusion. Optional neutral/skipped checks are not treated as
+  required evidence by this gate.
 - The workflow is not a `dry_run` invocation.
 
 Failure to list or parse any required GitHub response stops development. The

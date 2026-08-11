@@ -155,7 +155,7 @@ def _changed_paths(
 
 
 def _forbidden_tokens() -> tuple[bytes, ...]:
-    """Return raw and common encoded forms of the model credential, if present."""
+    """Return raw and common encoded forms when the raw credential is available."""
     secret = os.environ.get("KEYVERSE_FORBIDDEN_SECRET", "").encode("utf-8")
     if not secret:
         return ()
@@ -171,9 +171,46 @@ def _forbidden_tokens() -> tuple[bytes, ...]:
     )
 
 
+def _forbidden_fingerprints() -> tuple[tuple[int, bytes], ...]:
+    """Parse broker-derived ``length:sha256`` credential fingerprints."""
+    specification = os.environ.get("KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT", "")
+    if not specification:
+        return ()
+    fingerprints: list[tuple[int, bytes]] = []
+    for item in specification.split(","):
+        parts = item.split(":")
+        if len(parts) != 2 or not parts[0].isdigit() or not re.fullmatch(
+            r"[0-9a-f]{64}", parts[1]
+        ):
+            raise BoundaryError("Malformed protected-credential fingerprint")
+        length = int(parts[0])
+        if length < 1 or length > MAX_FILE_BYTES:
+            raise BoundaryError("Protected-credential fingerprint length is unsafe")
+        fingerprints.append((length, bytes.fromhex(parts[1])))
+    return tuple(fingerprints)
+
+
+def _contains_fingerprinted_token(
+    data: bytes, *, length: int, digest: bytes
+) -> bool:
+    """Find an exact non-whitespace token using only its one-way fingerprint."""
+    for chunk in data.split():
+        if len(chunk) < length:
+            continue
+        for offset in range(len(chunk) - length + 1):
+            if hashlib.sha256(chunk[offset : offset + length]).digest() == digest:
+                return True
+    return False
+
+
 def _reject_forbidden_tokens(data: bytes, *, label: str) -> None:
-    """Reject a proposal containing the model credential or a common encoding."""
+    """Reject raw, encoded, or broker-fingerprinted protected credentials."""
     if any(token in data for token in _forbidden_tokens()):
+        raise BoundaryError(f"Autonomous proposal exposed a protected credential in {label}")
+    if any(
+        _contains_fingerprinted_token(data, length=length, digest=digest)
+        for length, digest in _forbidden_fingerprints()
+    ):
         raise BoundaryError(f"Autonomous proposal exposed a protected credential in {label}")
 
 

@@ -261,6 +261,34 @@ def test_nvidia_secret_is_materialized_only_by_broker() -> None:
     assert materializing_steps == ["Start the loopback-only NIM credential broker"]
 
 
+def test_nvidia_secret_fingerprint_crosses_the_broker_boundary() -> None:
+    """Packaging receives only broker-derived fingerprints for leak scanning."""
+    broker = _step_by_name(
+        "develop-product-gap",
+        "Start the loopback-only NIM credential broker",
+    )
+    package = _step_by_name(
+        "develop-product-gap",
+        "Capture the bounded credential-free patch",
+    )
+    broker_run = broker.get("run")
+    package_env = package.get("env")
+    assert isinstance(broker_run, str)
+    assert isinstance(package_env, dict)
+    assert broker.get("id") == "nim_broker"
+    assert "sha256" in broker_run
+    assert "GITHUB_OUTPUT" in broker_run
+    assert broker_run.index("unset NIM_UPSTREAM_API_KEY") > broker_run.index(
+        "python scripts/ci/nim_proxy.py"
+    )
+    assert package_env.get("KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT") == (
+        "${{ steps.nim_broker.outputs.secret_fingerprint }}"
+    )
+    assert "KEYVERSE_FORBIDDEN_SECRET: ${{ secrets.NVIDIA_NIM_API_KEY }}" not in (
+        _workflow_source()
+    )
+
+
 def test_nvidia_secret_is_required_only_on_the_model_backed_path() -> None:
     """The NVIDIA secret is checked only after deterministic gates select development."""
     broker = _step_by_name(

@@ -1,6 +1,7 @@
 """Behavior tests for the autonomous product patch boundary."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 from pathlib import Path
 from types import ModuleType
@@ -140,6 +141,23 @@ def test_guard_rejects_model_secret_in_raw_and_encoded_forms(
     )
     with pytest.raises(guard.BoundaryError):
         guard._read_proposal(workspace)
+
+
+def test_guard_rejects_model_secret_from_one_way_fingerprints(
+    monkeypatch, tmp_path
+) -> None:
+    """Post-model validation detects a leaked token without receiving the secret."""
+    guard = _load_guard()
+    secret = b"nim-sensitive-value"
+    fingerprint = f"{len(secret)}:{hashlib.sha256(secret).hexdigest()}"
+    monkeypatch.delenv("KEYVERSE_FORBIDDEN_SECRET", raising=False)
+    monkeypatch.setenv("KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT", fingerprint)
+
+    patch_path = tmp_path / "fingerprinted-secret.patch"
+    patch_path.write_bytes(b"safe prefix nim-sensitive-value safe suffix")
+
+    with pytest.raises(guard.BoundaryError):
+        guard._reject_forbidden_tokens(patch_path.read_bytes(), label="patch")
 
 
 def test_guard_sanitizes_bounded_pull_request_metadata(tmp_path) -> None:

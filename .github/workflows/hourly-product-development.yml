@@ -423,6 +423,7 @@ jobs:
 
       - name: Start the loopback-only NIM credential broker
         if: steps.gate.outputs.develop == 'true'
+        id: nim_broker
         shell: bash
         env:
           NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
@@ -432,6 +433,26 @@ jobs:
             echo "::error::NVIDIA_NIM_API_KEY is required only for model-backed development."
             exit 1
           fi
+          secret_fingerprint="$(
+            python3 - <<'PY'
+          import base64
+          import hashlib
+          import os
+
+          secret = os.environ["NIM_UPSTREAM_API_KEY"].encode("utf-8")
+          representations = (
+              secret,
+              base64.b64encode(secret),
+              base64.urlsafe_b64encode(secret),
+              secret.hex().encode("ascii"),
+          )
+          print(",".join(
+              f"{len(value)}:{hashlib.sha256(value).hexdigest()}"
+              for value in representations
+          ))
+          PY
+          )"
+          printf 'secret_fingerprint=%s\n' "$secret_fingerprint" >>"$GITHUB_OUTPUT"
           umask 077
           proxy_log="${RUNNER_TEMP}/keyverse-nim-proxy.log"
           proxy_pid="${RUNNER_TEMP}/keyverse-nim-proxy.pid"
@@ -440,6 +461,7 @@ jobs:
             --port "$NIM_PROXY_PORT" \
             >"$proxy_log" 2>&1 &
           printf '%s\n' "$!" >"$proxy_pid"
+          unset NIM_UPSTREAM_API_KEY
 
           ready=false
           for _attempt in $(seq 1 30); do
@@ -578,6 +600,8 @@ jobs:
         if: steps.gate.outputs.develop == 'true'
         id: package
         shell: bash
+        env:
+          KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT: ${{ steps.nim_broker.outputs.secret_fingerprint }}
         run: |
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/hourly-product-change"
