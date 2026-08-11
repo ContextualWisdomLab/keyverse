@@ -1,7 +1,7 @@
 # Keyverse Test Strategy
 
 **Status:** Accepted quality baseline  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-11
 
 ## Mandatory gates
 
@@ -69,7 +69,9 @@ Use realistic create/read/update/replace/delete lifecycle, authoritative/deprovi
 - Keyverse `org`/`workspace` claim mapping, tenant mismatch rejection, resource ownership/delegation, purpose/sensitivity, and role/scope elevation/downgrade;
 - production fail-closed behavior for RPs whose Keyverse verifier or policy is unavailable.
 
-PR #72 mapper tests remain active-PR evidence until merged. They should cover exact audience mapper, bounded `role`/`org`/`workspace`, Keycloak-generated mapper IDs/order, and rejection of scripts/arbitrary claims/classes.
+Protected main includes the PR #72 mapper tests. They cover the exact audience
+mapper, bounded `role`/`org`/`workspace`, Keycloak-generated mapper IDs/order,
+and rejection of scripts/arbitrary claims/classes.
 
 ADR-0008's application matrix remains deployment-restricted until each RP
 repository supplies its own exact token-validation and ABAC/RBAC evidence.
@@ -91,7 +93,7 @@ Mirror `docs/THREAT_MODEL.md`: malicious IdP/LDAP URLs, path/resource IDs, dupli
 
 ## Documentation contract
 
-CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 remain active-PR claims until integrated and ADR-0008 remains indexed.
+CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 are recorded as integrated protected-main changes and ADR-0008 remains indexed.
 
 ## Release acceptance
 

@@ -1,7 +1,7 @@
 # Keyverse Technical Requirements Document
 
 **Status:** Accepted cross-cutting technical baseline for protected main  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-11
 
 ## 1. Architecture objective
 
@@ -47,7 +47,9 @@ Current accepted profile is LDAPS-only, read-only, Kerberos-disabled, `trustEmai
 
 Authorization code + PKCE S256, exact HTTPS redirect/origin/logout rules, exact scope policy, secret-free desired state, exact client lookup and UUID integrity, post-mutation re-observation, separate confidential-material provisioning, and downstream token/audience/tenant authorization acceptance. Native loopback redirects are not part of the protected-main RP profile; introducing them requires a separately accepted trust-policy change plus synchronized product, threat, test, and traceability evidence.
 
-PR #72 claim mapper behavior remains active-PR until merged.
+The PR #72 claim mapper profile is integrated in protected main. Downstream
+authorization acceptance remains deployment-specific and is not implied by
+Keycloak client reconciliation.
 
 The per-application authorization matrix and remediation directions are governed
 by ADR-0008. Keyverse client reconciliation does not imply downstream
@@ -81,7 +83,7 @@ Readiness is component/lifecycle specific. Preflight success does not imply Keyc
 
 ## 12. Automation boundary
 
-Autonomous development uses NVIDIA NIM/OpenCode through an isolated model phase. Model execution has no publication/reviewer/release authority. PR #74 is active remediation of this boundary and must be proven again after protected-main merge.
+Autonomous development uses NVIDIA NIM/OpenCode through an isolated model phase. Model execution has no publication/reviewer/release authority. PR #74 is integrated in protected main; its operational boundary must still be proven by a protected-main scheduled or manual run.
 
 ## 13. Change control
 

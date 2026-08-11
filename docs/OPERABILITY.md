@@ -1,7 +1,7 @@
 # Keyverse Operability, Recovery, and Release Guide
 
 **Status:** Accepted cross-cutting operating baseline  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-11
 
 Feature-specific procedures under `docs/operations/`, federation/RP onboarding, and deployment READMEs remain authoritative for their slices. This guide defines the shared operating model and evidence needed before declaring the identity platform healthy or release-ready.
 
@@ -61,7 +61,10 @@ rotation source, claim-to-tenant mapping, ABAC/RBAC result, cross-tenant denial
 result, and production-mode fail-closed result. A successful Keyverse client
 receipt or mapper check is not sufficient acceptance evidence.
 
-PR #72's mapper profile requires the same acceptance after merge: operators must test the **Naruon** product login/token/authorization journey using the `naruon-web` RP client ID and verify the expected audience and bounded claims. Mapper unit tests alone do not prove Naruon product authorization readiness.
+The integrated PR #72 mapper profile requires the same acceptance: operators
+must test the **Naruon** product login/token/authorization journey using the
+`naruon-web` RP client ID and verify the expected audience and bounded claims.
+Mapper unit tests alone do not prove Naruon product authorization readiness.
 
 ## Account merge recovery
 
@@ -95,7 +98,7 @@ Back up Keycloak PostgreSQL and Keyverse-owned configuration/audit/intent/receip
 
 ## Automation incident RCA
 
-PR #74 demonstrates that a workflow can appear successful while doing no useful work if a GitHub API gate fails open. Scheduled governance must classify transport failure separately from a valid empty/unhealthy result, fit its time budget, keep provider secrets in the broker phase only, and require exact `success` for protected evidence. After PR #74 merges, operational closure requires a real protected-main scheduled/manual run.
+PR #74 demonstrates that a workflow can appear successful while doing no useful work if a GitHub API gate fails open. Scheduled governance must classify transport failure separately from a valid empty/unhealthy result, fit its time budget, keep provider secrets in the broker phase only, and require exact `success` for protected evidence. With PR #74 integrated, operational closure requires a real protected-main scheduled/manual run.
 
 ## Release gate
 
