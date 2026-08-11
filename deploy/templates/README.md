@@ -11,7 +11,8 @@ all `{{placeholders}}` must be resolved from the platform KV before use.
 | `oidc-rp-client.json` | Keyverse RP desired-state API | Keyverse → RP | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/{client_id}` |
 | `oidc-rp-naruon.json` | Keyverse RP desired-state API | Keyverse → Naruon | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/naruon-web` |
 
-The portable realm contains no employer-specific federation. External SAML and
+The portable realm contains no employer-specific federation or application
+relying-party client. External SAML and
 OIDC providers are customer or deployment data stored in the Keyverse KV/DB
 desired-state registry and reconciled into Keycloak. OIDC relying-party clients
 are likewise reconciled through Keyverse desired state rather than applied

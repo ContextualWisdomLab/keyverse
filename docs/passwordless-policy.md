@@ -20,12 +20,14 @@ password to phish, reuse, reset, or leak.
 | `resetPasswordAllowed` | `false` | No password-reset surface exists |
 | `requiredActions[webauthn-register-passwordless]` | enabled | Keycloak can execute the passkey enrollment action |
 | `webAuthnPolicyPasswordless*` | resident key and user verification required | Passkeys are discoverable and user-verified |
-| `naruon-web.attributes[access.token.lifespan]` | `300` seconds | Public-client bearer exposure is bounded independently of the longer SSO session |
 
 `scripts/validate_realm.py` follows every nested subflow reachable from
 `browserFlow` and fails CI if it finds `auth-password-form`,
-`auth-username-password-form`, or another password authenticator. It also caps
-public `naruon-web` access tokens at 900 seconds.
+`auth-username-password-form`, or another password authenticator. It also
+rejects application RP clients from the portable realm. The runtime
+`deploy/templates/oidc-rp-naruon.json` profile independently fixes the public
+client access-token lifetime at 300 seconds and is validated by the same closed
+Keyverse RP preflight used during deployment.
 
 ## Password-free headless registration
 

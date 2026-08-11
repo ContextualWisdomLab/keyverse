@@ -39,10 +39,11 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 Keyverse itself also has two boundaries that must not be confused with
 downstream application authorization:
 
-- the portable realm currently contains the reviewed `naruon-web` claim shape
-  (`role`, `org`, and `workspace`), but those values are deployment/profile
-  data and do not grant privilege by themselves; user/tenant role derivation
-  and downstream authorization remain separate acceptance obligations;
+- the reviewed runtime `naruon-web` desired-state template carries the bounded
+  `role`, `org`, and `workspace` claim shape, but those values are deployment
+  data and do not grant privilege by themselves; the portable realm contains
+  no application RP, and user/tenant role derivation plus downstream
+  authorization remain separate acceptance obligations;
 - the account-unification inbound admin/SCIM surface currently has one
   deployment-owned operator bearer gate. That is a coarse service boundary,
   not per-operation RBAC or ABAC. Multi-operator production use requires
@@ -70,7 +71,7 @@ downstream application authorization:
      bindings deny access;
    - `role` is optional at token-validation level, but an RP that makes an RBAC
      decision must require a recognized role and treat a missing or unknown
-     role as no privilege. The current portable `naruon-web` profile allows
+     role as no privilege. The current runtime `naruon-web` profile allows
      only `member`; any new role value requires a separately reviewed mapper
      profile, an exact issuer-side test, and downstream elevation/downgrade
      tests;
