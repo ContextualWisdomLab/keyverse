@@ -162,6 +162,13 @@ provisioning remains an independent secret-management responsibility.
 Native loopback/private-use redirects and deployment-specific claim expansion
 remain separate reviewed profiles.
 
+Each downstream RP is a separate trust boundary. The RP must validate the
+Keyverse issuer, signature/algorithm, expiry, subject, and audience, map the
+verified tenant (`org`/deployment mapping), apply resource and purpose ABAC,
+and then apply bounded role/scope/group RBAC. A registered client or accepted
+mapper receipt never grants authorization by itself; see ADR-0008 for the
+non-fork application matrix and remediation gates.
+
 ## Account and provisioning invariants
 
 1. Matching precedence is exact `(identity_provider, subject)`, then verified

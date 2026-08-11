@@ -48,6 +48,7 @@ flowchart LR
 | raw secret in desired state | leakage and poor rotation | secret-free RP source + separate credential provisioning |
 | automation credential exposure | repository/provider compromise | isolated OpenCode/broker/verification/publication and reviewer separation |
 | stale/false-green CI | unverified identity policy lands | exact-head checks, success-only evidence, fail-closed API gate |
+| RP accepts identity without authorization boundary | cross-tenant access or privilege elevation | explicit issuer/audience/JWKS profile, tenant/resource ABAC before bounded RBAC, cross-tenant denial tests, production fail-closed defaults |
 
 ## STRIDE interpretation
 
@@ -76,8 +77,9 @@ Protected main already has passwordless realm policy, account unification/SCIM, 
 - remote-first delete/re-observation/receipt integrity;
 - secret redaction and template scanning;
 - RP redirect/origin/logout/PKCE/audience/claim acceptance;
+- per-RP invalid issuer/signature/expiry/audience, tenant mismatch, role elevation, ownership, purpose, and cross-tenant denial;
 - automation secret isolation, egress, exact-head check classification, and independent review authority.
 
 ## Review triggers
 
-Revisit for a new authenticator, linking evidence source, external protocol, mapper class, directory write mode, Kerberos, secret ownership change, admin API exposure, data-store boundary, new tenant model, or altered development/release credentials.
+Revisit for a new authenticator, linking evidence source, external protocol, mapper class, directory write mode, Kerberos, secret ownership change, admin API exposure, data-store boundary, new tenant model, new RP, changed claim-to-tenant mapping, or altered development/release credentials.

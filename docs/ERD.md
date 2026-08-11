@@ -110,6 +110,7 @@ erDiagram
 
     EXTERNAL_IDENTITY_LINK {
       uuid external_identity_link_id PK
+      uuid tenant_deployment_id FK
       uuid keycloak_user_reference_id FK
       uuid federation_source_id FK
       text external_subject_hash
@@ -118,6 +119,7 @@ erDiagram
 
     ACCOUNT_MERGE_AUDIT {
       uuid account_merge_audit_id PK
+      uuid tenant_deployment_id FK
       uuid survivor_user_reference_id FK
       uuid duplicate_user_reference_id FK
       text match_evidence_code
@@ -152,6 +154,23 @@ UUID primary identifiers are globally unique. Human/provider identifiers are sco
 `federation_source_id` defines the identity-provider scope for the external-subject uniqueness rule. Within one federation source, one normalized/hashed external subject may link to at most one Keycloak user reference. This prevents one issuer/provider subject from being attached to multiple users while still allowing unrelated providers to use the same subject string.
 
 Physical migrations must enforce these constraints in the owning Keyverse store. Documentation labels such as `client_id`, `federation_alias`, or Keycloak UUID never authorize cross-tenant lookup by themselves.
+
+Tenant-qualified composite foreign keys are mandatory for cross-entity identity
+references. At minimum, the physical schema MUST enforce:
+
+- `EXTERNAL_IDENTITY_LINK (tenant_deployment_id, keycloak_user_reference_id)` →
+  `KEYCLOAK_USER_REFERENCE (tenant_deployment_id, keycloak_user_reference_id)`;
+- `EXTERNAL_IDENTITY_LINK (tenant_deployment_id, federation_source_id)` →
+  `FEDERATION_SOURCE (tenant_deployment_id, federation_source_id)`;
+- `ACCOUNT_MERGE_AUDIT (tenant_deployment_id, survivor_user_reference_id)` →
+  `KEYCLOAK_USER_REFERENCE (tenant_deployment_id, keycloak_user_reference_id)`;
+- `ACCOUNT_MERGE_AUDIT (tenant_deployment_id, duplicate_user_reference_id)` →
+  `KEYCLOAK_USER_REFERENCE (tenant_deployment_id, keycloak_user_reference_id)`.
+
+The referenced tenant-qualified pairs MUST be unique keys. A child row carrying
+only a globally unique UUID is insufficient evidence of tenant isolation; the
+database constraint must reject a mismatched tenant even when application code
+or documentation labels are bypassed.
 
 ## Identity and authorization rules
 

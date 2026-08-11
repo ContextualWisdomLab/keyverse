@@ -64,9 +64,15 @@ Use realistic create/read/update/replace/delete lifecycle, authoritative/deprovi
 - duplicate/zero/one remote client classification;
 - create/update/delete/re-observation/receipt;
 - secret-free desired state and separate secret provision;
-- controlled authorization-code/login/logout/token audience acceptance.
+- controlled authorization-code/login/logout/token audience acceptance;
+- per-RP issuer/signature/algorithm/expiry/subject/audience validation;
+- Keyverse `org`/`workspace` claim mapping, tenant mismatch rejection, resource ownership/delegation, purpose/sensitivity, and role/scope elevation/downgrade;
+- production fail-closed behavior for RPs whose Keyverse verifier or policy is unavailable.
 
 PR #72 mapper tests remain active-PR evidence until merged. They should cover exact audience mapper, bounded `role`/`org`/`workspace`, Keycloak-generated mapper IDs/order, and rejection of scripts/arbitrary claims/classes.
+
+ADR-0008's application matrix remains deployment-restricted until each RP
+repository supplies its own exact token-validation and ABAC/RBAC evidence.
 
 ## Deployment and persistence tests
 
@@ -85,7 +91,7 @@ Mirror `docs/THREAT_MODEL.md`: malicious IdP/LDAP URLs, path/resource IDs, dupli
 
 ## Documentation contract
 
-CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 remain active-PR claims until integrated.
+CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 remain active-PR claims until integrated and ADR-0008 remains indexed.
 
 ## Release acceptance
 

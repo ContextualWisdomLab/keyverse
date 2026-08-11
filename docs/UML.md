@@ -88,6 +88,25 @@ sequenceDiagram
 
 PR #72 extends this sequence with a closed mapper profile; it remains active-PR.
 
+Downstream authorization is a separate sequence after token issuance:
+
+```mermaid
+sequenceDiagram
+    participant Keycloak
+    participant RP as Non-fork RP
+    participant Policy as RP ABAC/RBAC policy
+    participant Resource as Tenant/resource store
+    Keycloak-->>RP: signed OIDC token
+    RP->>RP: validate issuer/signature/algorithm/exp/sub/aud
+    RP->>Policy: verified tenant, resource, purpose, role/scope
+    Policy->>Resource: same-tenant ownership and policy check
+    Resource-->>Policy: allow or deny
+    Policy-->>RP: authorization decision
+```
+
+Authentication, client reconciliation, and mapper presence do not bypass the
+RP policy sequence. ADR-0008 records the audited status of each non-fork RP.
+
 ## Account merge state view
 
 ```mermaid

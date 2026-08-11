@@ -56,6 +56,11 @@ Do not put raw tokens, secrets, passwords/bind credentials, protected private pa
 6. run authorization-code/PKCE login/logout/token audience/claim acceptance;
 7. validate downstream authorization separately from authentication.
 
+For every non-fork RP, record the exact Keyverse issuer, audience, JWKS/key
+rotation source, claim-to-tenant mapping, ABAC/RBAC result, cross-tenant denial
+result, and production-mode fail-closed result. A successful Keyverse client
+receipt or mapper check is not sufficient acceptance evidence.
+
 PR #72's mapper profile requires the same acceptance after merge: operators must test the **Naruon** product login/token/authorization journey using the `naruon-web` RP client ID and verify the expected audience and bounded claims. Mapper unit tests alone do not prove Naruon product authorization readiness.
 
 ## Account merge recovery

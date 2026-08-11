@@ -31,6 +31,7 @@ GOVERNING_ADRS = (
     "0005-secret-ownership.md",
     "0006-user-operation-lock.md",
     "0007-automation-authority.md",
+    "0008-keyverse-rp-authorization-boundary.md",
 )
 
 

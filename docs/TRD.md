@@ -23,6 +23,7 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 - Desired-state intent is persisted before external mutation where recovery requires it; receipt is persisted only after exact re-observation and binds the desired-state hash/version acted on.
 - RP desired state remains separate from confidential client material.
 - Deployment controller, not public API, owns private bind/client and certificate material.
+- Each non-fork RP is a separate authorization boundary: verified Keyverse token validation, tenant/resource ABAC, and role/scope RBAC must be proven in the RP repository before production routing.
 
 ## 4. Identity evidence
 
@@ -44,9 +45,13 @@ Current accepted profile is LDAPS-only, read-only, Kerberos-disabled, `trustEmai
 
 ### RP clients
 
-Authorization code + PKCE S256, exact HTTPS redirect/origin/logout rules, exact scope policy, secret-free desired state, exact client lookup and UUID integrity, post-mutation re-observation, separate confidential-material provisioning. Native loopback redirects are not part of the protected-main RP profile; introducing them requires a separately accepted trust-policy change plus synchronized product, threat, test, and traceability evidence.
+Authorization code + PKCE S256, exact HTTPS redirect/origin/logout rules, exact scope policy, secret-free desired state, exact client lookup and UUID integrity, post-mutation re-observation, separate confidential-material provisioning, and downstream token/audience/tenant authorization acceptance. Native loopback redirects are not part of the protected-main RP profile; introducing them requires a separately accepted trust-policy change plus synchronized product, threat, test, and traceability evidence.
 
 PR #72 claim mapper behavior remains active-PR until merged.
+
+The per-application authorization matrix and remediation directions are governed
+by ADR-0008. Keyverse client reconciliation does not imply downstream
+authorization readiness.
 
 ## 7. API/error boundary
 

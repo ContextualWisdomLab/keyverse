@@ -23,6 +23,7 @@ Its job is to let CWL products consume stable standards-based identity without e
 - standalone Compose and Helm deployment modes with readiness probes;
 - configuration/secret bootstrap via KV/DB boundary rather than application environment as runtime source of truth;
 - 100% production statement/branch/docstring quality gates and protected review/security workflows.
+- an explicit per-RP Keyverse token-validation and downstream ABAC/RBAC acceptance boundary; application login alone is not authorization readiness.
 
 The current SCIM `PATCH active=false` deprovisioning path is not protected by the shared cross-process user-operation lock used by merge and full replacement. It must not be represented as transactionally serialized with merge until a source change and concurrency regression prove that boundary.
 
@@ -55,6 +56,7 @@ The current SCIM `PATCH active=false` deprovisioning path is not protected by th
 12. Passwordless-local identity must not silently fall back to a password authenticator.
 13. Runtime application code consumes configuration from the approved KV/DB boundary; environment is bootstrap transport only.
 14. Tenant/application authorization must not be inferred from client ID, UUID, email, or federation source name alone.
+15. Every non-fork application must explicitly validate the Keyverse issuer, audience, signature, subject, expiry, tenant, and application authorization policy before production exposure.
 
 ## 6. Functional requirements
 
@@ -82,15 +84,23 @@ RP registration SHALL validate exact HTTPS redirect/origin/logout and authorizat
 
 Optional claim expansion SHALL be closed and least-privilege. New audience/claim mapper profiles require explicit typed policy, no script/user-attribute/group/regex arbitrary mapper classes unless separately accepted, and downstream authorization acceptance tests before claiming application readiness.
 
-### PRD-FR-007 Configuration/secrets
+### PRD-FR-007 Downstream authorization boundary
+
+Every RP SHALL maintain an explicit Keyverse integration profile and SHALL
+validate issuer, signature/algorithm, expiry, subject, and audience before
+applying authorization. Tenant/resource/purpose constraints SHALL be evaluated
+before roles, scopes, or groups. Missing cross-tenant denial, resource ownership,
+or production fail-closed evidence SHALL keep the RP deployment-restricted.
+
+### PRD-FR-008 Configuration/secrets
 
 Secrets SHALL be sourced through private deployment-controlled stores/handles. Logs, responses, CLI args, checked-in templates, and desired-state records must not contain raw secrets unless the exact durable store is designed to own them encrypted.
 
-### PRD-FR-008 Deployment and readiness
+### PRD-FR-009 Deployment and readiness
 
 Compose/Helm deployments SHALL expose component readiness that distinguishes Keycloak/admin/database/configuration reachability from full end-to-end login/federation acceptance. A green preflight is not a successful login claim.
 
-### PRD-FR-009 Audit and recovery
+### PRD-FR-010 Audit and recovery
 
 Privileged identity and desired-state operations SHALL produce auditable intent/outcome evidence sufficient for reconciliation/rollback without exposing protected secret values.
 

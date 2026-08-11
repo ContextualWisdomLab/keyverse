@@ -20,6 +20,7 @@
 | remote-first deletion | consistency/recovery decision | delete/reconciliation tests | implemented-main |
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
 | work-conserving fail-closed hourly API gate | automation safety decision | PR #74 workflow tests/exact-head evidence | active-PR |
+| non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
 
 ## Research, standards, and operations records
