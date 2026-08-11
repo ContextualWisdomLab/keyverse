@@ -22,7 +22,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 
 - `naruon`: `develop` at `da16757b78341de372c3fbd4d9c525dd9812bd1d`;
 - `pg-erd-cloud`: PR #855 at `e4b4771fa0c46cbbcbd9ca7e777e20b5179b0bcd` (open; based on `main` at `72afe6db712b145baaba084f64a1ff4fb36d9fd0`);
-- `semantic-data-portal`: PR #58 at `46b9fdb4480c665f6f513acfef4edfdb5848ca64`;
+- `semantic-data-portal`: PR #58 at `a93f9ed69ba569f3379915ceb20b95b7fcb4a41c` (open; based on `main` at `e48aa13c4af7a4875d4b53e6a60b50405c265a2f`);
 - `clearfolio`: `main` at `55d7ae8647208e301f282350f076eeddaba61d11`;
 - `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`;
 - `newsdom-api`: protected `develop` at `3d0426bf45ad9d3395effb602811a75cbe700cf4` (PR #595 squash-merged; based on `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`).
@@ -31,7 +31,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 |---|---|---|---|
 | `naruon` | Generic OIDC/JWKS configuration accepts an issuer, audience, and `role`/`org`/`workspace`-shaped claims; no explicit Keyverse profile or acceptance fixture is named | RBAC plus ABAC exists in `backend/services/access_policy.py`; organization/workspace, ownership, delegation, consent, and capability checks precede role allows | Add an explicit Keyverse issuer/audience/JWKS deployment profile and exact-token acceptance test. Continue to reject issuer/audience/signature failures and never treat a hardcoded claim as proof of entitlement. |
 | `pg-erd-cloud` | Generic OIDC/JWKS verification is present; PR #855 adds an opt-in `OIDC_ORGANIZATION` profile that requires an exact typed Keyverse `org`, audience, and `iat` after token verification | Project-member RBAC (`viewer`/`editor`/`owner`) exists in `backend/app/permissions.py`; the profile adds deployment-level single-tenant `org` ABAC and rejects `pgerd_` API-key bypasses | Use the profile for one-tenant-per-database deployments. A shared multi-tenant database still needs a persisted tenant key, tenant-qualified membership/resource queries, composite constraints, and cross-tenant denial tests before authorization-ready status. |
-| `semantic-data-portal` | OIDC verification exists, but the mapper recognizes `tenant_id`/`tid`/`organization` and plural `roles`, not Keyverse `org` and singular `role` | RBAC and ABAC/purpose/sensitivity/evidence policy exists in `src/sdp/policy.py` | Add the bounded Keyverse aliases and regression tests in the app repository; preserve tenant, purpose, row-filter, masking, and evidence checks. This is an immediate application fix, not a documentation-only exception. Keep the repo-wide security gate green: `cryptography` must be pinned at `50.0.0` or newer in the source and every hash-locked requirements artifact after CVE-2026-69247. |
+| `semantic-data-portal` | OIDC verification exists; PR #58 maps bounded Keyverse `org`/`role` aliases and rejects malformed tenant/role claim shapes before authorization context creation | RBAC and ABAC/purpose/sensitivity/evidence policy exists in `src/sdp/policy.py` | Merge PR #58 after independent review and protected checks; preserve tenant, purpose, row-filter, masking, and evidence checks. Keep the repo-wide security gate green: `cryptography` must be pinned at `50.0.0` or newer in the source and every hash-locked requirements artifact after CVE-2026-69247. |
 | `clearfolio` | No production OIDC/JWT verifier; current runtime is a gateway/header tenant scaffold documented in `docs/security/2026-07-02-auth-tenant-model.md` | Permission checks and tenant ownership are implemented, with optional gateway HMAC; the caller identity is not yet a Keyverse-verified token | Keep production fail-closed. Replace public header trust with Keyverse issuer/audience/JWKS verification at the service or a cryptographically trusted gateway, then map `org`/`sub`/roles/scopes and retain same-tenant checks. |
 | `contextual-orchestrator` | Bearer-token configuration distinguishes `admin` and `inference` scopes but has no OIDC/JWT Keyverse validation | Coarse token-scope RBAC exists; resource/tenant ABAC is not established | Add a user-facing Keyverse OIDC resource-server boundary or a separately authenticated service-token/mTLS boundary for internal calls. Keep admin and inference scopes separate and add tenant/resource ownership conditions before exposing multi-tenant work. |
 | `newsdom-api` | No Keyverse OIDC integration; protected `develop` now contains PR #595, which makes the local bearer boundary fail closed by default and permits anonymous parsing only through explicit `NEWSDOM_ALLOW_ANONYMOUS=true` | No application RBAC/ABAC; it is a PDF-to-DOM sidecar | Keep it private infrastructure while it has no user authorization model. If reachable beyond a trusted internal gateway, require a Keyverse-aware gateway or verified service boundary; never enable the anonymous opt-in on an exposed deployment. The merged change also remediates the current `pypdf` Trivy findings and includes the review fixes at `3025be1` (startup credential registry, authenticated examples, healthcheck executable-bit check, and complete 401 assertions). |
@@ -86,7 +86,11 @@ downstream application authorization:
    `tests/test_authz.py::test_keyverse_unknown_role_does_not_grant_access`,
    `tests/test_api.py::test_oidc_jwks_verification_maps_verified_token_without_token_leak`,
    and `tests/test_api.py::test_oidc_jwks_verification_rejects_wrong_audience`.
-   pg-erd-cloud PR #855 adds
+   semantic-data-portal PR #58 adds
+   `tests/test_authz.py::test_keyverse_org_claim_must_be_a_non_empty_string`
+   so array/object `org` claims fail closed before `ActorContext`; its current
+   exact head is `a93f9ed` and remains `active-PR` evidence. pg-erd-cloud PR
+   #855 adds
    `backend/tests/test_auth_security.py::test_keyverse_organization_claim_is_required_and_exact`
    and an API-key bypass regression and remains `active-PR` evidence; NewsDOM
    PR #595 adds default-deny and explicit-anonymous-mode tests, with the review
