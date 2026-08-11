@@ -1,7 +1,7 @@
 # Keyverse Requirements and Evidence Traceability
 
 **Status:** Accepted cross-cutting baseline  
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-12
 
 | Requirement / decision | Standards / authoritative basis | Source/evidence boundary | Maturity |
 |---|---|---|---|
@@ -21,7 +21,8 @@
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
 | work-conserving fail-closed hourly API gate | automation safety decision | PR #74 protected-main workflow tests/exact-head evidence; scheduled/manual run remains required | implemented-main |
 | non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
-| semantic-data-portal Keyverse claim boundary | ADR-0008; bounded claim mapping and fail-closed tenant/role shape validation | semantic-data-portal PR #58 `a93f9ed` aliases `org`/`role`, rejects array/object/blank tenant claims before `ActorContext`, and keeps the cryptography floor; protected-branch approval remains required | active-PR |
+| naruon Keyverse OIDC acceptance boundary | ADR-0008; exact issuer/audience/JWKS validation and required OIDC NumericDate claims | naruon PR #1321 `8db9575` names the Keyverse issuer and `naruon-web` audience, requires verified `iat`, and tests explicit org/workspace/role acceptance plus missing-`iat` denial; protected-branch checks/review remain required | active-PR |
+| semantic-data-portal Keyverse claim boundary | ADR-0008; bounded claim mapping and fail-closed tenant/role shape validation | semantic-data-portal PR #58 `103e54b` aliases `org`/`role`, validates every present tenant alias, rejects malformed/conflicting aliases before `ActorContext`, and keeps the cryptography floor; protected-branch approval remains required | active-PR |
 | pg-erd-cloud Keyverse organization boundary | ADR-0008; verified tenant binding before project authorization | pg-erd-cloud PR #855 `e4b4771` exact `org`/audience/`iat` checks, single-tenant profile, API-key bypass denial; shared multi-tenant persistence remains unimplemented | active-PR |
 | sidecar anonymous-access boundary | ADR-0008; private service-boundary and least-privilege policy | newsdom-api protected `develop` `3d0426b` (PR #595) fail-closed token gate, startup credential registry, explicit anonymous opt-in, review-fixed authenticated examples/healthcheck/401 contract, and pypdf Trivy remediation; Keyverse-aware gateway evidence remains required for exposure | implemented-main |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
