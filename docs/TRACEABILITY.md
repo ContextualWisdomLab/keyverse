@@ -21,6 +21,7 @@
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
 | work-conserving fail-closed hourly API gate | automation safety decision | PR #74 protected-main workflow tests/exact-head evidence; scheduled/manual run remains required | implemented-main |
 | non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
+| sidecar anonymous-access boundary | ADR-0008; private service-boundary and least-privilege policy | newsdom-api PR #595 fail-closed token gate; Keyverse-aware gateway evidence remains required for exposure | accepted-contract |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
 
 ## Research, standards, and operations records
