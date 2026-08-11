@@ -1,7 +1,7 @@
 # Keyverse UML and Runtime Views
 
-**Status:** Accepted protected-main diagrams with active-PR items labelled.  
-**Last reviewed:** 2026-08-09
+**Status:** Accepted protected-main diagrams with integrated changes labelled.
+**Last reviewed:** 2026-08-11
 
 ## Component and authority view
 
@@ -86,7 +86,9 @@ sequenceDiagram
     Deploy->>App: run login/logout/token acceptance
 ```
 
-PR #72 extends this sequence with a closed mapper profile; it remains active-PR.
+PR #72 extends this sequence with a closed mapper profile and is integrated
+in protected main; downstream authorization acceptance remains deployment
+specific.
 
 Downstream authorization is a separate sequence after token issuance:
 
@@ -162,7 +164,9 @@ flowchart LR
     REVIEW --> MAIN
 ```
 
-PR #74 changes exact hourly gate implementation but not this authority separation.
+PR #74 is integrated in protected main and changes the exact hourly gate
+implementation without changing this authority separation; a protected-main
+scheduled or manual run remains operational evidence.
 
 ## Maintenance rule
 

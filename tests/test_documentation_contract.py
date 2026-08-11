@@ -67,24 +67,18 @@ def test_documentation_map_links_cross_cutting_contracts() -> None:
         )
 
 
-def test_active_pr_features_are_not_promoted_to_main() -> None:
-    """Keep OIDC mapper and hourly-remediation PRs labelled as active work."""
+def test_integrated_features_are_not_left_as_active_pr() -> None:
+    """Keep integrated OIDC and hourly changes labelled as protected-main."""
 
     prd = _read("docs/PRD.md")
     traceability = _read("docs/TRACEABILITY.md")
-    assert any(
-        "PR #72" in line and "active-PR" in line
-        for line in prd.splitlines()
-    )
-    assert any(
-        "PR #74" in line and "active-PR" in line
-        for line in prd.splitlines()
-    )
+    assert any("PR #72" in line and "integrated" in line for line in prd.splitlines())
+    assert any("PR #74" in line and "integrated" in line for line in prd.splitlines())
     mapper_row = _row_with(traceability, "RP audience/role/org/workspace mapper profile")
     hourly_row = _row_with(traceability, "work-conserving fail-closed hourly API gate")
-    assert mapper_row.rstrip().endswith("| active-PR |")
+    assert mapper_row.rstrip().endswith("| implemented-main |")
     assert "PR #72" in mapper_row
-    assert hourly_row.rstrip().endswith("| active-PR |")
+    assert hourly_row.rstrip().endswith("| implemented-main |")
     assert "PR #74" in hourly_row
 
 

@@ -1,7 +1,7 @@
 # Keyverse Requirements and Evidence Traceability
 
 **Status:** Accepted cross-cutting baseline  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-11
 
 | Requirement / decision | Standards / authoritative basis | Source/evidence boundary | Maturity |
 |---|---|---|---|
@@ -12,14 +12,14 @@
 | SAML/OIDC federation desired state | SAML/OIDC/Keycloak docs | preflight/reconciliation/receipt tests | implemented-main |
 | LDAPS directory profile | LDAP RFC 4511–4515 + Keycloak component docs | directory preflight/reconciliation tests | implemented-main |
 | secret-free RP desired state | OAuth/OIDC/PKCE/Keycloak client docs | RP preflight/reconciliation/integrity tests | implemented-main |
-| RP audience/role/org/workspace mapper profile | OIDC/JWT audience + Keycloak mapper docs | PR #72 research/tests | active-PR |
+| RP audience/role/org/workspace mapper profile | OIDC/JWT audience + Keycloak mapper docs | PR #72 protected-main source/tests; downstream RP acceptance remains required | implemented-main |
 | merge/SCIM PUT shared operation lock | concurrency/data-integrity decision; ADR-0006 | merge + full-replacement lock/concurrency tests | implemented-main |
 | SCIM PATCH active=false shared-lock parity | ADR-0006 boundary | current PATCH source has no shared-lock proof | gap-not-claimed |
 | intent before mutation, receipt after re-observation | desired-state/recovery decision | federation/directory/RP reconciliation tests | implemented-main |
 | receipt bound to exact desired-state version/hash | threat/recovery contract; ERD | persistence/migration/idempotency evidence required | accepted-contract |
 | remote-first deletion | consistency/recovery decision | delete/reconciliation tests | implemented-main |
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
-| work-conserving fail-closed hourly API gate | automation safety decision | PR #74 workflow tests/exact-head evidence | active-PR |
+| work-conserving fail-closed hourly API gate | automation safety decision | PR #74 protected-main workflow tests/exact-head evidence; scheduled/manual run remains required | implemented-main |
 | non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
 

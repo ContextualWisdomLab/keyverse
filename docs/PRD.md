@@ -1,7 +1,7 @@
 # Keyverse Product Requirements Document
 
-**Status:** Accepted cross-cutting product baseline for protected `main` at `c8968ec1e68fab16d0ad8216fb5c8fd0b385e95f`  
-**Last reviewed:** 2026-08-09
+**Status:** Accepted cross-cutting product baseline for protected `main` at `196814abe45ecf972a7776836af3933506d13fd5`
+**Last reviewed:** 2026-08-11
 
 ## 1. Product purpose
 
@@ -27,10 +27,10 @@ Its job is to let CWL products consume stable standards-based identity without e
 
 The current SCIM `PATCH active=false` deprovisioning path is not protected by the shared cross-process user-operation lock used by merge and full replacement. It must not be represented as transactionally serialized with merge until a source change and concurrency regression prove that boundary.
 
-## 3. Active-PR boundaries
+## 3. Integrated protected-main changes
 
-- PR #72 adds a closed OIDC RP mapper profile for exactly one audience mapper plus bounded `role`, `org`, and `workspace` hardcoded claims; it remains **active-PR** and is not protected-main behavior until merged.
-- PR #74 repairs the hourly product-development GitHub API/egress/time-budget/evidence boundary; it remains **active-PR** operational-governance work until merged and then proven by a protected-main run.
+- PR #72 is integrated in protected main: the closed OIDC RP mapper profile permits exactly one audience mapper plus bounded `role`, `org`, and `workspace` hardcoded claims. Downstream RPs remain deployment-restricted until their issuer/audience/JWKS, tenant, ABAC/RBAC, and fail-closed acceptance evidence exists.
+- PR #74 is integrated in protected main: the hourly product-development GitHub API/egress/time-budget/evidence boundary is fail-closed. Operational closure still requires a real protected-main scheduled or manual run.
 
 ## 4. Primary users
 

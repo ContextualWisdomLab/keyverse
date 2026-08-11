@@ -1,7 +1,7 @@
 # Keyverse Threat Model
 
 **Status:** Accepted baseline for protected-main identity control plane  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-11
 
 ## Trust boundaries
 
@@ -44,7 +44,7 @@ flowchart LR
 | tombstone reprovisioning | duplicate account resurrection | survivor pointer + disabled duplicate policy |
 | password fallback | weakens passwordless policy | portable flow contains no password authenticator |
 | RP redirect/origin mistake | auth-code/token theft | exact HTTPS/PKCE/client policy; separate native loopback profile |
-| arbitrary protocol mapper | excessive claims/code execution | closed mapper classes/claims; PR #72 active-PR until merged |
+| arbitrary protocol mapper | excessive claims/code execution | closed mapper classes/claims; PR #72 integrated in protected main |
 | raw secret in desired state | leakage and poor rotation | secret-free RP source + separate credential provisioning |
 | automation credential exposure | repository/provider compromise | isolated OpenCode/broker/verification/publication and reviewer separation |
 | stale/false-green CI | unverified identity policy lands | exact-head checks, success-only evidence, fail-closed API gate |
@@ -59,9 +59,13 @@ flowchart LR
 - **Denial of service:** API bodies, directory/provider configs, retries/timeouts, SCIM mutation rate, external lookups, queues, and automation loops are bounded.
 - **Elevation of privilege:** public client IDs, email, UUIDs, or model output never create admin/reviewer/release authority.
 
-## Current protected-main versus active PR
+## Current protected-main versus operational acceptance
 
-Protected main already has passwordless realm policy, account unification/SCIM, federation/directory/RP desired state, and deployment boundaries. PR #72 expands RP mappers; PR #74 repairs hourly automation. Those threat-surface changes remain active-PR until integrated and then require protected-main operational acceptance.
+Protected main has passwordless realm policy, account unification/SCIM,
+federation/directory/RP desired state, deployment boundaries, the PR #72 closed
+RP mapper profile, and the PR #74 fail-closed hourly automation boundary.
+Both integrated changes still require the protected-main operational acceptance
+described in `docs/OPERABILITY.md`.
 
 ## Required security tests
 
