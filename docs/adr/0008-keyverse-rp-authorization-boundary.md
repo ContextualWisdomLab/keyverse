@@ -25,7 +25,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 - `semantic-data-portal`: PR #58 at `46b9fdb4480c665f6f513acfef4edfdb5848ca64`;
 - `clearfolio`: `main` at `55d7ae8647208e301f282350f076eeddaba61d11`;
 - `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`;
-- `newsdom-api`: `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`.
+- `newsdom-api`: PR #595 at `7b3770034cecb8494840c445c6e06b31622ebea6`.
 
 | Application | Keyverse recognition | Current authorization | Finding and required direction |
 |---|---|---|---|
@@ -34,7 +34,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 | `semantic-data-portal` | OIDC verification exists, but the mapper recognizes `tenant_id`/`tid`/`organization` and plural `roles`, not Keyverse `org` and singular `role` | RBAC and ABAC/purpose/sensitivity/evidence policy exists in `src/sdp/policy.py` | Add the bounded Keyverse aliases and regression tests in the app repository; preserve tenant, purpose, row-filter, masking, and evidence checks. This is an immediate application fix, not a documentation-only exception. Keep the repo-wide security gate green: `cryptography` must be pinned at `50.0.0` or newer in the source and every hash-locked requirements artifact after CVE-2026-69247. |
 | `clearfolio` | No production OIDC/JWT verifier; current runtime is a gateway/header tenant scaffold documented in `docs/security/2026-07-02-auth-tenant-model.md` | Permission checks and tenant ownership are implemented, with optional gateway HMAC; the caller identity is not yet a Keyverse-verified token | Keep production fail-closed. Replace public header trust with Keyverse issuer/audience/JWKS verification at the service or a cryptographically trusted gateway, then map `org`/`sub`/roles/scopes and retain same-tenant checks. |
 | `contextual-orchestrator` | Bearer-token configuration distinguishes `admin` and `inference` scopes but has no OIDC/JWT Keyverse validation | Coarse token-scope RBAC exists; resource/tenant ABAC is not established | Add a user-facing Keyverse OIDC resource-server boundary or a separately authenticated service-token/mTLS boundary for internal calls. Keep admin and inference scopes separate and add tenant/resource ownership conditions before exposing multi-tenant work. |
-| `newsdom-api` | Optional local `NEWSDOM_API_TOKEN` bearer auth exists; no Keyverse OIDC integration | No application RBAC/ABAC; it is a PDF-to-DOM sidecar | Treat it as private infrastructure only while it has no user authorization model. If reachable beyond a trusted internal gateway, require a Keyverse-aware gateway or add a verified service boundary; never leave the default-open development mode on an exposed deployment. |
+| `newsdom-api` | No Keyverse OIDC integration; PR #595 makes the local bearer boundary fail closed by default and permits anonymous parsing only through explicit `NEWSDOM_ALLOW_ANONYMOUS=true` | No application RBAC/ABAC; it is a PDF-to-DOM sidecar | Keep it private infrastructure while it has no user authorization model. If reachable beyond a trusted internal gateway, require a Keyverse-aware gateway or verified service boundary; never enable the anonymous opt-in on an exposed deployment. |
 
 Keyverse itself also has two boundaries that must not be confused with
 downstream application authorization:
