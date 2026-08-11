@@ -88,6 +88,7 @@ def test_validator_rejects_runtime_application_clients() -> None:
         [
             {"clientId": "ecosystem-rp-template"},
             {"clientId": "naruon-web", "publicClient": True},
+            {"clientId": "unmanaged-web", "publicClient": True},
         ]
     )
 
@@ -95,3 +96,7 @@ def test_validator_rejects_runtime_application_clients() -> None:
 
     assert any("runtime application client 'ecosystem-rp-template'" in error for error in errors)
     assert any("runtime application client 'naruon-web'" in error for error in errors)
+    assert any(
+        "portable realm may contain only the account-unification-svc" in error
+        for error in errors
+    )

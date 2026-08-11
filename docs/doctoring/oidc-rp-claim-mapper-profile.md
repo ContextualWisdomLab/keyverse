@@ -115,10 +115,11 @@ RED receipt before the template was added.
 
 ## Limitations and follow-up
 
-The portable realm now contains no application clients. A deterministic
+The portable realm preserves only the `account-unification-svc` control-plane
+client and contains no runtime application RP clients. A deterministic
 clean-realm regression proves the committed Naruon template can recreate one
-exact in-sync client, including its closed mapper profile, through Keyverse
-desired state. This does not prove a live authorization-code/PKCE exchange,
+exact in-sync application client, including its closed mapper profile, through
+Keyverse desired state. This does not prove a live authorization-code/PKCE exchange,
 downstream audience acceptance, user/session migration, or hosted Keycloak
 restore; those remain runtime evidence boundaries. Any new mapper type, claim
 name, token destination, resource audience, or native-client redirect profile
