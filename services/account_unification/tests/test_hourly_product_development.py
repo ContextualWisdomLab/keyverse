@@ -49,10 +49,23 @@ def _harden_runner_endpoints(job_name: str) -> tuple[str, ...]:
         assert isinstance(inputs, dict)
         endpoint_block = inputs.get("allowed-endpoints")
         assert isinstance(endpoint_block, str)
-        return tuple(
-            line.strip() for line in endpoint_block.splitlines() if line.strip()
-        )
+        return tuple(endpoint_block.split())
     raise AssertionError(f"{job_name} has no harden-runner endpoint policy")
+
+
+def _step_by_name(job_name: str, step_name: str) -> dict[str, object]:
+    """Return one exact named workflow step from ``job_name``."""
+    jobs = _workflow_document().get("jobs")
+    assert isinstance(jobs, dict)
+    job = jobs.get(job_name)
+    assert isinstance(job, dict)
+    steps = job.get("steps")
+    assert isinstance(steps, list)
+
+    for step in steps:
+        if isinstance(step, dict) and step.get("name") == step_name:
+            return step
+    raise AssertionError(f"{job_name} has no step named {step_name}")
 
 
 def _permissions_block(source: str, marker: str, terminator: str) -> str:
@@ -69,7 +82,7 @@ def test_product_development_runs_hourly_without_cancelling_a_decision() -> None
     assert 'cron: "41 * * * *"' in workflow
     assert "hourly-product-development-${{ github.repository }}" in workflow
     assert "cancel-in-progress: false" in workflow
-    assert "timeout-minutes: 45" in workflow
+    assert "timeout-minutes: 180" in workflow
     assert "timeout-minutes: 30" in workflow
     assert "timeout-minutes: 15" in workflow
 
@@ -128,9 +141,9 @@ def test_nim_credential_is_brokered_outside_the_agent_environment() -> None:
 
     assert "Start the loopback-only NIM credential broker" in workflow
     assert "NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}" in workflow
+    assert workflow.count("${{ secrets.NVIDIA_NIM_API_KEY }}") == 1
     assert "NVIDIA_API_KEY=keyverse-local-broker" in workflow
     assert "env -i" in workflow
-    assert "KEYVERSE_FORBIDDEN_SECRET: ${{ secrets.NVIDIA_NIM_API_KEY }}" in workflow
     assert "NVIDIA_API_KEY=${{ secrets.NVIDIA_NIM_API_KEY }}" not in workflow
 
 
@@ -145,10 +158,22 @@ def test_product_development_does_not_reuse_review_agent_credentials() -> None:
 
 
 def test_product_development_fails_closed_without_queue_ownership() -> None:
-    """Missing NIM access, unhealthy main, or open work suppresses the agent."""
+    """Unhealthy main or open work stops before entering the model-backed path."""
     workflow = _workflow_source()
+    broker = _step_by_name(
+        "develop-product-gap",
+        "Start the loopback-only NIM credential broker",
+    )
+    broker_env = broker.get("env")
+    broker_run = broker.get("run")
 
-    assert "NVIDIA_NIM_API_KEY is not configured" in workflow
+    assert isinstance(broker_env, dict)
+    assert isinstance(broker_run, str)
+    assert broker.get("if") == "steps.gate.outputs.develop == 'true'"
+    assert broker_env.get("NIM_UPSTREAM_API_KEY") == (
+        "${{ secrets.NVIDIA_NIM_API_KEY }}"
+    )
+    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in broker_run
     assert "pulls?state=open&per_page=1" in workflow
     assert "An open pull request exists" in workflow
     assert "CORE_WORKFLOWS" in workflow

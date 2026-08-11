@@ -37,7 +37,7 @@ jobs:
   develop-product-gap:
     name: Discover and package one bounded product gap
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 180
     permissions:
       actions: read
       checks: read
@@ -53,8 +53,9 @@ jobs:
         with:
           egress-policy: block
           disable-telemetry: true
-          allowed-endpoints: |
+          allowed-endpoints: >-
             api.github.com:443
+            cafe.github.com:443
             codeload.github.com:443
             github.com:443
             integrate.api.nvidia.com:443
@@ -69,13 +70,11 @@ jobs:
             files.pythonhosted.org:443
             pypi.org:443
 
-
-      - name: Enforce the credential, queue, and exact-main gate
+      - name: Enforce the deterministic queue and exact-main gate
         id: gate
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
           CURRENT_RUN_ID: ${{ github.run_id }}
           DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
@@ -85,19 +84,13 @@ jobs:
             echo "base_sha="
           } >>"$GITHUB_OUTPUT"
 
-          if [ -z "${NIM_UPSTREAM_API_KEY:-}" ]; then
-            echo "NVIDIA_NIM_API_KEY is not configured; autonomous development stopped safely." \
-              >>"$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
           open_pr_file="${RUNNER_TEMP}/keyverse-open-pulls.json"
           if ! gh api \
             -H "Accept: application/vnd.github+json" \
             "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=1" \
             >"$open_pr_file"; then
-            echo "::warning::Unable to list open pull requests; refusing to create work."
-            exit 0
+            echo "::error::Unable to list open pull requests; GitHub inventory is unavailable."
+            exit 1
           fi
           if ! open_pr_count="$(python3 - "$open_pr_file" <<'PY'
           import json
@@ -110,8 +103,8 @@ jobs:
           print(len(payload))
           PY
           )"; then
-            echo "::warning::Unable to interpret the open pull-request response; refusing to create work."
-            exit 0
+            echo "::error::Unable to interpret the open pull-request response; GitHub inventory is malformed."
+            exit 1
           fi
           if [ "$open_pr_count" -ne 0 ]; then
             echo "An open pull request exists; the protected PR loop owns this hour." \
@@ -125,12 +118,12 @@ jobs:
               "repos/${GITHUB_REPOSITORY}/commits/${DEFAULT_BRANCH}" \
               --jq '.sha'
           )"; then
-            echo "::warning::Unable to resolve the default-branch head; refusing to create work."
-            exit 0
+            echo "::error::Unable to resolve the default-branch head; GitHub inventory is unavailable."
+            exit 1
           fi
           if ! [[ "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::warning::The default-branch head was malformed; refusing to create work."
-            exit 0
+            echo "::error::The default-branch head was malformed; GitHub inventory is invalid."
+            exit 1
           fi
 
           workflow_runs_file="${RUNNER_TEMP}/keyverse-main-workflow-runs.json"
@@ -140,25 +133,30 @@ jobs:
             --slurp \
             "repos/${GITHUB_REPOSITORY}/actions/runs?branch=${DEFAULT_BRANCH}&head_sha=${base_sha}&per_page=100" \
             >"$workflow_runs_file"; then
-            echo "::warning::Unable to read default-branch workflow evidence; refusing to create work."
-            exit 0
+            echo "::error::Unable to read default-branch workflow evidence; GitHub inventory is unavailable."
+            exit 1
           fi
-          if ! python3 - "$workflow_runs_file" "$CORE_WORKFLOWS" <<'PY'
+          workflow_evidence_status=0
+          python3 - "$workflow_runs_file" "$CORE_WORKFLOWS" <<'PY' || workflow_evidence_status=$?
           import json
           import sys
 
-          with open(sys.argv[1], encoding="utf-8") as stream:
-              pages = json.load(stream)
-          required = set(json.loads(sys.argv[2]))
+          try:
+              with open(sys.argv[1], encoding="utf-8") as stream:
+                  pages = json.load(stream)
+              required = set(json.loads(sys.argv[2]))
+          except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+              print(f"Malformed workflow-run evidence: {exc}", file=sys.stderr)
+              raise SystemExit(2) from exc
           if not isinstance(pages, list) or not required:
-              raise SystemExit("Unsupported workflow-run response shape")
+              raise SystemExit(2)
 
           runs = []
           for page in pages:
               if not isinstance(page, dict) or not isinstance(
                   page.get("workflow_runs"), list
               ):
-                  raise SystemExit("Unsupported workflow-run response shape")
+                  raise SystemExit(2)
               runs.extend(page["workflow_runs"])
 
           latest = {}
@@ -175,10 +173,12 @@ jobs:
 
           missing = sorted(required.difference(latest))
           if missing:
-              raise SystemExit(
+              print(
                   "Missing required default-branch workflow evidence: "
-                  + ", ".join(missing)
+                  + ", ".join(missing),
+                  file=sys.stderr,
               )
+              raise SystemExit(3)
           unhealthy = sorted(
               name
               for name, run in latest.items()
@@ -186,15 +186,28 @@ jobs:
               or run.get("conclusion") != "success"
           )
           if unhealthy:
-              raise SystemExit(
+              print(
                   "Default branch has pending or unsuccessful required workflow evidence: "
-                  + ", ".join(unhealthy)
+                  + ", ".join(unhealthy),
+                  file=sys.stderr,
               )
+              raise SystemExit(3)
           PY
-          then
-            echo "::warning::Default-branch core workflow evidence is incomplete or unhealthy; refusing to create work."
-            exit 0
-          fi
+          case "$workflow_evidence_status" in
+            0) ;;
+            2)
+              echo "::error::Unable to interpret default-branch workflow evidence; GitHub inventory is malformed."
+              exit 1
+              ;;
+            3)
+              echo "::warning::Default-branch core workflow evidence is incomplete or unhealthy; refusing to create work."
+              exit 0
+              ;;
+            *)
+              echo "::error::Default-branch workflow evidence parser failed unexpectedly."
+              exit 1
+              ;;
+          esac
 
           check_runs_file="${RUNNER_TEMP}/keyverse-main-check-runs.json"
           if ! gh api \
@@ -203,25 +216,30 @@ jobs:
             --slurp \
             "repos/${GITHUB_REPOSITORY}/commits/${base_sha}/check-runs?per_page=100" \
             >"$check_runs_file"; then
-            echo "::warning::Unable to read default-branch check evidence; refusing to create work."
-            exit 0
+            echo "::error::Unable to read default-branch check evidence; GitHub inventory is unavailable."
+            exit 1
           fi
-          if ! python3 - "$check_runs_file" "$CURRENT_RUN_ID" <<'PY'
+          check_evidence_status=0
+          python3 - "$check_runs_file" "$CURRENT_RUN_ID" <<'PY' || check_evidence_status=$?
           import json
           import sys
 
-          with open(sys.argv[1], encoding="utf-8") as stream:
-              pages = json.load(stream)
+          try:
+              with open(sys.argv[1], encoding="utf-8") as stream:
+                  pages = json.load(stream)
+          except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+              print(f"Malformed check-run evidence: {exc}", file=sys.stderr)
+              raise SystemExit(2) from exc
           current_run_fragment = f"/actions/runs/{sys.argv[2]}"
           if not isinstance(pages, list):
-              raise SystemExit("Unsupported check-run response shape")
+              raise SystemExit(2)
 
           checks = []
           for page in pages:
               if not isinstance(page, dict) or not isinstance(
                   page.get("check_runs"), list
               ):
-                  raise SystemExit("Unsupported check-run response shape")
+                  raise SystemExit(2)
               checks.extend(page["check_runs"])
 
           latest = {}
@@ -241,8 +259,9 @@ jobs:
                   latest[key] = check
 
           if not latest:
-              raise SystemExit("Missing latest default-branch check evidence")
-          accepted = {"success", "neutral", "skipped"}
+              print("Missing latest default-branch check evidence", file=sys.stderr)
+              raise SystemExit(3)
+          accepted = {"success"}
           unhealthy = sorted(
               f"{key[0]}/{key[1]}"
               for key, check in latest.items()
@@ -250,18 +269,31 @@ jobs:
               or check.get("conclusion") not in accepted
           )
           if unhealthy:
-              raise SystemExit(
+              print(
                   "Default branch has pending or unsuccessful latest check evidence: "
-                  + ", ".join(unhealthy)
+                  + ", ".join(unhealthy),
+                  file=sys.stderr,
               )
+              raise SystemExit(3)
           PY
-          then
-            echo "::warning::Default-branch check evidence is incomplete or unhealthy; refusing to create work."
-            exit 0
-          fi
+          case "$check_evidence_status" in
+            0) ;;
+            2)
+              echo "::error::Unable to interpret default-branch check evidence; GitHub inventory is malformed."
+              exit 1
+              ;;
+            3)
+              echo "::warning::Default-branch check evidence is incomplete or unhealthy; refusing to create work."
+              exit 0
+              ;;
+            *)
+              echo "::error::Default-branch check evidence parser failed unexpectedly."
+              exit 1
+              ;;
+          esac
 
           if [ "$DRY_RUN" = "true" ]; then
-            echo "Dry run: the NVIDIA NIM OpenCode development gate is ready." \
+            echo "Dry run: deterministic repository gates are healthy; model access was not requested." \
               >>"$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -391,11 +423,36 @@ jobs:
 
       - name: Start the loopback-only NIM credential broker
         if: steps.gate.outputs.develop == 'true'
+        id: nim_broker
         shell: bash
         env:
           NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: |
           set -euo pipefail
+          if [ -z "${NIM_UPSTREAM_API_KEY:-}" ]; then
+            echo "::error::NVIDIA_NIM_API_KEY is required only for model-backed development."
+            exit 1
+          fi
+          secret_fingerprint="$(
+            python3 - <<'PY'
+          import base64
+          import hashlib
+          import os
+
+          secret = os.environ["NIM_UPSTREAM_API_KEY"].encode("utf-8")
+          representations = (
+              secret,
+              base64.b64encode(secret),
+              base64.urlsafe_b64encode(secret),
+              secret.hex().encode("ascii"),
+          )
+          print(",".join(
+              f"{len(value)}:{hashlib.sha256(value).hexdigest()}"
+              for value in representations
+          ))
+          PY
+          )"
+          printf 'secret_fingerprint=%s\n' "$secret_fingerprint" >>"$GITHUB_OUTPUT"
           umask 077
           proxy_log="${RUNNER_TEMP}/keyverse-nim-proxy.log"
           proxy_pid="${RUNNER_TEMP}/keyverse-nim-proxy.pid"
@@ -404,6 +461,7 @@ jobs:
             --port "$NIM_PROXY_PORT" \
             >"$proxy_log" 2>&1 &
           printf '%s\n' "$!" >"$proxy_pid"
+          unset NIM_UPSTREAM_API_KEY
 
           ready=false
           for _attempt in $(seq 1 30); do
@@ -543,7 +601,7 @@ jobs:
         id: package
         shell: bash
         env:
-          KEYVERSE_FORBIDDEN_SECRET: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT: ${{ steps.nim_broker.outputs.secret_fingerprint }}
         run: |
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/hourly-product-change"
@@ -585,8 +643,9 @@ jobs:
         with:
           egress-policy: block
           disable-telemetry: true
-          allowed-endpoints: |
+          allowed-endpoints: >-
             api.github.com:443
+            cafe.github.com:443
             github.com:443
             objects.githubusercontent.com:443
             raw.githubusercontent.com:443
@@ -597,7 +656,6 @@ jobs:
             *.blob.core.windows.net:443
             files.pythonhosted.org:443
             pypi.org:443
-
 
       - name: Check out a fresh protected branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -726,8 +784,9 @@ jobs:
         with:
           egress-policy: block
           disable-telemetry: true
-          allowed-endpoints: |
+          allowed-endpoints: >-
             api.github.com:443
+            cafe.github.com:443
             github.com:443
             objects.githubusercontent.com:443
             results-receiver.actions.githubusercontent.com:443
