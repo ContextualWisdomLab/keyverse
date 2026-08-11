@@ -14,7 +14,18 @@ policy. Authentication success alone is not authorization success.
 
 The application audit below was performed against the non-fork repositories
 listed as Keyverse RPs in `README.md` on 2026-08-11. Repository paths are
-evidence pointers, not copied implementations.
+evidence pointers, not copied implementations. This table is a dated audit
+snapshot and cannot by itself promote an RP to `authorization-ready`.
+
+The snapshot is reproducible from the Keyverse README at immutable revision
+`4d2841071e9a8136298bb7198229d47ff406284d` and these audited application refs:
+
+- `naruon`: `develop` at `da16757b78341de372c3fbd4d9c525dd9812bd1d`;
+- `pg-erd-cloud`: `main` at `72afe6db712b145baaba084f64a1ff4fb36d9fd0`;
+- `semantic-data-portal`: PR #58 at `8bf7df4e025d1ec208b277129dd5db750eccac0c`;
+- `clearfolio`: `main` at `55d7ae8647208e301f282350f076eeddaba61d11`;
+- `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`;
+- `newsdom-api`: `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`.
 
 | Application | Keyverse recognition | Current authorization | Finding and required direction |
 |---|---|---|---|
@@ -46,10 +57,38 @@ downstream application authorization:
    the tenant from a verified claim or an independently verified mapping, then
    apply resource/ownership/purpose constraints (ABAC), and only then apply
    roles/scopes/groups (RBAC). A role cannot bypass a failed tenant boundary.
-3. The interoperable Keyverse claim contract is `iss`, `sub`, `aud`, `exp`,
-   `iat`, `org`, `workspace`, and a bounded `role` value; `groups` and
-   application-specific scopes are opt-in, typed, and separately documented.
-   The contract is not a promise that every application supports every claim.
+3. The interoperable Keyverse claim contract has explicit validation tiers:
+   - every RP token must contain and validate `iss`, `sub`, `aud`, `exp`, and
+     `iat`; `iss` is the exact configured HTTPS issuer, `sub` is a non-empty
+     opaque subject, `aud` is the exact RP audience (as a string or an array
+     containing that audience), and `exp`/`iat` are NumericDate values checked
+     with the verifier's bounded clock-skew policy;
+   - a tenant-scoped RP must require a non-empty opaque `org` value and bind it
+     to a verified local tenant before any resource lookup; a
+     workspace-scoped RP must additionally require `workspace` and prove that
+     the workspace belongs to that `org`; missing, malformed, or mismatched
+     bindings deny access;
+   - `role` is optional at token-validation level, but an RP that makes an RBAC
+     decision must require a recognized role and treat a missing or unknown
+     role as no privilege. The current portable `naruon-web` profile allows
+     only `member`; any new role value requires a separately reviewed mapper
+     profile, an exact issuer-side test, and downstream elevation/downgrade
+     tests;
+   - `groups` and application-specific scopes are optional, typed, closed
+     extensions. An RP may ignore claims it does not support, but it may not
+     infer authorization from an unsupported claim or silently fall back to an
+     unverified header, email, client ID, or UUID.
+
+   The issuer-side mapper is covered by
+   `services/account_unification/tests/test_validate_realm.py`; the current
+   downstream Keyverse claim acceptance evidence is in SDP PR #58 at
+   `tests/test_authz.py::test_keyverse_claim_aliases_map_to_tenant_and_bounded_role`,
+   `tests/test_authz.py::test_keyverse_unknown_role_does_not_grant_access`,
+   `tests/test_api.py::test_oidc_jwks_verification_maps_verified_token_without_token_leak`,
+   and `tests/test_api.py::test_oidc_jwks_verification_rejects_wrong_audience`.
+   The contract is not a promise that every application supports every claim;
+   each other RP must add and record its own exact acceptance-test paths before
+   it can leave `deployment-restricted` status.
 4. Keyverse's closed RP mapper profile remains least-privilege. Hardcoded
    `role`, `org`, and `workspace` values may identify the reviewed deployment
    profile, but they must not be used as an unverified privilege escalation
