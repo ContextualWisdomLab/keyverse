@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- ADR-0008 and the non-fork RP authorization matrix, requiring explicit
+  Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
+  cross-tenant acceptance evidence per application.
+
 - Durable, secret-free OIDC relying-party desired-state CRUD and reconciliation
   with exact `clientId` matching, duplicate fail-closed behavior, post-mutation
   re-observation, canonical apply receipts, realm-rebuild recovery, per-client
