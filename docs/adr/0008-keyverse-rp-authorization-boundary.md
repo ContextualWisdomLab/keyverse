@@ -22,7 +22,7 @@ The snapshot is reproducible from the Keyverse README at immutable revision
 
 - `naruon`: `develop` at `da16757b78341de372c3fbd4d9c525dd9812bd1d`;
 - `pg-erd-cloud`: `main` at `72afe6db712b145baaba084f64a1ff4fb36d9fd0`;
-- `semantic-data-portal`: PR #58 at `773964ebf6ec33ea0eacab876a66dfda1069bf2f`;
+- `semantic-data-portal`: PR #58 at `46b9fdb4480c665f6f513acfef4edfdb5848ca64`;
 - `clearfolio`: `main` at `55d7ae8647208e301f282350f076eeddaba61d11`;
 - `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`;
 - `newsdom-api`: `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`.
