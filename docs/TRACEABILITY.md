@@ -21,7 +21,8 @@
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
 | work-conserving fail-closed hourly API gate | automation safety decision | PR #74 protected-main workflow tests/exact-head evidence; scheduled/manual run remains required | implemented-main |
 | non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
-| sidecar anonymous-access boundary | ADR-0008; private service-boundary and least-privilege policy | newsdom-api PR #595 fail-closed token gate; Keyverse-aware gateway evidence remains required for exposure | accepted-contract |
+| pg-erd-cloud Keyverse organization boundary | ADR-0008; verified tenant binding before project authorization | pg-erd-cloud PR #855 `e4b4771` exact `org`/audience/`iat` checks, single-tenant profile, API-key bypass denial; shared multi-tenant persistence remains unimplemented | active-PR |
+| sidecar anonymous-access boundary | ADR-0008; private service-boundary and least-privilege policy | newsdom-api PR #595 `f790252` fail-closed token gate, explicit anonymous opt-in, and pypdf Trivy remediation; Keyverse-aware gateway evidence remains required for exposure | active-PR |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
 
 ## Research, standards, and operations records
