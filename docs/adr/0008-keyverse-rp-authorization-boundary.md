@@ -21,7 +21,7 @@ refreshed on 2026-08-12; this table still cannot by itself promote an RP to
 The snapshot is reproducible from the Keyverse README at immutable revision
 `4d2841071e9a8136298bb7198229d47ff406284d` and these audited application refs:
 
-- `naruon`: PR #1321 at `6a5cf115289da87d7a96bfdaaf9bfc7e9380d0af` (open; based on
+- `naruon`: PR #1321 at `6a5cf11902bccbbdacf16901d8cd9b7133eb7d49` (open; based on
   `develop` at `da16757b78341de372c3fbd4d9c525dd9812bd1d`);
 - `pg-erd-cloud`: PR #855 at `e4b4771fa0c46cbbcbd9ca7e777e20b5179b0bcd` (open; based on `main` at `72afe6db712b145baaba084f64a1ff4fb36d9fd0`);
 - `semantic-data-portal`: PR #58 at `103e54be450d3185492097687db1c2643868ad6d` (open; based on `main` at `e48aa13c4af7a4875d4b53e6a60b50405c265a2f`);
