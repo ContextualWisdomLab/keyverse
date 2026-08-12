@@ -21,12 +21,13 @@ refreshed on 2026-08-12; this table still cannot by itself promote an RP to
 The snapshot is reproducible from the Keyverse README at immutable revision
 `4d2841071e9a8136298bb7198229d47ff406284d` and these audited application refs:
 
-- `naruon`: PR #1321 at `6a5cf11902bccbbdacf16901d8cd9b7133eb7d49` (open; based on
-  `develop` at `da16757b78341de372c3fbd4d9c525dd9812bd1d`);
+- `naruon`: PR #1321 at `ca6ccba2aeb3d0dcaf58380d031cbe084fe7c28e` (open; the
+  `develop` merge conflict was resolved in this head; based on `develop` at
+  `2f5c19a138b270fd8f29c5e5620cf204f184cb2c`);
 - `pg-erd-cloud`: PR #855 at `e4b4771fa0c46cbbcbd9ca7e777e20b5179b0bcd` (open; based on `main` at `72afe6db712b145baaba084f64a1ff4fb36d9fd0`);
-- `semantic-data-portal`: PR #58 at `0b40e7718e7f5c8bbd169596fed2fa371e2881f9` (open; based on `main` at `e48aa13c4af7a4875d4b53e6a60b50405c265a2f`);
+- `semantic-data-portal`: PR #58 at `47e2215c32b32d1ca221082d7acc2f7fcc5e5083` (open; based on `main` at `e48aa13c4af7a4875d4b53e6a60b50405c265a2f`);
 - `clearfolio`: `main` at `55d7ae8647208e301f282350f076eeddaba61d11`;
-- `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`; PR #109 at `2a4270a31ca9ab61c001c8b368a5252851ae093f` adds the deployment-injected Keyverse verifier seam, and stacked PR #110 at `38dc50a64dba224929d5ca58b81a525c59519f12` adds identity-carrying RBAC/ABAC;
+- `contextual-orchestrator`: `main` at `6841b71935e0b7cb98fb52bcb4709cc5100c8d87`; PR #109 at `32ba3a9efd0c3e4ae00b085aa6b8e21755ea01ad` adds the deployment-injected Keyverse verifier seam and current review evidence, and stacked PR #110 at `8607eba46a5dd7773fde211ceedcf70b3855de0d` adds identity-carrying RBAC/ABAC on the latest parent head;
 - `newsdom-api`: protected `develop` at `3d0426bf45ad9d3395effb602811a75cbe700cf4` (PR #595 squash-merged; based on `develop` at `2f29e69c99a1201ce6b4e43370a463701efdc81c`).
 
 | Application | Keyverse recognition | Current authorization | Finding and required direction |
@@ -91,7 +92,7 @@ downstream application authorization:
    semantic-data-portal PR #58 adds
    `tests/test_authz.py::test_keyverse_org_claim_must_be_a_non_empty_string`
    so array/object `org` claims fail closed before `ActorContext`; its current
-   exact head is `0b40e77` and remains `active-PR` evidence. It also adds
+   exact head is `47e2215` and remains `active-PR` evidence. It also adds
    `tests/test_authz.py::test_keyverse_org_alias_cannot_hide_behind_tenant_id`
    and `tests/test_authz.py::test_keyverse_conflicting_tenant_aliases_fail_closed`
    so malformed, null, blank, and conflicting aliases cannot be hidden by
@@ -106,7 +107,8 @@ downstream application authorization:
    `backend/tests/test_auth_real.py::test_keyverse_oidc_session_with_verified_claims`
    and `backend/tests/test_auth_real.py::test_keyverse_oidc_session_rejects_missing_issued_at`
    for the exact issuer/audience profile and required `iat`; its current exact
-   head is `6a5cf11` and remains `active-PR` evidence. pg-erd-cloud PR
+   head is `ca6ccba` and remains `active-PR` evidence after its `develop`
+   conflict was resolved; the protected Checks are still running. pg-erd-cloud PR
    #855 adds
    `backend/tests/test_auth_security.py::test_keyverse_organization_claim_is_required_and_exact`
    and an API-key bypass regression and remains `active-PR` evidence; NewsDOM
