@@ -178,9 +178,9 @@ the downstream boundary validates token signature, issuer, expiry, the reviewed
 `oidc-rp-lineageweave.json` is the ADR-0009 confidential `lineageweave-web`
 artifact. It renders only the exact HTTPS redirect, origin, and post-logout URI.
 The fixed mapper order projects a self-pinned audience, client roles from
-`lineageweave-web`, and the exact `org` and `workspace` Keyverse account
-attributes. The template never contains a role value, company/PU value, or
-client secret.
+`lineageweave-web`, and the exact `org` (company) and `workspace` (PU) Keyverse
+account attributes. The template never contains a role value, `org`/`workspace`
+attribute value, or client secret.
 
 Before apply, provision a real account with both attributes and a recognized
 client role through the approved Keyverse identity lifecycle. Preflight and

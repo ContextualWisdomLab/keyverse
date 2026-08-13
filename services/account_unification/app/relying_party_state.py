@@ -464,6 +464,8 @@ _OBSERVED_CLAIM_RANKS: Final = {"role": 1, "org": 2, "workspace": 3}
 def _observed_mapper_rank(mapper: dict) -> int | None:
     """Return the canonical rank for one structurally valid live mapper."""
     mapper_type = mapper.get("protocolMapper")
+    if not isinstance(mapper_type, str):
+        return None
     if mapper_type == "oidc-audience-mapper":
         return 0
     if mapper_type not in {

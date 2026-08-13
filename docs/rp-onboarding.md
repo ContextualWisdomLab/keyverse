@@ -19,10 +19,11 @@ closed audience/session-claim mapper profile.
 
 For the ADR-0009 LineageWeave path, use
 `deploy/templates/oidc-rp-lineageweave.json`. It is a confidential
-`lineageweave-web` client whose role, company, and PU claims are derived from
-the authenticated Keyverse account. Its HTTPS endpoint placeholders are the
-only values rendered into the client metadata; the role assignment and the two
-account attributes are provisioned in Keyverse before controlled login.
+`lineageweave-web` client whose issued `role`, `org` (company), and `workspace`
+(PU) claims are derived from the authenticated Keyverse account. Its HTTPS
+endpoint placeholders are the only values rendered into the client metadata;
+the same-client role assignment and the `org` and `workspace` account
+attributes are provisioned in Keyverse before controlled login.
 
 Resolve every placeholder from deployment configuration or KV before preflight.
 For Naruon this includes exact HTTPS redirect, web-origin, and post-logout URIs

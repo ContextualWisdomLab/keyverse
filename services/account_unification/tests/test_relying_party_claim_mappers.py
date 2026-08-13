@@ -355,6 +355,27 @@ def test_account_claim_profile_rejects_static_claim_mixing() -> None:
     _assert_policy_error(payload, "protocolMappers")
 
 
+def test_account_claim_profile_rejects_other_client() -> None:
+    """Only the reviewed LineageWeave client may use account-derived claims."""
+    payload = _lineageweave_registration_with_account_claims()
+    payload["clientId"] = "other-web"
+    payload["name"] = "other-web"
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    audience = mappers[0]
+    role = mappers[1]
+    assert isinstance(audience, dict)
+    assert isinstance(role, dict)
+    audience_config = audience["config"]
+    role_config = role["config"]
+    assert isinstance(audience_config, dict)
+    assert isinstance(role_config, dict)
+    audience_config["included.client.audience"] = "other-web"
+    role_config["usermodel.clientRoleMapping.clientId"] = "other-web"
+
+    _assert_policy_error(payload, "protocolMappers")
+
+
 @pytest.mark.parametrize(
     ("mapper_value", "detail"),
     [

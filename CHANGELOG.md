@@ -59,6 +59,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Account-derived OIDC claim mappers are now limited to the ADR-0009
+  `lineageweave-web` profile, and a non-string observed mapper type is treated
+  as reconciliation drift rather than causing an exception. Operator guides now
+  consistently name issued `org` (company) and `workspace` (PU) claims.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
