@@ -32,6 +32,7 @@ GOVERNING_ADRS = (
     "0006-user-operation-lock.md",
     "0007-automation-authority.md",
     "0008-keyverse-rp-authorization-boundary.md",
+    "0009-lineageweave-account-derived-rp-claims.md",
 )
 
 

@@ -97,6 +97,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Packaged the portable Keycloak realm under the required `cwl-realm.json`
+  directory-import name in Compose and mapped it in Helm, with a deployment
+  contract that prevents a healthy-but-empty identity realm.
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented

@@ -37,6 +37,19 @@ and cannot be extended by configuration. The desired-state representation has
 no client-secret field; confidential-secret placement remains a separate
 approved secret-management operation.
 
+The Keyverse post-import declarative user profile declares `org` and
+`workspace` as product authorization attributes, alongside the Keycloak
+built-in account attributes required because its Admin API replaces the whole
+profile rather than patching it. Both product attributes are scalar, maximum
+64 characters, and visible/editable only to administrators. In the pinned
+Keycloak 26.3.2 runtime, the closed unmanaged-attribute policy is represented
+by an omitted/null value; its enum does not accept the documented `DISABLED`
+string, and its implementation denies unmanaged attributes when that value is
+null. Keycloak's realm-import representation does not accept this profile, so
+a one-shot Compose bootstrap reconciles it only after the realm is healthy.
+This keeps the issuer from silently accepting arbitrary account metadata while
+preserving operators' ability to assign the two reviewed ABAC dimensions.
+
 The receiving application must validate issuer, signature/algorithm, expiry,
 subject, and audience before reading these claims. It must bind `org` and
 `workspace` to the requested resource before applying recognized client roles.
@@ -70,7 +83,8 @@ flowchart LR
 ## Consequences
 
 - Identity operators must provision a real Keyverse account with the two named
-  attributes and an allowed `lineageweave-web` client role before user routing.
+  administrator-managed attributes and an allowed `lineageweave-web` client
+  role before user routing.
 - Account and role changes take effect through Keycloak session/token lifecycle;
   operators must test downgrade and revocation behavior in controlled runtime
   acceptance.
@@ -83,11 +97,14 @@ flowchart LR
 ## Acceptance evidence
 
 The implementation has local RED-to-GREEN validation, mapper-observation, and
-secret-free-template tests. Before production use, record authenticated Keyverse
-preflight and reconciliation receipts, private credential placement, a real
-account authorization-code/PKCE exchange, token claim shape, cross-tenant
-denial, role downgrade, logout, and rollback evidence. Until then the profile
-is an accepted contract, not a deployed-login claim.
+secret-free-template tests. It also has a live Keycloak 26.3.2 API acceptance:
+the full profile PUT returns success, returns both reviewed attributes, and
+omits `unmanagedAttributePolicy` after reconciliation. Before production use,
+record authenticated Keyverse preflight and reconciliation receipts, private
+credential placement, a real account authorization-code/PKCE exchange, token
+claim shape, cross-tenant denial, role downgrade, logout, and rollback
+evidence. Until then the profile is an accepted contract, not a deployed-login
+claim.
 
 ## References
 

@@ -84,7 +84,7 @@ Naruon deployment controllers.
 - [ ] `uv run coverage report --show-missing --fail-under=100`
 - [ ] `python -m compileall -q app tests tools`
 - [ ] package build and installed-wheel smoke test
-- [ ] `python scripts/validate_realm.py deploy/keycloak/realm-cwl.json`
+- [ ] `python scripts/validate_realm.py deploy/keycloak/cwl-realm.json`
 - [ ] `docker compose -f docker-compose.yml config`
 - [ ] validate every deployment JSON template
 - [ ] `git diff --check`

@@ -28,7 +28,7 @@ make ready            # poll readiness (deploy/scripts/healthz.sh)
 make install          # install the admin service development environment
 make test             # run account-unification unit tests
 make lint             # run Ruff + interrogate docstring coverage
-make validate-realm   # validate deploy/keycloak/realm-cwl.json
+make validate-realm   # validate deploy/keycloak/cwl-realm.json
 make seed-bootstrap   # create a local SQLite KV bootstrap store
 ```
 

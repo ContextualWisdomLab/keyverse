@@ -741,7 +741,7 @@ jobs:
             uv run coverage report --show-missing --fail-under=100
             uv build --out-dir dist
           )
-          python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+          python scripts/validate_realm.py deploy/keycloak/cwl-realm.json
           docker compose -f docker-compose.yml config >/dev/null
           while IFS= read -r -d '' template; do
             python -m json.tool "$template" >/dev/null

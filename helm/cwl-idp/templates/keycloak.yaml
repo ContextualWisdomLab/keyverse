@@ -117,6 +117,10 @@ spec:
         - name: realm-import
           configMap:
             name: {{ .Values.keycloak.realmImport.configMapName }}
+            items:
+              # Keycloak directory import accepts <realm>-realm.json only.
+              - key: {{ .Values.keycloak.realmImport.fileName }}
+                path: cwl-realm.json
 ---
 apiVersion: v1
 kind: Service

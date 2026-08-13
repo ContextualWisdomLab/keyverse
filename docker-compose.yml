@@ -44,10 +44,14 @@ services:
   # --------------------------------------------------------------------- #
   # Keycloak — the IdP engine. The passwordless-first realm (WebAuthn
   # passwordless flow, passwords disabled) is imported as-code at start from
-  # deploy/keycloak/realm-cwl.json via --import-realm.
+  # deploy/keycloak/cwl-realm.json. Keycloak requires the target name
+  # <realm>-realm.json, so the pinned runtime image packages that exact file.
   # --------------------------------------------------------------------- #
   idp_engine:
-    image: quay.io/keycloak/keycloak:26.3.2@sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2
+    build:
+      context: ./deploy/keycloak
+      dockerfile: Dockerfile
+    image: cwl-idp/keycloak:local
     container_name: cwl_idp_engine
     restart: unless-stopped
     command: >
@@ -67,8 +71,6 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
       KC_CACHE: ${IDP_CACHE_MODE:-local}
-    volumes:
-      - ./deploy/keycloak/realm-cwl.json:/opt/keycloak/data/import/realm-cwl.json:ro
     ports:
       - "${IDP_EXTERNAL_PORT:-8080}:8080"
     depends_on:
@@ -88,6 +90,23 @@ services:
     networks:
       - idp_internal_network
       - idp_edge_network
+
+  # The realm representation cannot carry declarative user-profile settings.
+  # Reconcile the closed LineageWeave attributes only after cwl is imported.
+  idp_profile_bootstrap:
+    image: cwl-idp/keycloak:local
+    restart: "no"
+    entrypoint: ["/opt/keycloak/reconcile-lineageweave-user-profile.sh"]
+    environment:
+      KC_SERVER: http://idp_engine:8080
+      KC_REALM: cwl
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${IDP_BOOTSTRAP_ADMIN_USERNAME:-idp-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDP_BOOTSTRAP_ADMIN_PASSWORD}
+    depends_on:
+      idp_engine:
+        condition: service_healthy
+    networks:
+      - idp_internal_network
 
   # --------------------------------------------------------------------- #
   # account-unification admin service (this repo). Fills the gap Keycloak

@@ -53,7 +53,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate Keycloak realm config-as-code
-        run: python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+        run: python scripts/validate_realm.py deploy/keycloak/cwl-realm.json
       - name: Validate deployment template JSON
         run: |
           python - <<'PY'

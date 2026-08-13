@@ -67,7 +67,7 @@ docker compose up -d          # or: podman compose up -d
 - Admin service health: `http://localhost:8099/healthz`
 
 The stack imports the **passwordless-first** realm at first start
-(`deploy/keycloak/realm-cwl.json`): a `browser-passwordless` flow with a
+(`deploy/keycloak/cwl-realm.json`): a `browser-passwordless` flow with a
 WebAuthn passwordless authenticator and **no password authenticator**, plus
 `registrationAllowed:false` / `resetPasswordAllowed:false`.
 

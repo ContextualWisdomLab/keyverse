@@ -6,6 +6,7 @@
 | Requirement / decision | Standards / authoritative basis | Source/evidence boundary | Maturity |
 |---|---|---|---|
 | passwordless local accounts | WebAuthn/FIDO2 + Keycloak supported flow; research/standards records | realm validator + deployment tests | implemented-main |
+| Keycloak portable realm import | Keycloak 26 directory import naming contract | Compose/Helm filename mapping contract plus realm-discovery acceptance | implemented-main |
 | exact subject then verified-email match | OIDC federation / NIST federation guidance; merge documentation | account-unification matching/merge tests | implemented-main |
 | unverified email never auto-links | security/product invariant | merge/federation tests | implemented-main |
 | SCIM inbound lifecycle | RFC 7643/7644; protocol documentation | SCIM service/lifecycle tests | implemented-main |
@@ -13,7 +14,7 @@
 | LDAPS directory profile | LDAP RFC 4511–4515 + Keycloak component docs | directory preflight/reconciliation tests | implemented-main |
 | secret-free RP desired state | OAuth/OIDC/PKCE/Keycloak client docs | RP preflight/reconciliation/integrity tests | implemented-main |
 | RP audience/role/org/workspace mapper profile | OIDC/JWT audience + Keycloak mapper docs | PR #72 protected-main source/tests; downstream RP acceptance remains required | implemented-main |
-| LineageWeave account-derived RP claims | ADR-0009; Keycloak Protocol Mappers | closed branch profile/template/reconciliation tests; real account, Keyverse apply, and downstream ABAC/RBAC acceptance remain required | accepted-contract |
+| LineageWeave account-derived RP claims | ADR-0009; Keycloak Protocol Mappers and post-import declarative user profile | scalar, admin-managed account-attribute policy plus Compose profile reconciliation/template tests; real account, Keyverse apply, and downstream ABAC/RBAC acceptance remain required | accepted-contract |
 | merge/SCIM PUT shared operation lock | concurrency/data-integrity decision; ADR-0006 | merge + full-replacement lock/concurrency tests | implemented-main |
 | SCIM PATCH active=false shared-lock parity | ADR-0006 boundary | current PATCH source has no shared-lock proof | gap-not-claimed |
 | intent before mutation, receipt after re-observation | desired-state/recovery decision | federation/directory/RP reconciliation tests | implemented-main |

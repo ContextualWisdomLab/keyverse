@@ -6,7 +6,7 @@ providers are converged afterwards from the KV/DB source of truth.
 
 | File | Responsibility |
 | --- | --- |
-| `realm-cwl.json` | Portable passwordless realm, shared client scopes, RP template, concrete `naruon-web` PKCE client, and account-unification service client |
+| `cwl-realm.json` | Portable passwordless realm, shared client scopes, RP template, concrete `naruon-web` PKCE client, and account-unification service client |
 | `kcadm-bootstrap.sh` | Idempotently inject the service-client secret, grant least-privilege realm-management roles, and reconcile the role mapper |
 | `../templates/` | Reference payloads for runtime federation and additional relying-party registrations |
 
