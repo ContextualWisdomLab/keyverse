@@ -71,6 +71,11 @@ The stack imports the **passwordless-first** realm at first start
 WebAuthn passwordless authenticator and **no password authenticator**, plus
 `registrationAllowed:false` / `resetPasswordAllowed:false`.
 
+For Helm installations created with the former `realm-cwl.json` ConfigMap key,
+perform the zero-gap key migration in
+[`deploy/keycloak/README.md`](deploy/keycloak/README.md#helm-configmap-key-migration)
+before upgrading the chart.
+
 ### Register external federation
 
 The portable realm contains no employer ADFS, LDAP/AD source, or other

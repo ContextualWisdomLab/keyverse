@@ -59,6 +59,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- The Helm realm-import operator runbook now migrates the legacy
+  `realm-cwl.json` ConfigMap key to `cwl-realm.json` before rollout, preserving
+  a rollback copy and requiring post-rollout realm discovery verification.
 - Account-derived OIDC claim mappers are now limited to the ADR-0009
   `lineageweave-web` profile, and a non-string observed mapper type is treated
   as reconciliation drift rather than causing an exception. Operator guides now

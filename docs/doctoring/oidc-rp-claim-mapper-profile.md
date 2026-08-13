@@ -68,6 +68,17 @@ Keycloak documents these mapper IDs and their configuration properties. Keyverse
 intentionally rejects every other user attribute, role source, aggregation,
 group, script, audience, claim name, and destination.
 
+### Account-profile requiredness
+
+Keycloak's declarative user profile permits a required role of `admin` or
+`user`. The LineageWeave `org` and `workspace` attributes use
+`{"roles":["admin"]}` because the same profile makes those fields viewable and
+editable only in administrator context. A user-context requirement would direct
+an end user to repair attributes they cannot edit. The receiving application is
+independent of this provisioning workflow: after normal token verification, it
+rejects an absent, empty, or non-scalar account dimension before tenant/resource
+ABAC and bounded RBAC run.
+
 ## Stricter Keyverse product policy
 
 The product policy is intentionally narrower than the vendor representation:
@@ -162,6 +173,9 @@ Distribution 26.x API). https://www.keycloak.org/docs-api/latest/javadocs/org/ke
 
 Keycloak Project. (2026). *Protocol mappers*. Retrieved August 13, 2026, from
 https://www.keycloak.org/admin-api/protocol-mappers
+
+Keycloak Project. (2026). *Server Administration Guide* (User profile).
+Retrieved August 14, 2026, from https://www.keycloak.org/docs/latest/server_admin/
 
 OpenID Foundation. (2023). *OpenID Connect Core 1.0 incorporating errata set 2*.
 https://openid.net/specs/openid-connect-core-1_0.html

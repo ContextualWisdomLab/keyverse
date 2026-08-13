@@ -498,9 +498,9 @@ jobs:
             install -d -m 0750 "$agent_workspace" "$agent_home" "$agent_home/tmp"
             git archive HEAD | tar -x -C "$agent_workspace"
 
-            cat >"${agent_workspace}/opencode.json" <<'CONFIG'
+            cat >"${agent_workspace}/opencode.json" <<CONFIG
           {
-            "$schema": "https://opencode.ai/config.json",
+            "\$schema": "https://opencode.ai/config.json",
             "enabled_providers": ["nvidia-nim"],
             "lsp": false,
             "mcp": {},
@@ -562,7 +562,7 @@ jobs:
                 NVIDIA_API_KEY=keyverse-local-broker \
                 OPENCODE_DISABLE_AUTOUPDATE=1 \
                 /bin/bash -c \
-                  'ulimit -u 256; ulimit -n 1024; cd "$1"; exec opencode run "$2" --model "$3"' \
+                  "ulimit -u 256; ulimit -n 1024; cd \"\$1\"; exec opencode run \"\$2\" --model \"\$3\"" \
                 bash "$agent_workspace" "$prompt" "$model"; then
               sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true
               successful_workspace="$agent_workspace"
@@ -739,6 +739,9 @@ jobs:
             uv run coverage erase
             uv run coverage run --branch --source=app -m pytest -q
             uv run coverage report --show-missing --fail-under=100
+            uv run coverage erase
+            uv run coverage run --branch -m pytest -q tests/test_validate_realm.py
+            uv run coverage report --include='*/scripts/validate_realm.py' --show-missing --fail-under=100
             uv build --out-dir dist
           )
           python scripts/validate_realm.py deploy/keycloak/cwl-realm.json

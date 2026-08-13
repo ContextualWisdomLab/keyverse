@@ -100,18 +100,71 @@ def test_public_client_token_lifespan_is_bounded() -> None:
         ("validations", {"length": {"max": "65"}}, "maximum length of 64"),
     ],
 )
+@pytest.mark.parametrize("attribute_name", ("org", "workspace"))
 def test_product_account_attributes_are_constrained(
-    field: str, value: object, expected: str
+    attribute_name: str, field: str, value: object, expected: str
 ) -> None:
     """Authorization attributes stay scalar, bounded, and administrator-managed."""
     validator = _validator_module()
     profile = deepcopy(_user_profile())
-    attribute = next(item for item in profile["attributes"] if item["name"] == "org")
+    attribute = next(
+        item for item in profile["attributes"] if item["name"] == attribute_name
+    )
     attribute[field] = value
 
     errors = validator.validate_user_profile(profile)
 
     assert any(expected in error for error in errors)
+
+
+@pytest.mark.parametrize("attribute_name", ("org", "workspace"))
+@pytest.mark.parametrize(
+    "required",
+    ({}, {"roles": ["user"]}, {"roles": ["admin", "user"]}),
+)
+def test_product_account_attributes_require_administrator_assignment(
+    attribute_name: str, required: dict[str, object]
+) -> None:
+    """Product ABAC attributes cannot be omitted in administrator-managed updates."""
+    validator = _validator_module()
+    profile = deepcopy(_user_profile())
+    attribute = next(
+        item for item in profile["attributes"] if item["name"] == attribute_name
+    )
+    attribute["required"] = required
+
+    errors = validator.validate_user_profile(profile)
+
+    assert any("must require administrators" in error for error in errors)
+
+
+def test_product_account_attribute_policy_reports_every_independent_violation() -> None:
+    """One malformed attribute shows every repair an operator must make."""
+    validator = _validator_module()
+    profile = deepcopy(_user_profile())
+    attribute = next(item for item in profile["attributes"] if item["name"] == "org")
+    attribute["multivalued"] = True
+    attribute["permissions"] = {"view": ["admin"], "edit": ["admin", "user"]}
+    attribute["required"] = {"roles": ["user"]}
+    attribute["validations"] = {"length": {"max": 65}}
+
+    errors = validator.validate_user_profile(profile)
+
+    assert any("must be scalar" in error for error in errors)
+    assert any("must be admin-managed" in error for error in errors)
+    assert any("must require administrators" in error for error in errors)
+    assert any("maximum length of 64" in error for error in errors)
+
+
+def test_product_account_attribute_policy_accepts_keycloak_numeric_length_limit() -> None:
+    """Keycloak's documented numeric JSON length maximum remains valid."""
+    validator = _validator_module()
+    profile = deepcopy(_user_profile())
+    for attribute in profile["attributes"]:
+        if attribute["name"] in {"org", "workspace"}:
+            attribute["validations"]["length"]["max"] = 64
+
+    assert validator.validate_user_profile(profile) == []
 
 
 def test_product_account_attributes_cannot_be_omitted() -> None:

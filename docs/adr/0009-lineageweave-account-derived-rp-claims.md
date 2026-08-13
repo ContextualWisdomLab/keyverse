@@ -41,20 +41,24 @@ The Keyverse post-import declarative user profile declares `org` and
 `workspace` as product authorization attributes, alongside the Keycloak
 built-in account attributes required because its Admin API replaces the whole
 profile rather than patching it. Both product attributes are scalar, maximum
-64 characters, and visible/editable only to administrators. In the pinned
-Keycloak 26.3.2 runtime, the closed unmanaged-attribute policy is represented
-by an omitted/null value; its enum does not accept the documented `DISABLED`
-string, and its implementation denies unmanaged attributes when that value is
-null. Keycloak's realm-import representation does not accept this profile, so
-a one-shot Compose bootstrap reconciles it only after the realm is healthy.
-This keeps the issuer from silently accepting arbitrary account metadata while
-preserving operators' ability to assign the two reviewed ABAC dimensions.
+64 characters, visible/editable only to administrators, and required with
+`{"roles":["admin"]}`. The administrative requiredness is deliberate: an
+end user cannot repair an attribute that the same policy makes
+administrator-managed. In the pinned Keycloak 26.3.2 runtime, the closed
+unmanaged-attribute policy is represented by an omitted/null value; its enum
+does not accept the documented `DISABLED` string, and its implementation denies
+unmanaged attributes when that value is null. Keycloak's realm-import
+representation does not accept this profile, so a one-shot Compose bootstrap
+reconciles it only after the realm is healthy. This keeps the issuer from
+silently accepting arbitrary account metadata while preserving operators'
+ability to assign the two reviewed ABAC dimensions.
 
 The receiving application must validate issuer, signature/algorithm, expiry,
-subject, and audience before reading these claims. It must bind `org` and
-`workspace` to the requested resource before applying recognized client roles.
-A green Keyverse preflight or apply receipt is not controlled login or
-authorization evidence.
+subject, and audience before reading these claims. It must reject a missing,
+empty, or non-scalar `org` or `workspace` claim before any tenant/resource ABAC
+or recognized-role RBAC decision, then bind both values to the requested
+resource. A green Keyverse preflight or apply receipt is not controlled login
+or authorization evidence.
 
 ```mermaid
 flowchart LR
@@ -83,8 +87,9 @@ flowchart LR
 ## Consequences
 
 - Identity operators must provision a real Keyverse account with the two named
-  administrator-managed attributes and an allowed `lineageweave-web` client
-  role before user routing.
+  administrator-required attributes and an allowed `lineageweave-web` client
+  role before user routing; a missing attribute is a failed provisioning state,
+  not a downstream authorization default.
 - Account and role changes take effect through Keycloak session/token lifecycle;
   operators must test downgrade and revocation behavior in controlled runtime
   acceptance.
@@ -110,6 +115,9 @@ claim.
 
 Keycloak Project. (2026). *Protocol mappers*. Retrieved August 13, 2026, from
 https://www.keycloak.org/admin-api/protocol-mappers
+
+Keycloak Project. (2026). *Server Administration Guide* (User profile).
+Retrieved August 14, 2026, from https://www.keycloak.org/docs/latest/server_admin/
 
 Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
 practice for OAuth 2.0 security* (RFC 9700). Internet Engineering Task Force.

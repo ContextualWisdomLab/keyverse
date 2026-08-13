@@ -65,6 +65,11 @@ def test_keycloak_import_packages_realm_and_profile_contracts() -> None:
     profile = compose["services"]["idp_profile_bootstrap"]
     assert profile["depends_on"]["idp_engine"]["condition"] == "service_healthy"
     assert profile["entrypoint"] == ["/opt/keycloak/reconcile-lineageweave-user-profile.sh"]
+    service = compose["services"]["account_unification_service"]
+    assert (
+        service["depends_on"]["idp_profile_bootstrap"]["condition"]
+        == "service_completed_successfully"
+    )
 
     keycloak = (
         root / "helm" / "cwl-idp" / "templates" / "keycloak.yaml"

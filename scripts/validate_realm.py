@@ -248,11 +248,17 @@ def validate_user_profile(profile: dict) -> list[str]:
         attribute = attributes.get(name)
         if not isinstance(attribute, dict):
             errors.append(f"user profile must define '{name}'")
-        elif attribute.get("multivalued") is not False:
+            continue
+        if attribute.get("multivalued") is not False:
             errors.append(f"user profile '{name}' must be scalar")
-        elif attribute.get("permissions") != {"view": ["admin"], "edit": ["admin"]}:
+        if attribute.get("permissions") != {"view": ["admin"], "edit": ["admin"]}:
             errors.append(f"user profile '{name}' must be admin-managed")
-        elif attribute.get("validations", {}).get("length", {}).get("max") != "64":
+        if attribute.get("required") != {"roles": ["admin"]}:
+            errors.append(f"user profile '{name}' must require administrators")
+        validations = attribute.get("validations")
+        length = validations.get("length") if isinstance(validations, dict) else None
+        maximum = length.get("max") if isinstance(length, dict) else None
+        if not (maximum == "64" or (type(maximum) is int and maximum == 64)):
             errors.append(f"user profile '{name}' must have a maximum length of 64")
     return errors
 
@@ -273,7 +279,13 @@ def _dollar_keys(node: object, prefix: str = "") -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    """Run realm validation as a command-line check."""
+    """Run realm validation with an optional explicit user-profile artifact."""
+    if len(argv) > 3:
+        print(
+            "USAGE: validate_realm.py [realm_path] [user_profile_path]",
+            file=sys.stderr,
+        )
+        return 1
     path = (
         Path(argv[1])
         if len(argv) > 1
@@ -286,7 +298,9 @@ def main(argv: list[str]) -> int:
         return 1
 
     errors = validate(realm)
-    profile_path = path.with_name(USER_PROFILE_FILENAME)
+    profile_path = (
+        Path(argv[2]) if len(argv) > 2 else path.with_name(USER_PROFILE_FILENAME)
+    )
     try:
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

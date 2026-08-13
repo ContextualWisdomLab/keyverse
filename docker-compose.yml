@@ -134,6 +134,8 @@ services:
     depends_on:
       idp_engine:
         condition: service_healthy
+      idp_profile_bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-m", "app.healthcheck"]
       interval: 15s
