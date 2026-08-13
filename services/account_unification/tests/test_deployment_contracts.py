@@ -57,6 +57,7 @@ def test_keycloak_import_packages_realm_and_profile_contracts() -> None:
     assert "COPY cwl-realm.json /opt/keycloak/data/import/cwl-realm.json" in dockerfile
     assert "COPY lineageweave-user-profile.json" in dockerfile
     assert "COPY --chmod=755 reconcile-lineageweave-user-profile.sh" in dockerfile
+    assert "\nUSER 1000\n" in dockerfile
     bootstrap_script = (
         root / "deploy" / "keycloak" / "reconcile-lineageweave-user-profile.sh"
     ).read_text(encoding="utf-8")

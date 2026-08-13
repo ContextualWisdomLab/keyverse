@@ -4,3 +4,4 @@ FROM quay.io/keycloak/keycloak:26.3.2@sha256:98fab020a3a490aba0978f237e2a06cd0ea
 COPY cwl-realm.json /opt/keycloak/data/import/cwl-realm.json
 COPY lineageweave-user-profile.json /opt/keycloak/lineageweave-user-profile.json
 COPY --chmod=755 reconcile-lineageweave-user-profile.sh /opt/keycloak/reconcile-lineageweave-user-profile.sh
+USER 1000
