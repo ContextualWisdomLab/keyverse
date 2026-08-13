@@ -17,6 +17,13 @@ For the reviewed Naruon browser-client path, use
 client (`publicClient=true`, `clientAuthenticatorType=none`) and contains the
 closed audience/session-claim mapper profile.
 
+For the ADR-0009 LineageWeave path, use
+`deploy/templates/oidc-rp-lineageweave.json`. It is a confidential
+`lineageweave-web` client whose role, company, and PU claims are derived from
+the authenticated Keyverse account. Its HTTPS endpoint placeholders are the
+only values rendered into the client metadata; the role assignment and the two
+account attributes are provisioned in Keyverse before controlled login.
+
 Resolve every placeholder from deployment configuration or KV before preflight.
 For Naruon this includes exact HTTPS redirect, web-origin, and post-logout URIs
 plus the bounded `role`, `org`, and `workspace` routing values. Those claim
@@ -133,10 +140,14 @@ When `protocolMappers` is present, the mapper profile is additionally closed:
 - exactly one `oidc-audience-mapper` is required and its
   `included.client.audience` must equal the validated `clientId`;
 - optional hardcoded claims are limited to `role`, `org`, and `workspace`;
+- ADR-0009 additionally permits only the complete `lineageweave-web`
+  account-derived trio: same-client role mapping plus scalar `org` and
+  `workspace` user-attribute mappings;
 - mapper names, protocols, token destinations, nested fields, and list order are
   canonical and exact;
-- script, user-attribute, group, regex, arbitrary-claim, unknown mapper, and
-  credential-bearing configuration is rejected;
+- script, group, regex, arbitrary-claim, unknown mapper, and credential-bearing
+  configuration is rejected; user attributes are rejected except for the two
+  ADR-0009 mappings;
 - generated Keycloak mapper IDs and vendor return ordering are normalized only
   for observation; unknown, malformed, duplicate, or semantically changed live
   mapper state is reported as drift rather than silently accepted.
@@ -197,6 +208,12 @@ and `workspace` values. Mapper configuration alone is not that proof.
 Do not record bearer tokens, authorization codes, code verifiers, client-secret
 bytes, or private routing values beyond the minimum non-secret acceptance
 evidence required by the deployment record.
+
+For LineageWeave, additionally prove with a real Keyverse account that the
+verified `sub`, scalar `org`, scalar `workspace`, and list-valued same-client
+`role` claims reach the application; invalid tenant, mismatched workspace, and
+role-downgrade requests must deny before an RBAC allow. The Keyverse client
+receipt is not a substitute for these downstream tests.
 
 ## Checklist
 

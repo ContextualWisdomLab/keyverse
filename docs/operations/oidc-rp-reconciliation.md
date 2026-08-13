@@ -9,12 +9,14 @@ authorization-code/JWT acceptance.
 
 ## Routine workflow
 
-1. Render `deploy/templates/oidc-rp-client.json` for a generic RP or
+1. Render `deploy/templates/oidc-rp-client.json` for a generic RP,
    `deploy/templates/oidc-rp-naruon.json` for the reviewed Naruon public-client
-   mapper profile into a private mode-0600 file.
-2. Resolve all HTTPS and routing placeholders. Treat Naruon `role`, `org`, and
-   `workspace` values as visible product data, never credentials or personal
-   secrets.
+   profile, or `deploy/templates/oidc-rp-lineageweave.json` for the ADR-0009
+   confidential account-derived profile into a private mode-0600 file.
+2. Resolve only HTTPS and routing placeholders. Treat Naruon static values as
+   visible product data, never credentials or personal secrets. For
+   LineageWeave, provision the role and account attributes in Keyverse rather
+   than rendering them into the template.
 3. Call `POST /clients/relying-parties:validate` and require HTTP 200 plus
    `ready_to_apply=true`.
 4. Call `PUT /clients/relying-parties/{client_id}` with the same original file.
@@ -45,6 +47,25 @@ unknown mapper class, extra nested field, or credential material. Token
 configuration is issuer-side evidence only. The receiving Naruon boundary must
 independently validate the token and must not infer authorization merely from the
 presence of a hardcoded claim.
+
+## LineageWeave account-claim contract
+
+The LineageWeave runtime artifact is a confidential `lineageweave-web` client
+with exactly four canonical mappers:
+
+1. `keyverse-audience` — access-token audience pinned to `lineageweave-web`.
+2. `keyverse-account-role` — an unprefixed, multivalued role mapper limited to
+   `lineageweave-web` client-role assignments.
+3. `keyverse-account-org` — scalar `org` user attribute to `org` claim.
+4. `keyverse-account-workspace` — scalar `workspace` user attribute to
+   `workspace` claim.
+
+Do not add a static claim, group, additional user attribute, role prefix,
+aggregation setting, or client secret to this profile. Apply requires an actual
+Keyverse account with the two attributes and an allowed client role. Controlled
+acceptance must prove issuer/signature/expiry/audience validation, tenant and
+resource ABAC denial, role downgrade, logout, and rollback. A compose-only IdP
+or preflight receipt does not satisfy that evidence.
 
 ## Example
 

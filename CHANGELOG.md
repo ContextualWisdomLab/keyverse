@@ -14,6 +14,10 @@ Keep a Changelog, and releases use semantic versioning.
   access-token audience, bounded `role`, `org`, and `workspace` hardcoded claims,
   canonical mapper ordering, Keycloak-generated-ID/order normalization, and a
   secret-free `naruon-web` runtime desired-state template.
+- ADR-0009's confidential `lineageweave-web` account-derived mapper profile:
+  same-client roles plus exact scalar `org` and `workspace` account attributes,
+  with no static/dynamic mixing, a secret-free deployment template, and
+  reconciliation regression coverage.
 - Durable, secret-free OIDC relying-party desired-state CRUD and reconciliation
   with exact `clientId` matching, duplicate fail-closed behavior, post-mutation
   re-observation, canonical apply receipts, realm-rebuild recovery, per-client

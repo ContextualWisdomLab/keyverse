@@ -60,6 +60,14 @@ orders known mapper identities canonically, and then performs semantic drift
 comparison. Unknown, malformed, or duplicate live mappers remain drift rather
 than being silently discarded.
 
+ADR-0009 adds one separate, exact `lineageweave-web` profile. It permits a
+client-role mapper whose configured client ID equals the registration client ID,
+has no role prefix, and emits multivalued `role`; it also permits two scalar
+user-attribute mappers from `org` to `org` and `workspace` to `workspace`.
+Keycloak documents these mapper IDs and their configuration properties. Keyverse
+intentionally rejects every other user attribute, role source, aggregation,
+group, script, audience, claim name, and destination.
+
 ## Stricter Keyverse product policy
 
 The product policy is intentionally narrower than the vendor representation:
@@ -75,6 +83,8 @@ The product policy is intentionally narrower than the vendor representation:
    effect.
 8. Desired state remains secret-free and write receipts are produced only after
    post-mutation re-observation.
+9. The account-derived exception requires all three dynamic claims, forbids
+   static/dynamic mixing, and retains the same four-mapper maximum.
 
 The hardcoded claims are not, by themselves, proof of user entitlement. A
 consumer that uses them for authorization must still apply its independently
@@ -93,6 +103,10 @@ The implementation is covered by production-shaped tests that exercise:
 - semantic drift for unknown, malformed, duplicate, or changed mappers;
 - the committed `deploy/templates/oidc-rp-naruon.json` artifact after
   placeholder substitution;
+- the LineageWeave account-role, account-attribute, non-mixing, and
+  generated-ID/vendor-order reconciliation paths;
+- the committed `deploy/templates/oidc-rp-lineageweave.json` artifact after
+  HTTPS placeholder substitution;
 - complete production statement and branch coverage in the repository CI gate.
 
 The template test was intentionally introduced before the template. Hosted CI
@@ -112,6 +126,10 @@ RED receipt before the template was added.
 - Downstream Naruon token validation rejects invalid issuer, signature,
   algorithm, expiry, and audience values.
 - The deployed Keycloak version preserves the reviewed mapper semantics.
+- A LineageWeave account has exactly one scalar `org` and `workspace` value and
+  a least-privilege set of client roles for `lineageweave-web`.
+- LineageWeave validates a list-valued `role` claim and applies tenant/resource
+  ABAC before its product-role mapping.
 
 ## Limitations and follow-up
 
@@ -122,6 +140,10 @@ clients from the portable realm; that migration remains a separate reviewed
 change. Any new mapper type, claim name, token destination, resource audience,
 or native-client redirect profile requires explicit design and regression
 coverage rather than extension by configuration alone.
+
+The account-derived profile also does not prove that a real Keyverse account
+has been provisioned, its confidential credential has been placed, or its
+LineageWeave login/tenant/role lifecycle has been accepted in production.
 
 ## References
 
@@ -137,6 +159,9 @@ Keycloak Project. (2026). *ClientRepresentation* (Keycloak Docs Distribution
 
 Keycloak Project. (2026). *ProtocolMapperRepresentation* (Keycloak Docs
 Distribution 26.x API). https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/representations/idm/ProtocolMapperRepresentation.html
+
+Keycloak Project. (2026). *Protocol mappers*. Retrieved August 13, 2026, from
+https://www.keycloak.org/admin-api/protocol-mappers
 
 OpenID Foundation. (2023). *OpenID Connect Core 1.0 incorporating errata set 2*.
 https://openid.net/specs/openid-connect-core-1_0.html

@@ -10,6 +10,7 @@ all `{{placeholders}}` must be resolved from the platform KV before use.
 | `ldap-source.json` | Keycloak component contract | external directory → Keycloak | `POST /federation/user-directories:validate` | `POST /admin/realms/{realm}/components` |
 | `oidc-rp-client.json` | Keyverse RP desired-state API | Keyverse → RP | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/{client_id}` |
 | `oidc-rp-naruon.json` | Keyverse RP desired-state API | Keyverse → Naruon | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/naruon-web` |
+| `oidc-rp-lineageweave.json` | Keyverse RP desired-state API | Keyverse → LineageWeave | `POST /clients/relying-parties:validate` | `PUT /clients/relying-parties/lineageweave-web` |
 
 The portable realm contains no employer-specific federation. External SAML and
 OIDC providers are customer or deployment data stored in the Keyverse KV/DB
@@ -171,6 +172,21 @@ configuration path. It is not authentication or authorization proof. Before
 routing users, run controlled authorization-code/PKCE acceptance and verify that
 the downstream boundary validates token signature, issuer, expiry, the reviewed
 `naruon-web` audience, and expected `role`, `org`, and `workspace` semantics.
+
+### LineageWeave account-derived mapper profile
+
+`oidc-rp-lineageweave.json` is the ADR-0009 confidential `lineageweave-web`
+artifact. It renders only the exact HTTPS redirect, origin, and post-logout URI.
+The fixed mapper order projects a self-pinned audience, client roles from
+`lineageweave-web`, and the exact `org` and `workspace` Keyverse account
+attributes. The template never contains a role value, company/PU value, or
+client secret.
+
+Before apply, provision a real account with both attributes and a recognized
+client role through the approved Keyverse identity lifecycle. Preflight and
+reconciliation validate issuer-side metadata only. Record a real
+authorization-code/PKCE login and downstream tenant/resource ABAC, role
+downgrade, logout, and rollback evidence before enabling production routing.
 
 ## LDAP and Active Directory preflight pattern
 

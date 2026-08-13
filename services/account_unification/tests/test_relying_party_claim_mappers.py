@@ -13,11 +13,12 @@ from app.relying_party import (
     _parse_registration,
     validate_relying_party_registration,
 )
+from app.relying_party_state import _normalized_observed_mappers
 
 from .test_relying_party_preflight import _confidential_web_client
 
 
-def _audience_mapper() -> dict[str, object]:
+def _audience_mapper(client_id: str = "naruon-web") -> dict[str, object]:
     """Return the canonical access-token audience mapper."""
     return {
         "name": "keyverse-audience",
@@ -25,7 +26,7 @@ def _audience_mapper() -> dict[str, object]:
         "protocolMapper": "oidc-audience-mapper",
         "consentRequired": False,
         "config": {
-            "included.client.audience": "naruon-web",
+            "included.client.audience": client_id,
             "access.token.claim": "true",
             "id.token.claim": "false",
             "introspection.token.claim": "true",
@@ -50,6 +51,72 @@ def _claim_mapper(claim_name: str, claim_value: str) -> dict[str, object]:
             "introspection.token.claim": "true",
         },
     }
+
+
+def _account_role_mapper(client_id: str) -> dict[str, object]:
+    """Return the closed client-role mapper for a verified account role."""
+    return {
+        "name": "keyverse-account-role",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-usermodel-client-role-mapper",
+        "consentRequired": False,
+        "config": {
+            "usermodel.clientRoleMapping.clientId": client_id,
+            "usermodel.clientRoleMapping.rolePrefix": "",
+            "multivalued": "true",
+            "claim.name": "role",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true",
+        },
+    }
+
+
+def _account_attribute_mapper(claim_name: str) -> dict[str, object]:
+    """Return one scalar account-attribute mapper for a tenant claim."""
+    return {
+        "name": f"keyverse-account-{claim_name}",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-usermodel-attribute-mapper",
+        "consentRequired": False,
+        "config": {
+            "user.attribute": claim_name,
+            "claim.name": claim_name,
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true",
+        },
+    }
+
+
+def _lineageweave_registration_with_account_claims() -> dict[str, object]:
+    """Return a confidential RP using verified account-derived claim sources."""
+    client_id = "lineageweave-web"
+    payload = deepcopy(_confidential_web_client())
+    payload.update(
+        {
+            "clientId": client_id,
+            "name": client_id,
+            "redirectUris": ["https://lineageweave.example/auth/callback"],
+            "webOrigins": ["https://lineageweave.example"],
+            "attributes": {
+                **payload["attributes"],
+                "post.logout.redirect.uris": "https://lineageweave.example/logout",
+            },
+            "protocolMappers": [
+                _audience_mapper(client_id),
+                _account_role_mapper(client_id),
+                _account_attribute_mapper("org"),
+                _account_attribute_mapper("workspace"),
+            ],
+        }
+    )
+    return payload
 
 
 def _naruon_registration_with_mappers() -> dict[str, object]:
@@ -135,6 +202,157 @@ def test_audience_only_mapper_profile_is_accepted() -> None:
 
     assert result.ready_to_apply is True
     assert len(result.registration.protocol_mappers) == 1
+
+
+def test_account_derived_claim_mapper_profile_is_accepted() -> None:
+    """Per-account role and tenant attributes may replace static RP claims."""
+    payload = _lineageweave_registration_with_account_claims()
+
+    result = validate_relying_party_registration(_parse_registration(payload))
+
+    assert result.ready_to_apply is True
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    assert [mapper["protocolMapper"] for mapper in mappers] == [
+        "oidc-audience-mapper",
+        "oidc-usermodel-client-role-mapper",
+        "oidc-usermodel-attribute-mapper",
+        "oidc-usermodel-attribute-mapper",
+    ]
+    assert all("claim.value" not in mapper["config"] for mapper in mappers[1:])
+
+
+def test_account_derived_claim_mapper_observation_is_reconciled() -> None:
+    """Keycloak mapper IDs and order do not create dynamic-claim drift."""
+    payload = _lineageweave_registration_with_account_claims()
+    desired_mappers = payload["protocolMappers"]
+    assert isinstance(desired_mappers, list)
+    observed_mappers = deepcopy(desired_mappers)
+    for index, mapper in enumerate(observed_mappers):
+        mapper["id"] = f"mapper-{index}"
+    observed_mappers.reverse()
+
+    normalized = _normalized_observed_mappers(
+        observed_mappers,
+        _parse_registration(payload),
+    )
+
+    assert normalized == desired_mappers
+
+
+@pytest.mark.parametrize(
+    ("mutate", "field"),
+    [
+        (lambda mapper: mapper.update(name="account-role"), "protocolMappers.name"),
+        (
+            lambda mapper: mapper["config"].update(
+                {"usermodel.clientRoleMapping.clientId": "other-web"}
+            ),
+            "protocolMappers.config.usermodel.clientRoleMapping.clientId",
+        ),
+        (
+            lambda mapper: mapper["config"].update(
+                {"usermodel.clientRoleMapping.rolePrefix": "unexpected"}
+            ),
+            "protocolMappers.config",
+        ),
+        (
+            lambda mapper: mapper["config"].update({"multivalued": "false"}),
+            "protocolMappers.config",
+        ),
+    ],
+)
+def test_account_role_mapper_policy_rejects_unsafe_values(mutate, field: str) -> None:
+    """The account role source is pinned to the relying-party client."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    mapper = mappers[1]
+    assert isinstance(mapper, dict)
+    mutate(mapper)
+
+    _assert_policy_error(payload, field)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "field"),
+    [
+        (
+            lambda mapper: mapper["config"].update({"claim.name": "role"}),
+            "protocolMappers.config.claim.name",
+        ),
+        (
+            lambda mapper: mapper.update(name="keyverse-account-other"),
+            "protocolMappers.name",
+        ),
+        (
+            lambda mapper: mapper["config"].update({"user.attribute": "other"}),
+            "protocolMappers.config.user.attribute",
+        ),
+        (
+            lambda mapper: mapper["config"].update({"multivalued": "true"}),
+            "protocolMappers.config",
+        ),
+    ],
+)
+def test_account_attribute_mapper_policy_rejects_unsafe_values(
+    mutate,
+    field: str,
+) -> None:
+    """Only scalar organization and workspace account attributes may flow."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    mapper = mappers[2]
+    assert isinstance(mapper, dict)
+    mutate(mapper)
+
+    _assert_policy_error(payload, field)
+
+
+def test_account_claim_profile_requires_every_dynamic_claim() -> None:
+    """A partial dynamic profile cannot silently fall back to static routing."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    payload["protocolMappers"] = mappers[:-1]
+
+    _assert_policy_error(payload, "protocolMappers")
+
+
+def test_account_claim_profile_rejects_duplicate_dynamic_claim() -> None:
+    """One account attribute may map to only one canonical token claim."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    payload["protocolMappers"] = [mappers[0], mappers[1], mappers[2], deepcopy(mappers[2])]
+
+    _assert_policy_error(payload, "protocolMappers")
+
+
+def test_account_claim_profile_rejects_duplicate_account_role() -> None:
+    """A role source may not be duplicated under the same token claim."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    payload["protocolMappers"] = [mappers[0], mappers[1], deepcopy(mappers[1]), mappers[3]]
+
+    _assert_policy_error(payload, "protocolMappers")
+
+
+def test_account_claim_profile_rejects_static_claim_mixing() -> None:
+    """A client cannot combine per-account and hardcoded authorization claims."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    payload["protocolMappers"] = [
+        mappers[0],
+        mappers[1],
+        _claim_mapper("org", "org-cwl"),
+        mappers[3],
+    ]
+
+    _assert_policy_error(payload, "protocolMappers")
 
 
 @pytest.mark.parametrize(

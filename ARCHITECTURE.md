@@ -154,13 +154,18 @@ redirect/origin/logout policy, public/confidential client consistency, bounded
 token metadata, and an exact portable scope set.
 
 An optional closed `protocolMappers` profile carries exactly one self-pinned
-`oidc-audience-mapper` plus zero to three canonical hardcoded claims named
-`role`, `org`, and `workspace`. Mapper count, names, classes, destinations,
-claim values, and ordering are bounded; scripts, user attributes, groups, regex,
-arbitrary claims, unknown fields, and credential material are rejected.
-`deploy/templates/oidc-rp-naruon.json` is the reviewed public-client instance of
-that profile. Its routing claim values are deployment data and must not contain
-credentials or personal secrets.
+`oidc-audience-mapper` plus either zero to three canonical hardcoded claims or
+the ADR-0009 LineageWeave account-derived trio. The latter is limited to a
+same-client `oidc-usermodel-client-role-mapper` for multivalued `role` and two
+scalar `oidc-usermodel-attribute-mapper` entries from exact `org` and
+`workspace` account attributes. The three dynamic claims must appear together
+and cannot mix with hardcoded claims. Mapper count, names, classes,
+destinations, claim values, and ordering are bounded; scripts, other user
+attributes, groups, regex, arbitrary claims, unknown fields, and credential
+material are rejected. `deploy/templates/oidc-rp-naruon.json` is the reviewed
+public-client instance of the static profile; `deploy/templates/oidc-rp-lineageweave.json`
+is the confidential account-derived contract. Neither template contains a
+credential or proves a live account login.
 
 Stateful reconciliation keys intent by validated `clientId`, classifies zero,
 one, or multiple exact Keycloak clients, and never mutates duplicates. Create or
@@ -172,8 +177,7 @@ The accepted representation has no client-secret field; credential provisioning
 remains an independent secret-management responsibility.
 
 Native loopback/private-use redirects, different resource audiences, and claim
-expansion beyond `role`, `org`, and `workspace` remain separate reviewed
-profiles.
+expansion beyond the two closed profiles remain separate reviewed profiles.
 
 Each downstream RP is a separate trust boundary. The RP must validate the
 Keyverse issuer, signature/algorithm, expiry, subject, and audience, map the

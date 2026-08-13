@@ -466,7 +466,11 @@ def _observed_mapper_rank(mapper: dict) -> int | None:
     mapper_type = mapper.get("protocolMapper")
     if mapper_type == "oidc-audience-mapper":
         return 0
-    if mapper_type != "oidc-hardcoded-claim-mapper":
+    if mapper_type not in {
+        "oidc-hardcoded-claim-mapper",
+        "oidc-usermodel-client-role-mapper",
+        "oidc-usermodel-attribute-mapper",
+    }:
         return None
     config = mapper["config"]
     claim_name = config.get("claim.name")

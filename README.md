@@ -96,6 +96,9 @@ See [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
 ### Onboard a relying party
 
 See [`docs/rp-onboarding.md`](docs/rp-onboarding.md).
+The ADR-0009 LineageWeave profile uses real account-derived role, company, and
+PU claims; it is not enabled until private Keyverse apply and controlled
+downstream authorization evidence are recorded.
 
 ## Account unification & merge
 
