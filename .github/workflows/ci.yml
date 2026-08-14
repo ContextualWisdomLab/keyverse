@@ -36,6 +36,18 @@ jobs:
         run: uv pip check
       - name: Verify exported hash lock
         run: |
+          exported_requirements="${RUNNER_TEMP}/keyverse-requirements-dev.txt"
+          uv export \
+            --locked \
+            --format requirements.txt \
+            --extra dev \
+            --no-emit-project \
+            --output-file "${exported_requirements}"
+          cmp --silent requirements-dev.txt "${exported_requirements}" || {
+            diff --unified requirements-dev.txt "${exported_requirements}"
+            exit 1
+          }
+
           export_lock_venv="${RUNNER_TEMP}/keyverse-export-lock"
           uv venv "${export_lock_venv}"
           VIRTUAL_ENV="${export_lock_venv}" uv pip install \
@@ -77,7 +89,7 @@ jobs:
   compose-config-validates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d342e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate docker-compose
         run: docker compose -f docker-compose.yml config >/dev/null
         env:
