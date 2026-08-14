@@ -64,14 +64,21 @@ def test_exact_coupled_dependencies_update_atomically() -> None:
         assert set(patterns) == expected_patterns
 
 
-def test_ci_resolves_and_checks_both_lock_representations() -> None:
-    """CI validates the uv lock and the exported hash lock as installable graphs."""
+def test_ci_proves_both_lock_representations_are_equivalent() -> None:
+    """CI exports, compares, installs, and metadata-checks both lock forms."""
     workflow = _ci_source()
 
     assert "uv sync --locked --extra dev" in workflow
     assert "Verify uv lock dependency metadata" in workflow
     assert "Verify exported hash lock" in workflow
     assert workflow.count("uv pip check") == 2
+    assert "uv export" in workflow
+    assert "--format requirements.txt" in workflow
+    assert "--extra dev" in workflow
+    assert "--no-emit-project" in workflow
+    assert '--output-file "${exported_requirements}"' in workflow
+    assert 'cmp --silent requirements-dev.txt "${exported_requirements}"' in workflow
+    assert 'diff --unified requirements-dev.txt "${exported_requirements}"' in workflow
     assert "--require-hashes" in workflow
     assert "-r requirements-dev.txt" in workflow
     assert 'VIRTUAL_ENV="${export_lock_venv}" uv pip install' in workflow
