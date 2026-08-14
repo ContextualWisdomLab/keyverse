@@ -74,10 +74,9 @@ Keycloak's declarative user profile permits a required role of `admin` or
 `user`. The LineageWeave `org` and `workspace` attributes use
 `{"roles":["admin"]}` because the same profile makes those fields viewable and
 editable only in administrator context. A user-context requirement would direct
-an end user to repair attributes they cannot edit. The receiving application is
-independent of this provisioning workflow: after normal token verification, it
-rejects an absent, empty, or non-scalar account dimension before tenant/resource
-ABAC and bounded RBAC run.
+an end user to repair attributes they cannot edit. This Keyverse policy proves
+only the issuer-side provisioning constraint; receiving-application claim
+validation is a separate operational-acceptance requirement.
 
 ## Stricter Keyverse product policy
 
@@ -139,8 +138,11 @@ RED receipt before the template was added.
 - The deployed Keycloak version preserves the reviewed mapper semantics.
 - A LineageWeave account has exactly one scalar `org` and `workspace` value and
   a least-privilege set of client roles for `lineageweave-web`.
-- LineageWeave validates a list-valued `role` claim and applies tenant/resource
-  ABAC before its product-role mapping.
+- After normal token verification, LineageWeave must reject an absent, empty,
+  or non-scalar `org` or `workspace` claim before tenant/resource ABAC and its
+  bounded product-role mapping. This downstream behavior requires its own
+  implementation and runtime acceptance evidence; it is not established by
+  Keyverse mapper validation or reconciliation alone.
 
 ## Limitations and follow-up
 
