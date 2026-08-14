@@ -32,6 +32,16 @@ jobs:
           prune-cache: true
       - name: Install locked dependencies
         run: uv sync --locked --extra dev
+      - name: Verify uv lock dependency metadata
+        run: uv pip check
+      - name: Verify exported hash lock
+        run: |
+          export_lock_venv="${RUNNER_TEMP}/keyverse-export-lock"
+          uv venv "${export_lock_venv}"
+          VIRTUAL_ENV="${export_lock_venv}" uv pip install \
+            --require-hashes \
+            -r requirements-dev.txt
+          VIRTUAL_ENV="${export_lock_venv}" uv pip check
       - name: Lint
         run: uv run ruff check app tests tools
       - name: Docstrings
