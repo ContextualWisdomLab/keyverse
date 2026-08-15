@@ -65,7 +65,7 @@ def test_exact_coupled_dependencies_update_atomically() -> None:
 
 
 def test_ci_proves_both_lock_representations_are_equivalent() -> None:
-    """CI exports, compares, installs, and metadata-checks both lock forms."""
+    """CI compares lock bodies before installing and checking both forms."""
     workflow = _ci_source()
 
     assert "uv sync --locked --extra dev" in workflow
@@ -77,8 +77,27 @@ def test_ci_proves_both_lock_representations_are_equivalent() -> None:
     assert "--extra dev" in workflow
     assert "--no-emit-project" in workflow
     assert '--output-file "${exported_requirements}"' in workflow
-    assert 'cmp --silent requirements-dev.txt "${exported_requirements}"' in workflow
-    assert 'diff --unified requirements-dev.txt "${exported_requirements}"' in workflow
+    assert (
+        'tracked_requirements_body="${RUNNER_TEMP}/keyverse-tracked-requirements-body.txt"'
+        in workflow
+    )
+    assert (
+        'exported_requirements_body="${RUNNER_TEMP}/keyverse-exported-requirements-body.txt"'
+        in workflow
+    )
+    assert 'tail -n +3 requirements-dev.txt > "${tracked_requirements_body}"' in workflow
+    assert (
+        'tail -n +3 "${exported_requirements}" > "${exported_requirements_body}"'
+        in workflow
+    )
+    assert (
+        'cmp --silent "${tracked_requirements_body}" "${exported_requirements_body}"'
+        in workflow
+    )
+    assert (
+        'diff --unified "${tracked_requirements_body}" "${exported_requirements_body}"'
+        in workflow
+    )
     assert "--require-hashes" in workflow
     assert "-r requirements-dev.txt" in workflow
     assert 'VIRTUAL_ENV="${export_lock_venv}" uv pip install' in workflow
