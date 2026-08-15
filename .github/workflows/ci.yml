@@ -37,14 +37,22 @@ jobs:
       - name: Verify exported hash lock
         run: |
           exported_requirements="${RUNNER_TEMP}/keyverse-requirements-dev.txt"
+          tracked_requirements_body="${RUNNER_TEMP}/keyverse-tracked-requirements-body.txt"
+          exported_requirements_body="${RUNNER_TEMP}/keyverse-exported-requirements-body.txt"
           uv export \
             --locked \
             --format requirements.txt \
             --extra dev \
             --no-emit-project \
             --output-file "${exported_requirements}"
-          cmp --silent requirements-dev.txt "${exported_requirements}" || {
-            diff --unified requirements-dev.txt "${exported_requirements}"
+
+          # uv records the chosen output path in its two-line generated-file
+          # header. Compare the package graph and hashes while ignoring only
+          # that environment-specific provenance text.
+          tail -n +3 requirements-dev.txt > "${tracked_requirements_body}"
+          tail -n +3 "${exported_requirements}" > "${exported_requirements_body}"
+          cmp --silent "${tracked_requirements_body}" "${exported_requirements_body}" || {
+            diff --unified "${tracked_requirements_body}" "${exported_requirements_body}"
             exit 1
           }
 
