@@ -15,8 +15,10 @@ from fastapi import FastAPI
 
 from . import __version__
 from .api import router
+from .application_tokens import ApplicationTokenService, application_token_router
 from .audit import AuditLogger, SqliteAuditSink
 from .auth import operator_auth_dependency
+from .authorization_plane import AuthorizationPlaneService, authorization_router
 from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .directory_federation import directory_federation_router
@@ -33,6 +35,7 @@ from .relying_party_admin import RelyingPartyHttpAdminApi
 from .relying_party_state import RelyingPartyService, relying_party_state_router
 from .scim import scim_router
 from .service import UnificationService
+from .start_login import StartLoginService, start_login_router
 from .user_locks import SqliteUserOperationLocks
 
 # Preserve the established wiring seam used by lifecycle tests and embedders
@@ -95,6 +98,9 @@ def build_service(app: FastAPI) -> None:
     app.state.temporary_user_operation_lock_database = temporary_lock_database
     app.state.federation_service = FederationService(store, api)
     app.state.relying_party_service = RelyingPartyService(store, api)
+    app.state.authorization_service = AuthorizationPlaneService(store)
+    app.state.start_login_service = StartLoginService(store, config)
+    app.state.application_token_service = ApplicationTokenService(store, audit)
     app.state.operator_api_token = config.operator_api_token
     app.state.registration_api_token = config.registration_api_token
     app.state.registration_client_id = config.registration_client_id
@@ -202,6 +208,27 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         relying_party_state_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        authorization_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        start_login_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
+    )
+    app.include_router(
+        application_token_router,
         dependencies=[
             operator_auth_dependency,
             admin_path_security_dependency,

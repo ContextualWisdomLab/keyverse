@@ -1,7 +1,7 @@
 # Keyverse UML and Runtime Views
 
 **Status:** Accepted protected-main diagrams with integrated changes labelled.
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 ## Component and authority view
 
@@ -106,8 +106,67 @@ sequenceDiagram
     Policy-->>RP: authorization decision
 ```
 
-Authentication, client reconciliation, and mapper presence do not bypass the
-RP policy sequence. ADR-0008 records the audited status of each non-fork RP.
+Authentication, client reconciliation, mapper presence, and Keyverse PDP
+receipts do not bypass the RP policy sequence. ADR-0008 records the audited
+status of each non-fork RP. ADR-0010 adds an issuer-side decision that the RP
+may consult after token validation.
+
+## Hierarchical authorization decision
+
+```mermaid
+sequenceDiagram
+    participant Orgmetra
+    participant Operator
+    participant Keyverse as Keyverse PDP
+    participant Store as Grant store
+    participant RP as Relying-party PEP
+
+    Orgmetra-->>Operator: assignment_record snapshot
+    Operator->>Keyverse: persist software-unit or menu grant
+    Keyverse->>Store: authorization grant
+    RP->>RP: validate iss/aud/sig/exp/sub
+    RP->>Keyverse: decide with org_path snapshot
+    Keyverse->>Store: load grants
+    Keyverse->>Keyverse: most-specific inherited grant
+    Keyverse-->>RP: attributes and effect
+    RP->>RP: enforce locally
+```
+
+Orgmetra remains employment SoR. Keyverse never copies the org tree.
+
+## App start-login helper
+
+```mermaid
+sequenceDiagram
+    participant App as Relying application
+    participant Keyverse
+    participant Registry as Local IdP registry
+    participant Browser
+    participant Keycloak
+
+    App->>Keyverse: POST start-login
+    Keyverse->>Registry: read enabled providers
+    Keyverse-->>App: kc_idp_hint URL, no metadata fetch
+    App->>Browser: redirect with PKCE
+    Browser->>Keycloak: authorization + kc_idp_hint
+```
+
+## Programmable application token
+
+```mermaid
+sequenceDiagram
+    participant Operator
+    participant Keyverse
+    participant Store as Hashed token store
+    participant App as Software unit
+
+    Operator->>Keyverse: issue PAT
+    Keyverse->>Store: token_hash only
+    Keyverse-->>Operator: plaintext once
+    Operator->>App: secret-manager placement
+    App->>Keyverse: verify token + software unit + APIs
+    Keyverse-->>App: allow or deny, no secret echo
+```
 
 ## Account merge state view
 

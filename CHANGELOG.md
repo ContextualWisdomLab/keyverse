@@ -7,6 +7,19 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Hierarchical authorization plane (ADR-0010): software-unit ACL, menu
+  ABAC/RBAC decisions, SSO combination scopes, and most-specific org-path
+  inheritance consumed from Orgmetra assignment snapshots. ADR-0008 stays
+  the PEP boundary. Hierarchical attributes use `group_company`,
+  `legal_entity`, `business_unit`, `team`, `person`, and `org_path` so they
+  do not collide with the unmerged LineageWeave `role`/`org`/`workspace`
+  profile reserved as ADR-0009 on PR #100.
+- App start-login helper (ADR-0011) that discovers enabled brokered IdPs from
+  the local registry and returns a Keycloak `kc_idp_hint` authorization URL
+  without metadata or discovery fetch.
+- Programmable application tokens (ADR-0012) hashed at rest, purpose-bound,
+  software-unit and API scoped, rotatable, auditable, and never a password
+  substitute or inherited secret.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.

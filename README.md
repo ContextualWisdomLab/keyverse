@@ -93,9 +93,15 @@ See [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
 [`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
 [`deploy/templates/README.md`](deploy/templates/README.md).
 
+An application starts brokered login through
+`POST /federation/identity-providers:start-login` and then adds PKCE locally.
+See [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md).
+
 ### Onboard a relying party
 
-See [`docs/rp-onboarding.md`](docs/rp-onboarding.md).
+See [`docs/rp-onboarding.md`](docs/rp-onboarding.md). Software-unit ACL, menu
+decisions, SSO combinations, and programmable application tokens are documented
+in [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md).
 
 ## Account unification & merge
 

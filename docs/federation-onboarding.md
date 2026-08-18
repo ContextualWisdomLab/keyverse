@@ -195,6 +195,25 @@ upstream no longer signs with the previous key, render, preflight, and `PUT` the
 payload again with only `next_certificate_body`; storing the previous
 certificate separately does not preserve active trust.
 
+## App start-login helper
+
+After the identity provider is registered, a relying application starts
+brokered login through Keyverse rather than fetching metadata itself:
+
+```bash
+curl --config "$AUTH_CONFIG" \
+  --fail-with-body \
+  --silent \
+  --show-error \
+  --header "Content-Type: application/json" \
+  --data '{"software_unit_id":"naruon-web","client_id":"naruon-web","redirect_uri":"https://naruon.example/callback","provider_alias_hint":"employer-adfs"}' \
+  "$BASE/federation/identity-providers:start-login"
+```
+
+The helper reads the local registry only. Add PKCE, `state`, and `nonce` in
+the application, then redirect to `start_login_url`. See
+[`docs/authorization-onboarding.md`](authorization-onboarding.md).
+
 ## Standards basis
 
 - OASIS Security Services Technical Committee. (2019). *SAML V2.0 Metadata

@@ -1,7 +1,7 @@
 # Keyverse Test Strategy
 
 **Status:** Accepted quality baseline  
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 ## Mandatory gates
 
@@ -76,6 +76,21 @@ and rejection of scripts/arbitrary claims/classes.
 ADR-0008's application matrix remains deployment-restricted until each RP
 repository supplies its own exact token-validation and ABAC/RBAC evidence.
 
+## Authorization-plane tests
+
+- contiguous Macro-to-Micro `org_path` parsing and reserved-name rejection;
+- ancestor allow inheritance and more-specific deny restriction;
+- default deny when no grant matches;
+- software-unit ACL isolation per relying party;
+- menu decisions require software-unit allow, then ABAC, then RBAC capabilities;
+- SSO combinations allow only when every member software unit is allowed;
+- start-login uses the local registry, rejects discovery/metadata URLs, and
+  performs no Keycloak or network I/O;
+- PAT issue returns plaintext once; verify/revoke/rotate never echo secrets;
+- PAT purposes cannot be password or authenticator substitutes;
+- PATs do not inherit org-tree grants;
+- Orgmetra trees are not persisted as source of record.
+
 ## Deployment and persistence tests
 
 - PostgreSQL/KV migrations and rollback for Keyverse-owned records;
@@ -93,7 +108,7 @@ Mirror `docs/THREAT_MODEL.md`: malicious IdP/LDAP URLs, path/resource IDs, dupli
 
 ## Documentation contract
 
-CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 are recorded as integrated protected-main changes and ADR-0008 remains indexed.
+CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 are recorded as integrated protected-main changes and ADR-0008 remains indexed. ADR-0009 is reserved for PR #100; ADR-0010–0012 index the authorization plane, start-login helper, and programmable tokens.
 
 ## Release acceptance
 

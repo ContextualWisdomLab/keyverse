@@ -10,7 +10,7 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 ## 2. Runtime components
 
 - **Keycloak engine:** OIDC/OAuth, SAML brokering, WebAuthn, users/sessions/roles/groups, external IdP and LDAP component execution, RP clients.
-- **Account-unification FastAPI service:** merge/link, SCIM, federation/directory/RP validation and desired-state/reconciliation, audit/locking boundaries.
+- **Account-unification FastAPI service:** merge/link, SCIM, federation/directory/RP validation and desired-state/reconciliation, hierarchical authorization decisions, start-login helper, programmable application tokens, audit/locking boundaries.
 - **PostgreSQL/KV:** Keycloak state plus Keyverse configuration, intent, receipts, merge audit, and user-operation locks.
 - **Deployment controller:** private configuration rendering, egress/TLS policy, explicit apply, controlled acceptance, rollback.
 - **Compose/Helm:** standalone deployment topology and probes.
@@ -23,7 +23,8 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 - Desired-state intent is persisted before external mutation where recovery requires it; receipt is persisted only after exact re-observation and binds the desired-state hash/version acted on.
 - RP desired state remains separate from confidential client material.
 - Deployment controller, not public API, owns private bind/client and certificate material.
-- Each non-fork RP is a separate authorization boundary: verified Keyverse token validation, tenant/resource ABAC, and role/scope RBAC must be proven in the RP repository before production routing.
+- Each non-fork RP is a separate authorization boundary: verified Keyverse token validation, tenant/resource ABAC, and role/scope RBAC must be proven in the RP repository before production routing. The Keyverse authorization-plane PDP issues attributes and decisions; it does not replace ADR-0008 PEP enforcement.
+- Orgmetra remains the employment and org-tree system of record. Keyverse consumes assignment snapshots and persists only grants, combinations, and hashed application tokens.
 
 ## 4. Identity evidence
 
@@ -61,7 +62,7 @@ Authenticated operator APIs accept closed versioned schemas. Errors must not ech
 
 ## 8. Persistence/data model
 
-Current architecture owns PostgreSQL/KV state for configuration, desired-state sources, apply receipts, merge audit, and operation locks. Database objects use descriptive two-word-or-longer `snake_case` names. `docs/ERD.md` defines tenant-scoped uniqueness, receipt identity/version binding, relationships, and lifecycle; migrations must preserve tenant/identity/audit integrity.
+Current architecture owns PostgreSQL/KV state for configuration, desired-state sources, apply receipts, merge audit, operation locks, authorization grants, SSO combination scopes, and hashed application access tokens. Database objects use descriptive two-word-or-longer `snake_case` names. `docs/ERD.md` defines tenant-scoped uniqueness, receipt identity/version binding, relationships, and lifecycle; migrations must preserve tenant/identity/audit integrity.
 
 ## 9. Security and privacy
 
