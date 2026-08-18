@@ -45,7 +45,8 @@ an access-token audience and bounded session-routing claims.
   address mappers, pairwise-subject configuration, or arbitrary claim names.
 - Client-secret generation or retrieval.
 - Claim-value authorization or tenant-directory lookup.
-- Removal of application RPs from the realm in this PR; that is #71.
+- Removal of application RPs from the portable realm was a non-goal of the
+  earlier issue #70 work this historical design originally covered.
 - A formal OpenID Connect, JWT access-token, or Keycloak conformance claim.
 
 ## Closed data contract
@@ -267,7 +268,8 @@ already present.
 - Naruon template parses as JSON;
 - template contains no secret or unresolved mapper type;
 - after rendering placeholders, the template passes preflight;
-- portable realm removal remains a separate failing/green cycle in #71.
+- this PR removes application RPs from the portable realm; `naruon-web` is a
+  runtime desired-state client restored through Keyverse reconciliation.
 
 ## Merge and release gates
 
