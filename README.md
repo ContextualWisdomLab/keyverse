@@ -40,7 +40,7 @@ network diagram: [`docs/topology.md`](docs/topology.md).
 | Path | What |
 | --- | --- |
 | `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
-| `deploy/keycloak/` | Portable Keycloak realm config-as-code, passwordless flows, shared scopes, concrete Naruon RP, and service-account bootstrap |
+| `deploy/keycloak/` | Portable Keycloak realm config-as-code, passwordless flows, shared scopes, and service-account bootstrap; application RPs are runtime desired state |
 | `deploy/templates/` | Private deployment templates split between Keyverse preflight/desired state and explicit Keycloak Admin REST apply contracts |
 | `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
 | `deploy/scripts/healthz.sh` | Cross-component readiness probe |

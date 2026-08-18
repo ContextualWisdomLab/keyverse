@@ -55,6 +55,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- The portable Keycloak realm no longer embeds `ecosystem-rp-template` or
+  `naruon-web`; application RPs now exist only as validated runtime desired
+  state. Realm validation rejects application clients, and clean-realm recovery
+  is covered through the committed Naruon template and reconciliation path.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate

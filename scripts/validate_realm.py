@@ -8,10 +8,10 @@ broken realm export is caught in CI before it ever reaches Keycloak:
 * the bound browser flow contains WebAuthn passwordless and no password form;
 * self-service password registration and reset are disabled;
 * external federation remains runtime desired state, not committed realm code;
-* RP and service-account clients exist without committed real secrets;
+* runtime application RPs are absent and the control-plane service client exists;
 * Keycloak 26 import compatibility excludes ``$`` annotation keys;
 * the ``basic`` scope provides ``sub`` and is a realm default;
-* ``naruon-web`` is a bounded-token public PKCE client with required claims.
+* runtime application clients cannot bypass Keyverse desired-state recovery.
 
 Usage: python scripts/validate_realm.py [path-to-realm.json]
 Exit 0 = valid, 1 = invalid (prints the failing checks).
@@ -30,7 +30,6 @@ DISALLOWED_CREDENTIAL_AUTHENTICATORS = {
 }
 PASSKEY_AUTHENTICATOR = f"webauthn-authenticator-{_CREDENTIAL_FACTOR}less"
 SECRET_PLACEHOLDER = "__set_from_kv__"
-MAX_PUBLIC_TOKEN_LIFESPAN = 900
 
 
 def _executions(realm: dict, alias: str) -> list[dict]:
@@ -59,18 +58,6 @@ def _all_authenticators(
         if subflow:
             found |= _all_authenticators(realm, subflow, seen)
     return found
-
-
-def _public_token_lifespan(client: dict) -> int | None:
-    """Parse one optional client access-token lifespan as a positive integer."""
-    raw_value = client.get("attributes", {}).get("access.token.lifespan")
-    if raw_value is None:
-        return None
-    try:
-        value = int(raw_value)
-    except (TypeError, ValueError):
-        return -1
-    return value if str(value) == str(raw_value).strip() else -1
 
 
 def validate(realm: dict) -> list[str]:
@@ -140,15 +127,20 @@ def validate(realm: dict) -> list[str]:
             "sources at runtime via the federation registry API"
         )
 
-    clients = {client.get("clientId"): client for client in realm.get("clients", [])}
-    if "ecosystem-rp-template" not in clients:
-        errors.append("OIDC RP client template 'ecosystem-rp-template' is missing")
-    else:
-        rp = clients["ecosystem-rp-template"]
-        if rp.get("implicitFlowEnabled", False):
-            errors.append("RP template must not enable the implicit flow (OAuth 2.1)")
-        if rp.get("attributes", {}).get("pkce.code.challenge.method") != "S256":
-            errors.append("RP template must require PKCE S256")
+    client_list = realm.get("clients", [])
+    clients = {client.get("clientId"): client for client in client_list}
+    for client in client_list:
+        client_id = client.get("clientId")
+        if client_id in {"ecosystem-rp-template", "naruon-web"}:
+            errors.append(
+                f"runtime application client '{client_id}' must be reconciled "
+                "through Keyverse desired state, not committed in the realm"
+            )
+        elif client_id != "account-unification-svc":
+            errors.append(
+                "portable realm may contain only the account-unification-svc "
+                "control-plane client"
+            )
 
     service_client = clients.get("account-unification-svc")
     if service_client is None:
@@ -177,45 +169,6 @@ def validate(realm: dict) -> list[str]:
         errors.append("client scope 'basic' must include the oidc-sub-mapper")
     if "basic" not in realm.get("defaultDefaultClientScopes", []):
         errors.append("'basic' must be a realm default client scope")
-
-    naruon = clients.get("naruon-web")
-    if naruon is None:
-        errors.append("concrete RP client 'naruon-web' is missing")
-    else:
-        if not naruon.get("publicClient", False):
-            errors.append("naruon-web must be a public (PKCE) client")
-        if naruon.get("implicitFlowEnabled", False):
-            errors.append("naruon-web must not enable the implicit flow")
-        if naruon.get("attributes", {}).get("pkce.code.challenge.method") != "S256":
-            errors.append("naruon-web must require PKCE S256")
-        token_lifespan = _public_token_lifespan(naruon)
-        if (
-            token_lifespan is not None
-            and not 0 < token_lifespan <= MAX_PUBLIC_TOKEN_LIFESPAN
-        ):
-            errors.append(
-                "naruon-web access.token.lifespan must be an integer at or below "
-                f"{MAX_PUBLIC_TOKEN_LIFESPAN} seconds"
-            )
-        naruon_mappers = {
-            mapper.get("protocolMapper")
-            for mapper in naruon.get("protocolMappers", [])
-        }
-        if "oidc-audience-mapper" not in naruon_mappers:
-            errors.append("naruon-web must include an audience mapper")
-        hardcoded_claims = {
-            mapper.get("config", {}).get("claim.name")
-            for mapper in naruon.get("protocolMappers", [])
-            if mapper.get("protocolMapper") == "oidc-hardcoded-claim-mapper"
-        }
-        for claim_name in ("role", "org", "workspace"):
-            if claim_name not in hardcoded_claims:
-                errors.append(
-                    f"naruon-web must carry the hardcoded '{claim_name}' claim "
-                    "naruon's session contract requires"
-                )
-        if "basic" not in naruon.get("defaultClientScopes", []):
-            errors.append("naruon-web must assign the 'basic' default scope")
 
     return errors
 

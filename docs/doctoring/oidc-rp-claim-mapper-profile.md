@@ -115,15 +115,18 @@ RED receipt before the template was added.
 
 ## Limitations and follow-up
 
-This slice does not prove a live authorization-code/PKCE exchange, downstream
-audience acceptance, user/session migration, or clean-realm recovery. Those are
-runtime evidence boundaries. It also does not remove runtime application
-clients from the portable realm; that migration remains a separate reviewed
-change. Any new mapper type, claim name, token destination, resource audience,
-or native-client redirect profile requires explicit design and regression
-coverage rather than extension by configuration alone.
+The portable realm preserves only the `account-unification-svc` control-plane
+client and contains no runtime application RP clients. A deterministic
+clean-realm regression proves the committed Naruon template can recreate one
+exact in-sync application client, including its closed mapper profile, through
+Keyverse desired state. This does not prove a live authorization-code/PKCE exchange,
+downstream audience acceptance, user/session migration, or hosted Keycloak
+restore; those remain runtime evidence boundaries. Any new mapper type, claim
+name, token destination, resource audience, or native-client redirect profile
+requires explicit design and regression coverage rather than extension by
+configuration alone.
 
-## References
+## References — APA 7th
 
 Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens*
 (RFC 9068). RFC Editor. https://www.rfc-editor.org/rfc/rfc9068
@@ -131,6 +134,12 @@ Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens*
 Jones, M. B., Hardt, D., & Campbell, B. (2020). *JSON Web Token best current
 practices* (BCP 225, RFC 8725). RFC Editor.
 https://www.rfc-editor.org/rfc/rfc8725
+
+Keycloak. (n.d.-a). *Importing and exporting realms*. Retrieved August 18, 2026,
+from https://www.keycloak.org/server/importExport
+
+Keycloak. (n.d.-b). *Keycloak Admin REST API*. Retrieved August 18, 2026, from
+https://www.keycloak.org/docs-api/latest/rest-api/index.html
 
 Keycloak Project. (2026). *ClientRepresentation* (Keycloak Docs Distribution
 26.x API). https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/representations/idm/ClientRepresentation.html

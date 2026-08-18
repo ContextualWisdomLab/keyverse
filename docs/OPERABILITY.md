@@ -66,6 +66,11 @@ must test the **Naruon** product login/token/authorization journey using the
 `naruon-web` RP client ID and verify the expected audience and bounded claims.
 Mapper unit tests alone do not prove Naruon product authorization readiness.
 
+After a clean realm import, bootstrap `account-unification-svc`, reconcile the
+rendered runtime RP desired state, place confidential credentials where
+applicable, and only then run controlled login acceptance or route traffic. The
+portable realm intentionally creates no application RP as a fallback.
+
 ## Account merge recovery
 
 Merge and SCIM full replacement (`PUT`) must hold the shared operation lock. Protected-main `PATCH active=false` is not currently inside that shared-lock guarantee and must not be treated as transactionally serialized with merge. On failure, classify whether state changed in Keycloak, Keyverse audit, linked identities, or tombstone status. Re-observe before retry. Never infer a retry is safe solely from the previous HTTP response. Preserve survivor and duplicate lineage in audit.
