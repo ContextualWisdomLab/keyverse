@@ -174,6 +174,14 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
             "software_unit_id": "naruon-web",
         },
     )
+    invalid_unit = client.post(
+        "/application-tokens:verify",
+        json={
+            "presented_token": plaintext,
+            "software_unit_id": "Not a slug",
+        },
+    )
+    assert invalid_unit.status_code == 400
     assert malformed.json()["denial_code"] == "malformed_token"
     assert unknown.json()["denial_code"] == "unknown_token"
     assert wrong_unit.json()["denial_code"] == "software_unit_mismatch"

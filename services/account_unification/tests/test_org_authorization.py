@@ -401,6 +401,13 @@ def test_closed_slug_capability_and_attribute_bounds() -> None:
         )
     with pytest.raises(AuthorizationPolicyError, match="opaque"):
         validate_snapshot(_snapshot(keyverse_subject="has space"))
+    omitted = validate_snapshot(
+        AssignmentSnapshot(
+            keyverse_subject="sub-no-assignment",
+            org_path="/group_company/acme",
+        )
+    )
+    assert omitted.assignment_record_id is None
     assert parse_menu_path("/invoices/approve") == "/invoices/approve"
 
 

@@ -169,6 +169,10 @@ def test_authorization_plane_rejects_mismatches_duplicates_and_unknowns(client) 
     missing_combo_delete = client.delete(
         "/authorization/sso-combination-scopes/missing-combo"
     )
+    menu_mismatch = client.put(
+        "/authorization/menu-grants/other-menu",
+        json=MENU_GRANT,
+    )
     missing_menu = client.get("/authorization/menu-grants/missing-menu")
     missing_menu_delete = client.delete("/authorization/menu-grants/missing-menu")
     assert mismatch.status_code == 400
@@ -179,6 +183,7 @@ def test_authorization_plane_rejects_mismatches_duplicates_and_unknowns(client) 
     assert combo_mismatch.status_code == 400
     assert missing_combo.status_code == 404
     assert missing_combo_delete.status_code == 404
+    assert menu_mismatch.status_code == 400
     assert missing_menu.status_code == 404
     assert missing_menu_delete.status_code == 404
 
