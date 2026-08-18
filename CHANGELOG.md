@@ -55,6 +55,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Buyer README and accepted ADRs 0001–0007 now describe Keyverse as a
+  standalone identity leaf/hub, point operators at published OIDC/OAuth
+  2.0, SAML, LDAP, and SCIM contracts, and cite independently opened
+  official records in `docs/REFERENCES.md`. OAuth 2.1 is labeled an IETF
+  Internet-Draft, not a final RFC.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate

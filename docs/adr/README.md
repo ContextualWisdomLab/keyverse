@@ -2,6 +2,11 @@
 
 `Accepted` means the decision governs architecture; it does not imply an active PR has merged or a customer deployment has completed acceptance.
 
+Accepted ADRs 0001–0007 are expanded in place with Context, Decision,
+Consequences, and APA 7th references. The shared bibliography is
+[`docs/REFERENCES.md`](../REFERENCES.md). ADR 0008 remains the RP
+authorization boundary and is not rewritten by that expansion.
+
 | ADR | Decision | Status |
 |---|---|---|
 | [0001](0001-keycloak-hub.md) | Keep Keycloak/Keyverse as the ecosystem identity hub | Accepted |
