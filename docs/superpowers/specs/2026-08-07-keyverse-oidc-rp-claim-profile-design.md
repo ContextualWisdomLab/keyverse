@@ -9,9 +9,9 @@ product-development loop.
 
 Keyverse now owns a closed, secret-free OIDC relying-party representation and a
 durable reconciliation lifecycle. That representation intentionally excludes
-Keycloak protocol mappers. The portable realm therefore still embeds
-`naruon-web` because its audience and `role`, `org`, and `workspace` session
-claims cannot yet be reconstructed from runtime desired state.
+Keycloak protocol mappers. `naruon-web` is a runtime desired-state client
+restored through Keyverse reconciliation, including its audience and `role`,
+`org`, and `workspace` session claims.
 
 Keeping an application client in the portable realm creates two competing
 sources of truth:
@@ -35,8 +35,8 @@ an access-token audience and bounded session-routing claims.
 - Ignore Keycloak-generated mapper IDs and returned ordering when observing
   drift, while comparing every product-owned field.
 - Keep all accepted data secret-free and locally validated.
-- Provide a realistic Naruon runtime template that can replace the committed
-  realm client in follow-up issue #71.
+- Provide a realistic Naruon runtime template that restores `naruon-web`
+  through Keyverse desired-state reconciliation.
 
 ## Non-goals
 
