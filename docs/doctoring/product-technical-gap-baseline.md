@@ -70,8 +70,15 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   queries performed on 2026-08-20. PR #113's SCIM lock head `d68159e`
   (`d68159e4b69765b81d4508600a802d2cea175265`) has hosted Checks queued and
   requires independent review; its local RED-to-GREEN and root-level SCIM
-  error-wire evidence are not protected-main evidence. PR #112's lockfile head has
-  terminal-success Checks but still requires independent review. PR #103's
+  error-wire evidence are not protected-main evidence. PR #112's lockfile head
+  `f02acf93367a40dbfb23a73985017dca8d42ff39` has terminal-success Checks but
+  still requires independent review. PR #105's exact head
+  `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` has a failed
+  `account-unification-tests` Check: `uv 0.12.5` reproduces
+  `uv sync --locked` refusing the stale `coverage==7.15.2` and
+  `setuptools==83.0.0` lock entries while the current `pyproject.toml` requires
+  `7.15.4` and `84.0.0`; #112 is the existing prerequisite lock refresh.
+  PR #103's
   terminal Strix run 32092025335 / job 95576032571 emitted a MEDIUM IDOR report
   with contradictory model text; its operator-admin trust boundary still
   requires independent validation. PR #100's live current head

@@ -93,7 +93,11 @@ Checks; predecessor evidence remains non-transferable.
 - The representative account-test failure on Dependabot PRs stopped at
   `uv sync --locked`: the checked-in lockfile needed updating. This is a
   dependency-graph consistency failure, not evidence that the product tests
-  failed after installation.
+  failed after installation. On PR #105 exact head
+  `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f`, `uv 0.12.5` reproduced the
+  mismatch between required `coverage==7.15.4` / `setuptools==84.0.0` and
+  locked `7.15.2` / `83.0.0`; PR #112 is the existing lock-refresh
+  prerequisite, so #105 must be rechecked after #112's protected merge.
 - PRs #110 and #111 update the two coupled CodeQL actions separately. The
   #111 run loaded configuration for 4.37.7 while running 4.37.6. They must be
   evaluated as one compatible pair, with fresh exact-head Checks after the
