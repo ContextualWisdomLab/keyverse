@@ -7,6 +7,7 @@ from app import main, scim
 from app.config import _as_bool
 from app.kv_store import SqliteKvStore
 from app.models import UserAccount
+from app.user_locks import InMemoryUserOperationLocks
 
 
 class _ActiveProvisioner:
@@ -67,6 +68,7 @@ def test_scim_patch_keeps_user_active_for_truthy_value() -> None:
             ]
         },
         provisioner=provisioner,
+        user_operation_locks=InMemoryUserOperationLocks(),
     )
 
     assert response.status_code == 200

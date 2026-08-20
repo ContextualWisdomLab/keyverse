@@ -187,7 +187,7 @@ non-fork application matrix and remediation gates.
 1. Matching precedence is exact `(identity_provider, subject)`, then verified
    email, then explicit operator link.
 2. Unverified email never authorizes linking or merge.
-3. Merge and SCIM replacement share one user-operation lock.
+3. Merge, SCIM replacement, and `PATCH active=false` deprovisioning share one user-operation lock.
 4. Merged duplicates remain disabled tombstones with a survivor pointer.
 5. Registration creates no password and rolls back if enrollment initialization
    fails.

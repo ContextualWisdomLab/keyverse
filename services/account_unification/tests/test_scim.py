@@ -8,6 +8,7 @@ from contextlib import contextmanager
 import pytest
 from fastapi.testclient import TestClient
 
+from app.errors import InactiveAccountError
 from app.main import create_app
 from app.models import MergeRequest
 from app.service import TOMBSTONE_ATTRIBUTE_KEY, UnificationService
@@ -37,6 +38,29 @@ class _BlockingReplaceApi(MockProductKeycloakAdminApi):
             if attribute[0] != user_id
         }
         self.deactivated.discard(user_id)
+
+
+class _BlockingDeactivateApi(MockProductKeycloakAdminApi):
+    """Pause the first deactivation so a merge can contend on the same user."""
+
+    def __init__(self) -> None:
+        """Create synchronization events for the deactivation race test."""
+        super().__init__()
+        self.deactivate_started = threading.Event()
+        self.allow_deactivate = threading.Event()
+        self.merge_deactivate_started = threading.Event()
+        self._block_next_deactivation = True
+
+    def deactivate_user(self, user_id: str) -> None:
+        """Block only the first deactivation, then use the normal fake."""
+        if self._block_next_deactivation:
+            self._block_next_deactivation = False
+            self.deactivate_started.set()
+            if not self.allow_deactivate.wait(timeout=5):
+                raise AssertionError("test did not release the SCIM deactivation")
+        else:
+            self.merge_deactivate_started.set()
+        super().deactivate_user(user_id)
 
 
 @pytest.fixture
@@ -227,6 +251,82 @@ def test_scim_replace_is_serialized_with_merge(
     assert merge_result.duplicate_tombstoned is True
     assert api.get_user("dup").state == "disabled"
     assert api.get_user_attribute("dup", TOMBSTONE_ATTRIBUTE_KEY) == "survivor"
+
+
+def test_scim_patch_is_serialized_with_merge(
+    config, audit, auth_header
+) -> None:
+    """SCIM deactivation and merge share the duplicate-user lock boundary."""
+    api = _BlockingDeactivateApi()
+    locks = InMemoryUserOperationLocks()
+    merge_lock_attempted = threading.Event()
+    original_hold = locks.hold
+
+    @contextmanager
+    def observed_hold(*user_ids: str):
+        """Record the merge lock attempt while using the production lock."""
+        if set(user_ids) == {"survivor", "dup"}:
+            merge_lock_attempted.set()
+        with original_hold(*user_ids):
+            yield
+
+    locks.hold = observed_hold
+    service = UnificationService(api, audit, config, locks)
+    app = create_app(wire=False)
+    app.state.keycloak_api = api
+    app.state.user_operation_locks = locks
+    app.state.unification_service = service
+    app.state.audit_logger = audit
+    app.state.operator_api_token = config.operator_api_token
+    api.create_test_user(
+        "survivor",
+        email="jane@corp.com",
+        is_email_verified=True,
+    )
+    api.create_test_user(
+        "dup",
+        email="jane@corp.com",
+        is_email_verified=True,
+    )
+
+    def run_merge():
+        """Start one merge that contends on the duplicate-user lock."""
+        return service.merge_accounts(
+            MergeRequest(
+                survivor_user_id="survivor",
+                duplicate_user_id="dup",
+                actor="admin@cwl",
+            )
+        )
+
+    with (
+        TestClient(app, headers=auth_header) as test_client,
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        patch_future = executor.submit(
+            test_client.patch,
+            "/scim/v2/Users/dup",
+            json={
+                "Operations": [
+                    {"op": "replace", "value": {"active": False}}
+                ]
+            },
+        )
+        assert api.deactivate_started.wait(timeout=2)
+        merge_future = executor.submit(run_merge)
+        assert merge_lock_attempted.wait(timeout=2)
+        merge_reached_deactivation = api.merge_deactivate_started.wait(timeout=0.25)
+
+        api.allow_deactivate.set()
+        response = patch_future.result(timeout=5)
+        with pytest.raises(InactiveAccountError):
+            merge_future.result(timeout=5)
+
+    assert not merge_reached_deactivation
+    assert response.status_code == 200
+    assert response.json()["active"] is False
+    assert api.get_user("dup").state == "disabled"
+    assert api.get_user_attribute("dup", TOMBSTONE_ATTRIBUTE_KEY) is None
 
 
 def test_scim_patch_deactivates_user(client, api) -> None:

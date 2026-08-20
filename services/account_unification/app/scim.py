@@ -235,24 +235,32 @@ def patch_user(
     user_id: str,
     body: dict[str, Any],
     provisioner: AdminApi = Depends(get_provisioner),
+    user_operation_locks: UserOperationLocks = Depends(get_user_operation_locks),
 ) -> Response:
     """Apply the supported SCIM PATCH operations to one user."""
     try:
-        provisioner.get_user(user_id)
-    except KeyError as exc:
-        raise _scim_error(404, f"user '{user_id}' not found") from exc
-    # Minimal PATCH: support toggling 'active' (the common deprovision path).
-    for operation in body.get("Operations", []):
-        if operation.get("op", "").lower() not in {"replace", "add"}:
-            continue
-        if operation.get("path") == "active" or "active" in (
-            operation.get("value") or {}
-        ):
-            value = operation.get("value")
-            active = value.get("active") if isinstance(value, dict) else value
-            if active in (False, "false", "False"):
-                provisioner.deactivate_user(user_id)
-    return _scim_response(_to_scim_resource(provisioner.get_user(user_id)))
+        with user_operation_locks.hold(user_id):
+            try:
+                provisioner.get_user(user_id)
+            except KeyError as exc:
+                raise _scim_error(404, f"user '{user_id}' not found") from exc
+            # Minimal PATCH: support toggling 'active' (the common deprovision path).
+            for operation in body.get("Operations", []):
+                if operation.get("op", "").lower() not in {"replace", "add"}:
+                    continue
+                if operation.get("path") == "active" or "active" in (
+                    operation.get("value") or {}
+                ):
+                    value = operation.get("value")
+                    active = value.get("active") if isinstance(value, dict) else value
+                    if active in (False, "false", "False"):
+                        provisioner.deactivate_user(user_id)
+            return _scim_response(_to_scim_resource(provisioner.get_user(user_id)))
+    except UserOperationLockTimeout as exc:
+        raise _scim_error(
+            503,
+            f"user '{user_id}' is being modified; retry the request",
+        ) from exc
 
 
 @scim_router.delete("/Users/{user_id}", status_code=204)
