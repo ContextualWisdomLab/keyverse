@@ -88,6 +88,18 @@ placeholder credentials must not be committed to close it.
   remains `gap-not-claimed`; the local SQLite result must not be promoted into a
   production database acceptance claim.
 
+## 2026-08-21 exact local CI contract verification
+
+- The repository CI-scoped command passed the full test suite with 2,786
+  application statements and 770 branches at 100% coverage, with no missing
+  statements or branches.
+- The committed validator-path command passed with 181 statements and 114
+  branches at 100% coverage. Interrogate, Ruff, compileall, and diff checks
+  also passed on the same local tree.
+- These results are exact local evidence for the current PR head only. Hosted
+  GitHub Checks, independent approval, latest-pusher compliance, and protected
+  merge evidence remain separate gates.
+
 ## 2026-08-21 cross-repository cadence dependency
 
 - The related contextual-orchestrator hourly caller is open as PR #797 at exact
