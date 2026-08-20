@@ -193,9 +193,14 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `7.15.4` and `84.0.0`; the current #105 head
   `ef03c5a93c891980588b125f6c774fa84bf0feef` is now stacked on #112 and has
   19 successful Checks plus one queued Check with no terminal failure. The
-  current #106, #107, #108, and #109 heads are likewise stacked on #112, each
-  with 19 successful Checks plus one queued Check; their queued Checks remain
-  unverified and #112 remains the lock-refresh prerequisite.
+  current #106 and #109 heads remain stacked on #112 with that same rollup.
+  PR #107 was rebased cleanly onto #112 at
+  `53842560d397aa20309a6b16aceb560540611686`, and PR #108 was rebased cleanly
+  onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; each now has 14
+  queued Checks and no terminal failure. Local `uv sync --locked --extra dev`
+  plus the full service pytest suite passed on both rebased trees. Their fresh
+  hosted Checks remain unverified and #112 remains the lock-refresh
+  prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Current head
   `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
