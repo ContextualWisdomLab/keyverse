@@ -69,6 +69,9 @@ Keep a Changelog, and releases use semantic versioning.
 - Refreshed the product and technical gap baseline with the current exact-head
   PR inventory, including the lockfile repair review gate and the requeued
   `lineageweave-web` Checks; predecessor evidence remains non-transferable.
+- Added the active PR #113 SCIM deactivation-lock state and the current PR #103
+  Strix/IDOR evidence to the gap baseline; neither is represented as protected
+  main until exact-head review and merge evidence exists.
 - The Helm realm-import operator runbook now migrates the legacy
   `realm-cwl.json` ConfigMap key to `cwl-realm.json` before rollout, preserving
   a rollback copy and requiring post-rollout realm discovery verification.

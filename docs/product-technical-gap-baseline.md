@@ -73,6 +73,7 @@ Checks; predecessor evidence remains non-transferable.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock | PENDING: hosted Checks queued | review required | Obtain independent review and terminal exact-head Checks, then let protected automation merge; do not treat local GREEN as protected-main evidence. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | FAIL: account tests, CodeQL, Strix | review required | Keep coupled with #110; revalidate after lockfile and action-version coupling is resolved. |
 | [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7 | FAIL: account tests, CodeQL | review required | Treat as the companion of #111; do not merge the action pair independently. |
@@ -82,7 +83,7 @@ Checks; predecessor evidence remains non-transferable.
 | [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update | FAIL: account tests | review required | Re-check after #112; do not rerun unchanged checks. |
 | [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update | FAIL: account tests | changes requested | Fix the locked dependency gate first, then obtain a new exact-head review. |
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion | FAIL: account tests | draft | Keep draft until scope and exact-main evidence are ready. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | FAIL: Strix | changes requested | Inspect the unavailable Strix evidence and security findings before any merge claim. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | FAIL: Strix, MEDIUM IDOR report | changes requested | Validate the report against the operator-admin trust boundary, retain fail-closed treatment, and obtain a fresh exact-head review/check run before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
 | [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims | PENDING on current PR head (exact live record) | changes requested; fresh review requested | Do not transfer the predecessor PASS; verify the live exact-head Checks and independent review, without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
@@ -170,13 +171,15 @@ be converted into a synthetic success.
 
 ### G4 — SCIM deactivation concurrency boundary
 
-**State:** `accepted-contract` with an explicit protected-main limitation
-**Root cause:** `PATCH active=false` is not covered by the shared cross-process
-lock used by merge and full-replacement `PUT`.
+**State:** `active-PR` with an explicit protected-main limitation
+**Root cause:** protected `main` did not cover `PATCH active=false` with the
+shared cross-process lock used by merge and full-replacement `PUT`.
 
-**Acceptance:** add a real concurrent deactivation/merge regression, join the
-same lock only if the implementation preserves tombstone and survivor
-invariants, and update PRD/TRD/ERD/Threat/Test/Operability/doctoring together.
+**Acceptance:** PR #113 adds the shared lock, SCIM-shaped 503 lock-timeout
+mapping, a real concurrent deactivation/merge regression, and reconciled
+PRD/TRD/UML/Threat/Test/Operability/doctoring records. The protected-main gap
+closes only after exact-head hosted Checks, independent review, protected merge,
+and a refreshed baseline prove the change on main.
 
 ### G5 — Physical database and hot-partition evidence
 
