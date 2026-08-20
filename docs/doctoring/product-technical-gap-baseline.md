@@ -44,6 +44,39 @@ evidence gaps.
   mechanism that projects roles and user/session data into tokens. That vendor
   behavior does not establish that a receiving application enforces ABAC/RBAC.
 
+## 2026-08-21 local runtime probe
+
+This is partial protocol-readiness evidence, not login or release acceptance.
+
+- Docker Engine 29.5.2 was available. The existing Compose runtime reported
+  `idp_database` healthy, `idp_engine` healthy, and the one-shot
+  `idp_profile_bootstrap` completed successfully. The account-unification
+  service was not running.
+- `docker compose config --quiet` remained structurally valid but warned that
+  the deployment-only `IDP_DB_PASSWORD` and
+  `IDP_BOOTSTRAP_ADMIN_PASSWORD` values were unset. The ignored
+  `deploy/bootstrap/bootstrap.yaml` was absent; only the secret-free example
+  pointer exists. No secret or credential value was recorded.
+- The live realm discovery endpoint returned HTTP 200 with issuer
+  `http://localhost:28080/realms/cwl`, authorization/token/JWKS endpoints, and
+  advertised `S256` among the realm-wide code-challenge methods.
+- A real authorization request for the committed `naruon-web` client, its
+  committed `https://naruon.example/auth/callback` redirect, and a valid
+  `S256` challenge reached the Keycloak login page with HTTP 200. The earlier
+  intentionally invalid localhost redirect returned HTTP 400, confirming
+  redirect enforcement at the live client boundary.
+- No account was created, no password or passkey credential was entered, no
+  authorization code was exchanged, and no token signature/issuer/audience/
+  tenant/resource acceptance was claimed. Browser automation was unavailable
+  in this environment, so browser-clicked passwordless E2E remains absent.
+
+**Result:** the live issuer and authorization-start boundary are reachable,
+but controlled passwordless login, token validation, downstream authorization,
+and account-service runtime acceptance remain `gap-not-claimed`. The missing
+bootstrap/config-store path is an actionable standalone-Compose deployment gap
+that requires deployment-owned secret/config setup before a safe service start;
+placeholder credentials must not be committed to close it.
+
 ## APA 7th references
 
 OpenID Foundation. (2014). *OpenID Connect Core 1.0*.
