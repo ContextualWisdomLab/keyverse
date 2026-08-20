@@ -318,6 +318,9 @@ def test_scim_patch_is_serialized_with_merge(
             test_client.patch,
             "/scim/v2/Users/dup",
             json={
+                "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+                ],
                 "Operations": [
                     {"op": "replace", "value": {"active": False}}
                 ]
