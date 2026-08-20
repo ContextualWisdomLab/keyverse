@@ -7,7 +7,7 @@ moves federation ownership into the application.
 """
 from __future__ import annotations
 
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -148,7 +148,7 @@ class StartLoginService:
 def _reject_discovery_request(request: StartLoginRequest) -> None:
     """Refuse fields that would imply a metadata or discovery fetch."""
     public_issuer_url = request.public_issuer_url or ""
-    lowered = public_issuer_url.lower()
+    lowered = unquote(public_issuer_url).lower()
     if any(marker.lower() in lowered for marker in _FORBIDDEN_HINTS):
         raise AuthorizationPolicyError(
             "start-login must not receive discovery or metadata URLs"

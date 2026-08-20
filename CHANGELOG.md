@@ -16,7 +16,8 @@ Keep a Changelog, and releases use semantic versioning.
   profile reserved as ADR-0009 on PR #100.
 - App start-login helper (ADR-0011) that discovers enabled brokered IdPs from
   the local registry and returns a Keycloak `kc_idp_hint` authorization URL
-  without metadata or discovery fetch.
+  without metadata or discovery fetch; encoded discovery markers are rejected
+  after URL normalization at the same boundary.
 - Programmable application tokens (ADR-0012) hashed at rest, purpose-bound,
   software-unit and API scoped, rotatable, auditable, and never a password
   substitute or inherited secret.

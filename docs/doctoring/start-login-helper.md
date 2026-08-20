@@ -28,7 +28,12 @@ and does not become a new IdP.
 `services/account_unification/tests/test_start_login.py` proves single-IdP
 auto-selection, multi-IdP hinting, disabled-provider omission, discovery-URL
 rejection, HTTPS redirect policy, empty-registry behavior, and the
-`metadata_fetch_performed=false` contract.
+`metadata_fetch_performed=false` contract. The same tests prove that
+percent-encoded `.well-known`, `metadataUrl`, and `discoveryEndpoint` markers
+are normalized before the no-fetch policy check. The service only constructs a
+response URL; it does not dereference the supplied issuer, so a security scan's
+SSRF label is recorded here as a URL-normalization policy defect rather than
+live server-side network evidence.
 
 ## Assumptions and limitations
 

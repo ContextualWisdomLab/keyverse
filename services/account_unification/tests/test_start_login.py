@@ -203,6 +203,32 @@ def test_start_login_rejects_discovery_urls_and_unsafe_redirects(client, store) 
     assert "disabled-idp" not in aliases
 
 
+@pytest.mark.parametrize(
+    "encoded_discovery_path",
+    [
+        "%2Ewell-known/openid-configuration",
+        "metadata%55rl",
+        "discovery%45ndpoint",
+    ],
+)
+def test_start_login_rejects_percent_encoded_discovery_urls(
+    client, encoded_discovery_path: str
+) -> None:
+    """Encoded discovery markers cannot bypass the no-fetch boundary."""
+    response = client.post(
+        "/federation/identity-providers:start-login",
+        json={
+            "software_unit_id": "naruon-web",
+            "client_id": "naruon-web",
+            "redirect_uri": "https://naruon.example/callback",
+            "public_issuer_url": f"https://idp.example/{encoded_discovery_path}",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "discovery or metadata URLs" in response.json()["detail"]
+
+
 def test_start_login_public_issuer_and_redirect_bounds(client) -> None:
     """Issuer and redirect inputs stay closed and local."""
     credentials = client.post(
