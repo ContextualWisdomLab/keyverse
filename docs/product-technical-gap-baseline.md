@@ -71,15 +71,16 @@ intentional stacked-base rebase of PR #104. The live PR record is authoritative
 for the exact hash and Checks; predecessor evidence remains non-transferable.
 
 At this snapshot, 14 PRs are open: three have 22 successful Checks with none
-queued, nine have queued Checks without a terminal failure, #111 retains one
-old-base failure while its stacked rerun is queued, and #113 has one current
-terminal failure. Queued Checks remain unverified rather than green.
+queued, nine have queued Checks without a terminal failure, #111 has 18
+successful Checks with two queued after its lock-refresh stack, and #113 has
+one current terminal failure. Queued Checks remain unverified rather than
+green.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
 | [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | FAIL: 1 terminal `strix` failure, 1 queued, 18 successful on `50f19ec6338fb8eb959b8c797bdfa938e1071c87` | review required | The failure was a transient GHCR Strix image pull EOF with no report; preserve fail-closed treatment and obtain a fresh exact-head run when the external image service is available. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 22 Checks successful, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
-| [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 1 queued rerun, 18 successful, plus the prior-base `account-unification-tests` failure on `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` | review required | Now stacked on #112; the failed job was rerun against the lock-refresh base, so wait for that exact-base result before review or merge decisions. |
+| [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 2 queued, 18 successful, 0 terminal failures on `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` | review required | Now stacked on #112; the stale-lock failure is cleared on the new base, so wait for the remaining exact-head Checks and independent review. |
 | [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7 | PENDING: 5 Checks queued, 15 successful, 0 terminal failures on `07acd65145c9522a74858d1ff8761ea05a09e8f0` | review required | Treat as the companion of #111; do not merge the action pair independently. |
 | [#109](https://github.com/ContextualWisdomLab/keyverse/pull/109) | `typing-inspection` update | PENDING: 14 Checks queued, 0 terminal failures on `28a4e05b23baa75d44b37589ba662a3c46c67129` | review required | Re-check after #112; do not treat queued Checks as a failure. |
 | [#108](https://github.com/ContextualWisdomLab/keyverse/pull/108) | Ruff update | PENDING: 7 Checks queued, 12 successful, 0 terminal failures on `d9791bba5a2e277c2ae503504b871e8df0937439` | review required | Re-check after #112; do not rerun unchanged checks. |
