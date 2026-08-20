@@ -81,8 +81,9 @@ Keep a Changelog, and releases use semantic versioning.
 - Account merge and SCIM replacement now share the same user-operation lock
   boundary.
 - SCIM `PATCH active=false` deprovisioning now shares that lock boundary with
-  merge and replacement, returns retryable `503` on lock contention, and has a
-  concurrent merge linearization regression.
+  merge and replacement, returns a root-level `application/scim+json` error
+  with retryable `503` on lock contention, and has a concurrent merge
+  linearization regression.
 - SQLite configuration and audit stores support safe multi-threaded access with
   WAL mode and bounded busy timeouts.
 - Application shutdown closes Keycloak, audit, and configuration resources and

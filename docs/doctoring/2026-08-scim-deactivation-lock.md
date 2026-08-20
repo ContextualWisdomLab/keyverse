@@ -18,12 +18,19 @@ claim, or external provider behavior.
 - **HTTP behavior:** lock contention is represented as HTTP `503 Service
   Unavailable`, a retryable service-boundary result under the RFC 9110 status
   semantics; the response does not claim that the remote mutation started.
+  The wire response is a root-level SCIM error with
+  `Content-Type: application/scim+json`, `schemas`, `detail`, and string
+  `status` fields. The service does not emit `Retry-After`; callers own bounded
+  backoff and must re-observe before retrying.
 - **Policy choice:** the request is linearized by the shared lock. If PATCH
   deactivation acquires the lock first, a concurrent merge observes the
   disabled duplicate and fails rather than creating a contradictory tombstone.
 - **Implementation behavior:** the lock covers the existing read, deactivate,
   and final read sequence. A lock timeout exits before that sequence and maps to
-  the existing SCIM error shape.
+  the root-level SCIM error shape. The deterministic regression covers the
+  PATCH-first ordering; the independent timeout test covers the pre-mutation
+  failure boundary. This record does not claim a separate merge-first race
+  schedule or live clustered deployment evidence.
 
 ## Evidence
 
@@ -32,8 +39,11 @@ claim, or external provider behavior.
   deactivation call.
 - **GREEN:** after the source change, the same regression completes PATCH first,
   makes merge observe the inactive account, and leaves no merge tombstone.
+- **HTTP regression:** `test_scim_patch_lock_timeout_is_root_scim_error`
+  verifies the status, SCIM media type, and root-level error fields through
+  `TestClient`.
 - **Measured boundary:** focused and complete account-unification tests passed;
-  production coverage measured 2,738 statements and 738 branches at 100%;
+  production coverage measured 2,744 statements and 738 branches at 100%;
   Interrogate reported 100% docstring quality; Ruff, compileall, and `uv build`
   passed on this branch.
 - **Not claimed:** this is not live Keycloak, PostgreSQL, clustered deployment,

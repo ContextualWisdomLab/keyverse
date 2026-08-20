@@ -12,7 +12,7 @@ from app.errors import InactiveAccountError
 from app.main import create_app
 from app.models import MergeRequest
 from app.service import TOMBSTONE_ATTRIBUTE_KEY, UnificationService
-from app.user_locks import InMemoryUserOperationLocks
+from app.user_locks import InMemoryUserOperationLocks, UserOperationLockTimeout
 
 from .mock_product_keycloak import MockProductKeycloakAdminApi
 
@@ -61,6 +61,17 @@ class _BlockingDeactivateApi(MockProductKeycloakAdminApi):
         else:
             self.merge_deactivate_started.set()
         super().deactivate_user(user_id)
+
+
+class _TimeoutLocks:
+    """Raise the shared lock timeout before a SCIM mutation starts."""
+
+    @contextmanager
+    def hold(self, *user_ids: str):
+        """Fail lock acquisition without entering the critical section."""
+        del user_ids
+        raise UserOperationLockTimeout("busy")
+        yield
 
 
 @pytest.fixture
@@ -327,6 +338,24 @@ def test_scim_patch_is_serialized_with_merge(
     assert response.json()["active"] is False
     assert api.get_user("dup").state == "disabled"
     assert api.get_user_attribute("dup", TOMBSTONE_ATTRIBUTE_KEY) is None
+
+
+def test_scim_patch_lock_timeout_is_root_scim_error(client) -> None:
+    """SCIM lock contention returns a root-level SCIM error response."""
+    client.app.state.user_operation_locks = _TimeoutLocks()
+
+    response = client.patch(
+        "/scim/v2/Users/user-1",
+        json={"Operations": []},
+    )
+
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith("application/scim+json")
+    assert response.json() == {
+        "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+        "detail": "user 'user-1' is being modified; retry the request",
+        "status": "503",
+    }
 
 
 def test_scim_patch_deactivates_user(client, api) -> None:

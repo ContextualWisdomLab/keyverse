@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 
 from .keycloak_client import AdminApi
 from .models import UserAccount
@@ -35,6 +36,24 @@ SCIM_CONTENT_TYPE = "application/scim+json"
 scim_router = APIRouter(prefix="/scim/v2", tags=["scim"])
 
 
+class ScimHttpException(HTTPException):
+    """Represent one SCIM error that needs a protocol response envelope."""
+
+
+def scim_exception_handler(
+    request: Request,
+    error: ScimHttpException,
+) -> JSONResponse:
+    """Render a SCIM error at the response body root with its media type."""
+    del request
+    return JSONResponse(
+        status_code=error.status_code,
+        media_type=SCIM_CONTENT_TYPE,
+        content=error.detail,
+        headers=error.headers,
+    )
+
+
 def get_provisioner(request: Request) -> AdminApi:
     """Return the Keycloak provisioner wired into app state."""
     api = getattr(request.app.state, "keycloak_api", None)
@@ -51,9 +70,9 @@ def get_user_operation_locks(request: Request) -> UserOperationLocks:
     return locks
 
 
-def _scim_error(status: int, detail: str) -> HTTPException:
+def _scim_error(status: int, detail: str) -> ScimHttpException:
     """Build a SCIM-shaped HTTP error."""
-    return HTTPException(
+    return ScimHttpException(
         status_code=status,
         detail={"schemas": [SCIM_ERROR_SCHEMA], "detail": detail, "status": str(status)},
     )

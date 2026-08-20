@@ -146,7 +146,10 @@ flowchart LR
     USER --> AUDIT
 ```
 
-Protected `main` guarantees the shared cross-process lock for merge/link, full SCIM replacement, and the supported `PATCH active=false` deprovisioning path. Lock contention is returned as retryable SCIM `503`; future read-modify-write paths require a source change and concurrency test before joining the boundary.
+Protected `main` guarantees the shared cross-process lock for merge/link and
+full SCIM replacement. Active PR #113 extends the boundary to the supported
+`PATCH active=false` deprovisioning path; its retryable SCIM `503` behavior is
+not a protected-main guarantee until exact-head review and Checks pass.
 
 ## Automation authority
 
