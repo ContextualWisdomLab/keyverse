@@ -240,6 +240,21 @@ def test_account_derived_claim_mapper_observation_is_reconciled() -> None:
     assert normalized == desired_mappers
 
 
+@pytest.mark.parametrize("protocol_mapper", ([], {}))
+def test_observed_non_string_mapper_type_is_drift(protocol_mapper: object) -> None:
+    """Malformed vendor mapper types fail closed instead of raising unexpectedly."""
+    payload = _lineageweave_registration_with_account_claims()
+    registration = _parse_registration(payload)
+    desired_mappers = payload["protocolMappers"]
+    assert isinstance(desired_mappers, list)
+    observed_mappers = deepcopy(desired_mappers)
+    first_mapper = observed_mappers[0]
+    assert isinstance(first_mapper, dict)
+    first_mapper["protocolMapper"] = protocol_mapper
+
+    assert _normalized_observed_mappers(observed_mappers, registration) is None
+
+
 @pytest.mark.parametrize(
     ("mutate", "field"),
     [
