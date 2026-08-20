@@ -77,6 +77,22 @@ bootstrap/config-store path is an actionable standalone-Compose deployment gap
 that requires deployment-owned secret/config setup before a safe service start;
 placeholder credentials must not be committed to close it.
 
+## 2026-08-21 cross-repository cadence dependency
+
+- The related contextual-orchestrator hourly caller is open as PR #797 at exact
+  head `2693c01b79c564db041abc930f3365eddd74dfe3`. It invokes the central
+  review-repair scheduler for one exact-head dispatch per hourly tick and names
+  central `.github` PR #1170 as a prerequisite for the gateway route.
+- Central `.github` PR #1170 is open at exact head
+  `4684f6e212ba40d12e5217f0f52ee1e90c796ed8` after the gateway fallback/privacy/
+  reasoning fixes and the final docstring repair. Its new hosted rollup has 17
+  queued checks, one success, and no terminal failure. Neither #1170 nor #797
+  has qualifying formal approval or protected merge evidence.
+- Keyverse's existing `Hourly product development` workflow remains active at
+  `41 * * * *`; its latest observed scheduled runs succeeded. No duplicate
+  scheduler was added. Activation of the related caller remains conditional on
+  independent approval and terminal exact-head evidence for both PRs.
+
 ## APA 7th references
 
 OpenID Foundation. (2014). *OpenID Connect Core 1.0*.
