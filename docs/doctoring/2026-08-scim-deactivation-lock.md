@@ -42,6 +42,10 @@ claim, or external provider behavior.
 - **HTTP regression:** `test_scim_patch_lock_timeout_is_root_scim_error`
   verifies the status, SCIM media type, and root-level error fields through
   `TestClient`.
+- **Cross-process backend regression:**
+  `test_sqlite_locks_serialize_across_processes` uses the production SQLite
+  sidecar from an independent spawned process, proves contention becomes the
+  retryable timeout, and verifies acquisition after release.
 - **Measured boundary:** focused and complete account-unification tests passed;
   production coverage measured 2,744 statements and 738 branches at 100%;
   Interrogate reported 100% docstring quality; Ruff, compileall, and `uv build`
