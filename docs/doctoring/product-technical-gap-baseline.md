@@ -169,7 +169,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
   the validator's committed default realm/profile paths after an exact-head
   Devin coverage finding. The current documentation successor is
-  `49d8899dca3eda31df76d5fc236f7f5fee5ed31e`, with 14 queued Checks and no
+  `2b8c59fd29acf9464044734100c520ad591a6a75`, with 14 queued Checks and no
   terminal failure; its prior review state is not approval. PR #104 is ready for review at
   `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
   lockfile head with no net lockfile change; its stacked Checks remain queued.
