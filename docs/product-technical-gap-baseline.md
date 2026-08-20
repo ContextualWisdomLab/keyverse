@@ -73,7 +73,7 @@ Checks; predecessor evidence remains non-transferable.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock | PENDING: hosted Checks queued | review required | Obtain independent review and terminal exact-head Checks, then let protected automation merge; do not treat local GREEN as protected-main evidence. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: hosted Checks queued on `9e82f163c1a33c290ca04f4e8de1c2f9e9b65e68` | review required | Obtain independent review and terminal exact-head Checks, then let protected automation merge; do not treat local GREEN as protected-main evidence. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | FAIL: account tests, CodeQL, Strix | review required | Keep coupled with #110; revalidate after lockfile and action-version coupling is resolved. |
 | [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7 | FAIL: account tests, CodeQL | review required | Treat as the companion of #111; do not merge the action pair independently. |
@@ -185,7 +185,8 @@ be converted into a synthetic success.
 shared cross-process lock used by merge and full-replacement `PUT`.
 
 **Acceptance:** PR #113 adds the shared lock, root-level SCIM `503`
-lock-timeout mapping, a real concurrent deactivation/merge regression, and reconciled
+lock-timeout mapping, real concurrent deactivation/merge and cross-process
+sidecar-lock regressions, and reconciled
 PRD/TRD/UML/Threat/Test/Operability/doctoring records. The protected-main gap
 closes only after exact-head hosted Checks, independent review, protected merge,
 and a refreshed baseline prove the change on main.

@@ -67,10 +67,12 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - ADR-0008 and ADR-0009 plus their related specification, plan, operations,
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
-  queries performed on 2026-08-20. PR #113's SCIM lock head `d68159e`
-  (`d68159e4b69765b81d4508600a802d2cea175265`) has hosted Checks queued and
-  requires independent review; its local RED-to-GREEN and root-level SCIM
-  error-wire evidence are not protected-main evidence. PR #112's lockfile head
+  queries performed on 2026-08-20. PR #113's current SCIM lock head
+  `9e82f163c1a33c290ca04f4e8de1c2f9e9b65e68` includes a normal merge of
+  prerequisite PR #112 and a spawned-process SQLite lock regression; its hosted
+  Checks are queued and it requires independent review. Its local RED-to-GREEN,
+  root-level SCIM error-wire, and cross-process sidecar evidence are not
+  protected-main evidence. PR #112's lockfile head
   `f02acf93367a40dbfb23a73985017dca8d42ff39` has terminal-success Checks but
   still requires independent review. PR #105's exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` has a failed
