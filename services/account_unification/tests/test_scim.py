@@ -346,7 +346,14 @@ def test_scim_patch_lock_timeout_is_root_scim_error(client) -> None:
 
     response = client.patch(
         "/scim/v2/Users/user-1",
-        json={"Operations": []},
+        json={
+            "schemas": [
+                "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+            ],
+            "Operations": [
+                {"op": "replace", "value": {"active": False}}
+            ],
+        },
     )
 
     assert response.status_code == 503
