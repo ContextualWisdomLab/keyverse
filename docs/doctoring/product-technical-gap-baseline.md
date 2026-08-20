@@ -77,6 +77,17 @@ bootstrap/config-store path is an actionable standalone-Compose deployment gap
 that requires deployment-owned secret/config setup before a safe service start;
 placeholder credentials must not be committed to close it.
 
+## 2026-08-21 storage evidence
+
+- The focused exact-tree run `uv run pytest -q
+  tests/test_storage_concurrency.py tests/test_lifecycle.py` passed 6 tests.
+  This is evidence for the SQLite sidecar's local lock contention and lifecycle
+  behavior only.
+- No PostgreSQL migration/rollback, concentrated-tenant skew, partition-key,
+  backup/restore, or production recovery evidence was observed. G5 therefore
+  remains `gap-not-claimed`; the local SQLite result must not be promoted into a
+  production database acceptance claim.
+
 ## 2026-08-21 cross-repository cadence dependency
 
 - The related contextual-orchestrator hourly caller is open as PR #797 at exact

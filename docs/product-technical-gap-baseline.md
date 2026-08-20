@@ -220,6 +220,12 @@ and a refreshed baseline prove the change on main.
 two-word-or-longer snake_case names, but a production claim needs migration,
 index, partition-key, skew, and recovery evidence from the owning database.
 
+**Current repository evidence:** the focused local SQLite storage/lifecycle
+regression run (`tests/test_storage_concurrency.py` and
+`tests/test_lifecycle.py`) passed 6 tests on this tree. It proves only the
+sidecar's local locking and lifecycle behavior; it is not PostgreSQL migration,
+partition-skew, backup, restore, or production recovery evidence.
+
 **Acceptance:** run PostgreSQL migration/rollback tests with tenant-scoped
 composite constraints, measure skew under concentrated tenants, document the
 chosen partition/index strategy, and prove backup/restore. Do not add a
