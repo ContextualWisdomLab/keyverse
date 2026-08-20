@@ -112,7 +112,7 @@ Checks; predecessor evidence remains non-transferable.
 | Issue | Product signal | Classification | Required outcome |
 |---:|---|---|---|
 | [#102](https://github.com/ContextualWisdomLab/keyverse/issues/102) | Hierarchical authorization plane, login helper, PATs | `active-PR` | Security-review the proposed authority model and prove fail-closed token/tenant/resource behavior. |
-| [#99](https://github.com/ContextualWisdomLab/keyverse/issues/99) | Orphaned federation and product-loop workflow identities | `gap-not-claimed` | Disable only through the owning protected workflow/organization path and record live identity evidence. |
+| [#99](https://github.com/ContextualWisdomLab/keyverse/issues/99) | Orphaned federation and product-loop workflow identities | `gap-not-claimed` | Live evidence at protected `main` `ce207dfd` found 43 active registry identities: 4 present repository paths, 37 missing repository paths, and 2 GitHub-owned dynamic paths. Disable only through the owning protected workflow/organization path and revalidate by workflow ID immediately before mutation. |
 | [#71](https://github.com/ContextualWisdomLab/keyverse/issues/71) | Remove runtime application RPs from portable import | `active-PR` | Merge #83 only after current-head protected evidence. |
 | [#2](https://github.com/ContextualWisdomLab/keyverse/issues/2) | Central IdP plus external-IdP federation | `accepted-contract` | Use the existing closed preflight/apply boundary and add approved-environment acceptance. |
 

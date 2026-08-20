@@ -77,4 +77,10 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   requires independent validation. PR #100's live current head
   is recorded as pending until its Checks and a fresh review complete; this
   record travels in that PR, so the live PR record is authoritative for its
-  changing exact hash. No credential, private payload, or PII is recorded here.
+  changing exact hash. A complete read-only Keyverse Actions registry/tree
+  reconciliation at protected `main` `ce207dfd` found 43 active identities:
+  four repository workflow paths present in the exact tree, 37 active
+  repository paths absent from it, and two `dynamic/*` GitHub-owned paths.
+  No workflow state was mutated; the evidence is recorded on Keyverse issue
+  #99 and central issue #945 for the owning lifecycle operator. No credential,
+  private payload, or PII is recorded here.
