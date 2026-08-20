@@ -68,7 +68,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-20. PR #113's SCIM lock head `d68159e`
-  (`d68159e5c0c7be84a1a9b0fbfe8b7b632e4a74d2`) has hosted Checks queued and
+  (`d68159e4b69765b81d4508600a802d2cea175265`) has hosted Checks queued and
   requires independent review; its local RED-to-GREEN and root-level SCIM
   error-wire evidence are not protected-main evidence. PR #112's lockfile head has
   terminal-success Checks but still requires independent review. PR #103 has a
