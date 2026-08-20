@@ -1,7 +1,7 @@
 # ADR-0004: Use side-effect-free preflight and re-observed desired-state reconciliation
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Last expanded:** 2026-08-18
 
 ## Context

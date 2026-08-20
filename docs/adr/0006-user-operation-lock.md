@@ -1,7 +1,7 @@
 # ADR-0006: Share one user-operation lock across merge and SCIM full replacement
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Last expanded:** 2026-08-18
 
 ## Context

@@ -1,7 +1,7 @@
 # ADR-0007: Separate autonomous development from review, merge, and release authority
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Last expanded:** 2026-08-18
 
 ## Context

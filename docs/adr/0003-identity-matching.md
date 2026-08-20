@@ -1,7 +1,7 @@
 # ADR-0003: Use exact external subject, then verified email, then explicit link
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Last expanded:** 2026-08-18
 
 ## Context

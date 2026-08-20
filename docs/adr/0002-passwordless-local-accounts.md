@@ -1,7 +1,7 @@
 # ADR-0002: Keep ecosystem-local accounts passwordless-first
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Last expanded:** 2026-08-18
 
 ## Context

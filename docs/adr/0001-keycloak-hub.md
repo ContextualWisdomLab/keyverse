@@ -1,7 +1,7 @@
 # ADR-0001: Keep Keycloak and Keyverse as the ecosystem identity hub
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Last expanded:** 2026-08-18
 
 ## Context
