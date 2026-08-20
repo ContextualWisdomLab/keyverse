@@ -1,6 +1,6 @@
 # Product-technical gap baseline doctoring record
 
-**Date:** 2026-08-20
+**Date:** 2026-08-21
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
 
 ## Interpretation
@@ -67,27 +67,42 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - ADR-0008 and ADR-0009 plus their related specification, plan, operations,
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
-  queries performed on 2026-08-20. PR #113's current SCIM lock head
-  `c2c03a5dba46b207b02d296c26d8bb1dbf215092` includes a normal merge of
-  prerequisite PR #112 and a spawned-process SQLite lock regression; its hosted
-  Checks are queued and it requires independent review. Its local RED-to-GREEN,
-  root-level SCIM error-wire, and cross-process sidecar evidence are not
-  protected-main evidence. PR #112's lockfile head
-  `f02acf93367a40dbfb23a73985017dca8d42ff39` has terminal-success Checks but
-  still requires independent review. PR #105's exact head
-  `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` has a failed
-  `account-unification-tests` Check: `uv 0.12.5` reproduces
+  queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
+  and #83 each have 23 successful Checks with no queued run; the other eleven
+  currently have queued Checks, including #100 after this documentation
+  refresh. No current open PR has a terminal failure, error, timeout, or
+  cancellation, and no current open PR has a qualifying formal approval.
+  Queued Checks remain unverified.
+  PR #113's current SCIM lock head
+  `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
+  lockfile history and a realistic SCIM PatchOp race plus spawned-process
+  SQLite lock regression; its hosted Checks are queued and it requires
+  independent review. Its local RED-to-GREEN, root-level SCIM error-wire, and
+  cross-process sidecar evidence are not protected-main evidence. PR #112's
+  lockfile head `f02acf93367a40dbfb23a73985017dca8d42ff39` has terminal-success
+  Checks but still requires independent review.
+  The historical PR #105 exact head
+  `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
+  `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
-  `setuptools==83.0.0` lock entries while the current `pyproject.toml` requires
-  `7.15.4` and `84.0.0`; #112 is the existing prerequisite lock refresh.
-  PR #103's
-  terminal Strix run 32092025335 / job 95576032571 emitted a MEDIUM IDOR report
-  with contradictory model text; its operator-admin trust boundary still
-  requires independent validation. PR #100's live current head
-  is recorded as pending until its Checks and a fresh review complete; this
-  record travels in that PR, so the live PR record is authoritative for its
-  changing exact hash. A complete read-only Keyverse Actions registry/tree
-  reconciliation at protected `main` `ce207dfd` found 43 active identities:
+  `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
+  `7.15.4` and `84.0.0`; the current #105 head is queued with no terminal
+  failure, and #112 remains the lock-refresh prerequisite.
+  PR #103's historical terminal Strix run 32092025335 / job 95576032571
+  emitted a MEDIUM IDOR report with contradictory model text. Current head
+  `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
+  regression evidence, but the operator-admin trust boundary still requires
+  independent validation. PR #100's pre-doctoring-refresh head was
+  `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; this documentation commit creates
+  a new pending successor, so its hosted Checks and review must be re-fetched.
+  Its prior review state is not approval. This record travels in that PR, so
+  the live PR record remains authoritative for its changing exact hash.
+  The active ruleset requires two approving reviews, resolved threads, and
+  latest-push approval, while its read-only audit exposes an
+  `OrganizationAdmin` always-bypass actor. The ordinary documentation push
+  emitted GitHub's server-side bypass warning; no explicit bypass option,
+  protected merge, or self-approval was used. A complete read-only Keyverse
+  Actions registry/tree reconciliation at protected `main` `ce207dfd` found 43 active identities:
   four repository workflow paths present in the exact tree, 37 active
   repository paths absent from it, and two `dynamic/*` GitHub-owned paths. The
   workflow registry used one API page and the recursive protected-tree response
