@@ -118,8 +118,9 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
   and #83 each have 22 successful Checks with no queued run; nine others have
-  queued Checks without a terminal failure, while #111 and #113 each have one
-  terminal failure. No current open PR has a qualifying formal approval.
+  queued Checks without a terminal failure, #111 retains one old-base failure
+  while its stacked rerun is queued, and #113 has one current terminal failure.
+  No current open PR has a qualifying formal approval.
   Queued Checks remain unverified.
   PR #113's current SCIM lock head
   `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
@@ -132,9 +133,11 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   sidecar evidence are not protected-main evidence. PR #112's lockfile head
   `f02acf93367a40dbfb23a73985017dca8d42ff39` has 22 terminal-success Checks
   but still requires independent review. PR #111's current head
-  `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` has one terminal
-  `account-unification-tests` failure because `uv sync --locked` found a stale
-  `uv.lock` before tests began; it remains coupled to #112 and #110.
+  `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` is now stacked on #112. Its
+  prior `account-unification-tests` failure occurred against the old `main`
+  base because `uv sync --locked` found a stale `uv.lock` before tests began;
+  that failed job was rerun against the lock-refresh base and remains queued.
+  It remains coupled to #112 and #110.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
