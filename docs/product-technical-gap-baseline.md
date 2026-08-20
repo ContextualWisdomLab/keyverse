@@ -66,12 +66,12 @@ tenant, or resource ownership.
 
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-21; it is not inherited from a predecessor commit.
-The baseline is being updated on PR #100, so this documentation commit advances
-that head and requires a fresh hosted rollup. The live PR record is authoritative
+This record was refreshed after the PR #100 validator-coverage test fix and the
+intentional stacked-base rebase of PR #104. The live PR record is authoritative
 for the exact hash and Checks; predecessor evidence remains non-transferable.
 
-At this snapshot, 14 PRs are open: four have 23 successful Checks with none
-queued, ten have 14 Checks queued, and no PR has a terminal failure, error,
+At this snapshot, 14 PRs are open: three have 23 successful Checks with none
+queued, eleven have queued Checks, and no PR has a terminal failure, error,
 timeout, or cancellation. Queued Checks remain unverified rather than green.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
@@ -85,10 +85,10 @@ timeout, or cancellation. Queued Checks remain unverified rather than green.
 | [#107](https://github.com/ContextualWisdomLab/keyverse/pull/107) | Uvicorn update | PENDING: 14 Checks queued, 0 terminal failures on `0240ef8df7269da8eddcfe17abd2383812768001` | review required | Re-check after #112; do not rerun unchanged checks. |
 | [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update | PENDING: 14 Checks queued, 0 terminal failures on `2f0e3fb19a63db7f51cdadfeae6155cd469a0c91` | review required | Re-check after #112; do not rerun unchanged checks. |
 | [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update | PENDING: 14 Checks queued, 0 terminal failures on `ef03c5a93c891980588b125f6c774fa84bf0feef` | changes requested | Keep the historical lockfile failure distinct from this current queued head; obtain a new exact-head review after the dependency gate settles. |
-| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion | PENDING: 14 Checks queued, 0 terminal failures on `01b6dc73f55680d6980e249bcf9dfd71945542f7` | draft | Keep draft until scope and exact-main evidence are ready. |
+| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 14 Checks queued, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 14 Checks queued, 0 terminal failures on `157b76893b32cda66fc586aa67ae72a30ac6b0d6` | changes requested | Independently validate the historical Strix report against the operator-admin trust boundary; retain fail-closed treatment and obtain a fresh exact-head review/check run before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus this live baseline refresh | PENDING after this documentation commit; re-fetch the exact live head and hosted rollup | changes requested; fresh review requested | Do not transfer the predecessor PASS; verify the live exact-head Checks and independent review, without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING after this evidence refresh; predecessor `3777f54a824d3b2d3458b94f88e5627a7761a2c0` had 14 Checks queued and 0 terminal failures | changes requested; fresh review requested | Devin's exact-head coverage finding is addressed by the default-artifact regression test; the live PR record must be re-fetched after this commit, without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed

@@ -102,8 +102,8 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
   and #83 each have 23 successful Checks with no queued run; the other eleven
-  currently have queued Checks, including #100 after this documentation
-  refresh. No current open PR has a terminal failure, error, timeout, or
+  currently have queued Checks, including #100 after its default-path coverage
+  test fix and #104 after its intentional stacked-base rebase. No current open PR has a terminal failure, error, timeout, or
   cancellation, and no current open PR has a qualifying formal approval.
   Queued Checks remain unverified.
   PR #113's current SCIM lock head
@@ -126,10 +126,16 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
   regression evidence, but the operator-admin trust boundary still requires
   independent validation. PR #100's pre-doctoring-refresh head was
-  `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; this documentation commit creates
-  a new pending successor, so its hosted Checks and review must be re-fetched.
-  Its prior review state is not approval. This record travels in that PR, so
-  the live PR record remains authoritative for its changing exact hash.
+  `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
+  `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
+  the validator's committed default realm/profile paths after an exact-head
+  Devin coverage finding. This evidence refresh creates another pending
+  successor, so its hosted Checks must be re-fetched; its prior review state is
+  not approval. PR #104 is ready for review at
+  `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
+  lockfile head with no net lockfile change; its stacked Checks remain queued.
+  This record travels in these PRs, so the live PR records remain authoritative
+  for their changing exact hashes.
   The active ruleset requires two approving reviews, resolved threads, and
   latest-push approval, while its read-only audit exposes an
   `OrganizationAdmin` always-bypass actor. The ordinary documentation push
