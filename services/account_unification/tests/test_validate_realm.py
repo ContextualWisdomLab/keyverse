@@ -281,6 +281,19 @@ def test_main_accepts_an_explicit_profile_outside_the_realm_directory(
     assert f"OK: {realm_path}" in capsys.readouterr().out
 
 
+def test_main_uses_the_default_committed_realm_and_profile(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The CLI default paths validate the committed policy artifacts."""
+    validator = _load_validate_realm()
+    monkeypatch.chdir(_repository_root())
+
+    result = validator.main(["validate_realm.py"])
+
+    assert result == 0
+    assert "OK: deploy/keycloak/cwl-realm.json" in capsys.readouterr().out
+
+
 def test_main_names_an_explicit_invalid_profile_in_its_error(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
