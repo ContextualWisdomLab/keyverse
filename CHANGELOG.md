@@ -72,6 +72,9 @@ Keep a Changelog, and releases use semantic versioning.
 - Added the active PR #113 SCIM deactivation-lock state and the current PR #103
   Strix/IDOR evidence to the gap baseline; neither is represented as protected
   main until exact-head review and merge evidence exists.
+- Refreshed the PR #103 Strix evidence with its exact failed run/job and kept
+  the contradictory operator-admin IDOR interpretation fail-closed pending
+  independent security validation.
 - The Helm realm-import operator runbook now migrates the legacy
   `realm-cwl.json` ConfigMap key to `cwl-realm.json` before rollout, preserving
   a rollback copy and requiring post-rollout realm discovery verification.

@@ -83,7 +83,7 @@ Checks; predecessor evidence remains non-transferable.
 | [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update | FAIL: account tests | review required | Re-check after #112; do not rerun unchanged checks. |
 | [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update | FAIL: account tests | changes requested | Fix the locked dependency gate first, then obtain a new exact-head review. |
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion | FAIL: account tests | draft | Keep draft until scope and exact-main evidence are ready. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | FAIL: Strix, MEDIUM IDOR report | changes requested | Validate the report against the operator-admin trust boundary, retain fail-closed treatment, and obtain a fresh exact-head review/check run before any merge claim. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | FAIL: Strix run 32092025335 / job 95576032571, MEDIUM IDOR report | changes requested | Independently validate the report against the operator-admin trust boundary; retain fail-closed treatment and obtain a fresh exact-head review/check run before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
 | [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims | PENDING on current PR head (exact live record) | changes requested; fresh review requested | Do not transfer the predecessor PASS; verify the live exact-head Checks and independent review, without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
@@ -98,9 +98,14 @@ Checks; predecessor evidence remains non-transferable.
   #111 run loaded configuration for 4.37.7 while running 4.37.6. They must be
   evaluated as one compatible pair, with fresh exact-head Checks after the
   lockfile queue is clear.
-- The historical #103 Strix run is not currently retrievable through the
-  Actions API. That is missing evidence, not a pass and not permission to
-  bypass the security gate.
+- PR #103 Strix run 32092025335 / job 95576032571 failed closed after emitting
+  a MEDIUM IDOR report that requests binding grant-management
+  actor_identity_id values to the authenticated principal. The same model
+  report also says the issue was already resolved, so the evidence is
+  contradictory. The routes are currently operator-admin gated and the
+  operator token does not expose distinct end-user principals; independent
+  security validation must resolve that trust-boundary interpretation. Until
+  then the failure remains blocking and is not converted into a pass.
 
 ## Open Issue inventory
 
