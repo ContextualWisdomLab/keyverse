@@ -189,9 +189,12 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
-  `7.15.4` and `84.0.0`; the current #105 head has nine queued and nine
-  successful Checks with no terminal failure, and #112 remains the
-  lock-refresh prerequisite.
+  `7.15.4` and `84.0.0`; the current #105 head
+  `ef03c5a93c891980588b125f6c774fa84bf0feef` is now stacked on #112 and has
+  19 successful Checks plus one queued Check with no terminal failure. The
+  current #106, #107, #108, and #109 heads are likewise stacked on #112, each
+  with 19 successful Checks plus one queued Check; their queued Checks remain
+  unverified and #112 remains the lock-refresh prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Current head
   `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
