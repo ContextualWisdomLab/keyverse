@@ -102,21 +102,24 @@ placeholder credentials must not be committed to close it.
 
 ## 2026-08-21 cross-repository cadence dependency
 
-- The related contextual-orchestrator hourly caller is open as PR #797 at exact
-  head `5dccb65fdd6088deb7c014f819340cceeb89c313`. It invokes the central
-  review-repair scheduler for one exact-head dispatch at minute 07 of each hour
-  and names central `.github` PR #1170 as the gateway prerequisite. Its current
-  exact-head rollup has 15 queued Checks, 0 terminal failures, and 0 successes.
+- Contextual-orchestrator PR #797 is closed without merge and superseded. Its
+  minute-07 caller duplicated the canonical central caller now proposed in
+  `.github` PR #1178; it must not be reopened or merged while #1178 owns this
+  dispatch boundary. Central PR #1183 is also closed without merge.
 - Central `.github` PR #1170 is open at exact head
   `4684f6e212ba40d12e5217f0f52ee1e90c796ed8` after the gateway fallback/privacy/
   reasoning fixes and the final docstring repair. Its current hosted rollup has
-  16 queued Checks, 2 successes, and no terminal failure. The superseded
-  central PR #1183 is closed without merge and is not a prerequisite. Neither
-  #1170 nor #797 has qualifying formal approval or protected merge evidence.
+  16 queued Checks, 2 successes, and no terminal failure.
+- Central `.github` PR #1178 is the canonical contextual-orchestrator hourly
+  caller, open at exact head
+  `97b084ac28b5ccf6de7f68fd2e019d8da6f80143`. Its current rollup has 15 queued,
+  1 in-progress, and 8 successful Checks; the one cancelled scheduler run is
+  historical and a newer exact-head scheduler run is queued. Neither #1170 nor
+  #1178 has qualifying formal approval or protected merge evidence.
 - Keyverse's existing `Hourly product development` workflow remains active at
   `41 * * * *`; its latest observed scheduled runs succeeded. No duplicate
-  scheduler was added. Activation of the related caller remains conditional on
-  independent approval and terminal exact-head evidence for both PRs.
+  scheduler was added. Activation of the central caller remains conditional on
+  independent approval and terminal exact-head evidence for #1170 and #1178.
 
 ## APA 7th references
 
@@ -142,20 +145,21 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
-  and #83 each have 22 successful Checks with no queued run; nine others have
-  queued Checks without a terminal failure, #111 has 18 successful Checks and
-  two queued after its lock-refresh stack, and #113 has one current terminal
-  failure.
+  and #83 each have 22 successful Checks with no queued run; the other eleven
+  have queued Checks without a terminal failure. #111 and #113 each have 18
+  successful Checks and two queued Checks after their lock-refresh/external
+  security reruns.
   No current open PR has a qualifying formal approval.
   Queued Checks remain unverified.
   PR #113's current SCIM lock head
   `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
   lockfile history and a realistic SCIM PatchOp race plus spawned-process
-  SQLite lock regression; its hosted Checks have one terminal `strix` failure,
-  one queued run, and 18 successful runs. The failed Strix job could not pull
-  `ghcr.io/usestrix/strix-sandbox:1.3.0` because GHCR returned HTTP 500/EOF,
-  and it produced no structured vulnerability report, so the workflow failed
-  closed. Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process
+  SQLite lock regression; its hosted Checks now have 18 successful runs and
+  two queued reruns with no terminal failure. The earlier Strix job could not
+  pull `ghcr.io/usestrix/strix-sandbox:1.3.0` because GHCR returned HTTP
+  500/EOF, and it produced no structured vulnerability report, so that run
+  failed closed; the fresh exact-head rerun remains unverified while queued.
+  Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process
   sidecar evidence are not protected-main evidence. PR #112's lockfile head
   `f02acf93367a40dbfb23a73985017dca8d42ff39` has 22 terminal-success Checks
   but still requires independent review. PR #111's current head
@@ -181,7 +185,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
   the validator's committed default realm/profile paths after an exact-head
   Devin coverage finding. The current documentation successor is
-  `8a5ba11322bebc09bde8ea57e9fb06d35ad0d614`, with 14 queued Checks and no
+  `0d4d1b98dfc8b722b5502dba942b322a1657902e`, with 14 queued Checks and no
   terminal failure; its prior review state is not approval. PR #104 is ready for review at
   `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
   lockfile head with no net lockfile change; its stacked Checks remain queued.

@@ -71,14 +71,14 @@ intentional stacked-base rebase of PR #104. The live PR record is authoritative
 for the exact hash and Checks; predecessor evidence remains non-transferable.
 
 At this snapshot, 14 PRs are open: three have 22 successful Checks with none
-queued, nine have queued Checks without a terminal failure, #111 has 18
-successful Checks with two queued after its lock-refresh stack, and #113 has
-one current terminal failure. Queued Checks remain unverified rather than
-green.
+queued, and the other eleven have queued Checks without a terminal failure.
+#111 and #113 each have 18 successful Checks and two queued Checks after their
+lock-refresh/external-security reruns. Queued Checks remain unverified rather
+than green.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | FAIL: 1 terminal `strix` failure, 1 queued, 18 successful on `50f19ec6338fb8eb959b8c797bdfa938e1071c87` | review required | The failure was a transient GHCR Strix image pull EOF with no report; preserve fail-closed treatment and obtain a fresh exact-head run when the external image service is available. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: 2 queued, 18 successful, 0 terminal failures on `50f19ec6338fb8eb959b8c797bdfa938e1071c87` | review required | The earlier GHCR Strix image-pull failure was rerun; wait for the fresh exact-head security result and independent review. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 22 Checks successful, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 2 queued, 18 successful, 0 terminal failures on `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` | review required | Now stacked on #112; the stale-lock failure is cleared on the new base, so wait for the remaining exact-head Checks and independent review. |
 | [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7 | PENDING: 5 Checks queued, 15 successful, 0 terminal failures on `07acd65145c9522a74858d1ff8761ea05a09e8f0` | review required | Treat as the companion of #111; do not merge the action pair independently. |
@@ -90,7 +90,7 @@ green.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 14 Checks queued, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 14 Checks queued, 0 terminal failures on `157b76893b32cda66fc586aa67ae72a30ac6b0d6` | changes requested | Independently validate the historical Strix report against the operator-admin trust boundary; retain fail-closed treatment and obtain a fresh exact-head review/check run before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 22 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 Checks queued, 0 terminal failures on `8a5ba11322bebc09bde8ea57e9fb06d35ad0d614` | changes requested; fresh review requested | Devin's exact-head coverage finding is addressed by the default-artifact regression test; obtain current-head review without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 Checks queued, 0 terminal failures on `0d4d1b98dfc8b722b5502dba942b322a1657902e` | changes requested; fresh review requested | Devin's exact-head coverage finding is addressed by the default-artifact regression test; obtain current-head review without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 22 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
