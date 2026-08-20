@@ -7,6 +7,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- A dated product and technical gap baseline that records the live PR/Issue
+  queue, exact-head Check evidence, buyer-visible authorization and runtime
+  acceptance gaps, and the protected hourly loop.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
