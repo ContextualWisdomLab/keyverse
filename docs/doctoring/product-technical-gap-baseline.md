@@ -67,6 +67,8 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - ADR-0008 and ADR-0009 plus their related specification, plan, operations,
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
-  queries performed on 2026-08-20. The follow-up #100 head after this baseline
-  commit is recorded as pending until its new Checks complete. No credential,
-  private payload, or PII is recorded here.
+  queries performed on 2026-08-20. PR #112's lockfile head has terminal-success
+  Checks but still requires independent review; PR #100's current head
+  `f9d0159751bee21ee4f4f6dbc27c5719b95d5087` has newly queued Checks and is
+  recorded as pending until those Checks and a fresh review complete. No
+  credential, private payload, or PII is recorded here.

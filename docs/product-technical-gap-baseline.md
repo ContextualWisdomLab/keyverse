@@ -66,7 +66,9 @@ tenant, or resource ownership.
 
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-20; it is not inherited from a predecessor commit.
-The #100 row was refreshed after this baseline commit requeued its checks.
+The #100 row was refreshed after the documentation commits advanced its head;
+its exact-head Checks are currently queued and must not inherit predecessor
+evidence.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
@@ -81,7 +83,7 @@ The #100 row was refreshed after this baseline commit requeued its checks.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion | FAIL: account tests | draft | Keep draft until scope and exact-main evidence are ready. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | FAIL: Strix | changes requested | Inspect the unavailable Strix evidence and security findings before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims | PENDING on exact head `eed91c9a62d46d03d98f4aa984796c4f11f758aa` | changes requested; fresh review requested | Do not transfer the predecessor PASS; wait for exact-head Checks and independent review, without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims | PENDING on exact head `f9d0159751bee21ee4f4f6dbc27c5719b95d5087` | changes requested; fresh review requested | Do not transfer the predecessor PASS; wait for exact-head Checks and independent review, without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Check failure root causes observed
