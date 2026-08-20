@@ -117,26 +117,32 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
-  and #83 each have 23 successful Checks with no queued run; the other eleven
-  currently have queued Checks, including #100 after its default-path coverage
-  test fix and #104 after its intentional stacked-base rebase. No current open PR has a terminal failure, error, timeout, or
-  cancellation, and no current open PR has a qualifying formal approval.
+  and #83 each have 22 successful Checks with no queued run; nine others have
+  queued Checks without a terminal failure, while #111 and #113 each have one
+  terminal failure. No current open PR has a qualifying formal approval.
   Queued Checks remain unverified.
   PR #113's current SCIM lock head
   `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
   lockfile history and a realistic SCIM PatchOp race plus spawned-process
-  SQLite lock regression; its hosted Checks are queued and it requires
-  independent review. Its local RED-to-GREEN, root-level SCIM error-wire, and
-  cross-process sidecar evidence are not protected-main evidence. PR #112's
-  lockfile head `f02acf93367a40dbfb23a73985017dca8d42ff39` has terminal-success
-  Checks but still requires independent review.
+  SQLite lock regression; its hosted Checks have one terminal `strix` failure,
+  one queued run, and 18 successful runs. The failed Strix job could not pull
+  `ghcr.io/usestrix/strix-sandbox:1.3.0` because GHCR returned HTTP 500/EOF,
+  and it produced no structured vulnerability report, so the workflow failed
+  closed. Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process
+  sidecar evidence are not protected-main evidence. PR #112's lockfile head
+  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 22 terminal-success Checks
+  but still requires independent review. PR #111's current head
+  `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` has one terminal
+  `account-unification-tests` failure because `uv sync --locked` found a stale
+  `uv.lock` before tests began; it remains coupled to #112 and #110.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
-  `7.15.4` and `84.0.0`; the current #105 head is queued with no terminal
-  failure, and #112 remains the lock-refresh prerequisite.
+  `7.15.4` and `84.0.0`; the current #105 head has nine queued and nine
+  successful Checks with no terminal failure, and #112 remains the
+  lock-refresh prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Current head
   `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
@@ -145,9 +151,9 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
   the validator's committed default realm/profile paths after an exact-head
-  Devin coverage finding. This evidence refresh creates another pending
-  successor, so its hosted Checks must be re-fetched; its prior review state is
-  not approval. PR #104 is ready for review at
+  Devin coverage finding. The current documentation successor is
+  `49d8899dca3eda31df76d5fc236f7f5fee5ed31e`, with 14 queued Checks and no
+  terminal failure; its prior review state is not approval. PR #104 is ready for review at
   `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
   lockfile head with no net lockfile change; its stacked Checks remain queued.
   This record travels in these PRs, so the live PR records remain authoritative
