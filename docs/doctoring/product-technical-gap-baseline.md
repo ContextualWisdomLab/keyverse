@@ -67,7 +67,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - ADR-0008 and ADR-0009 plus their related specification, plan, operations,
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
-  queries performed on 2026-08-20. PR #113's SCIM lock head `8f18d57` has
+  queries performed on 2026-08-20. PR #113's SCIM lock head `c697816` has
   hosted Checks queued and requires independent review; its local RED-to-GREEN
   evidence is not protected-main evidence. PR #112's lockfile head has
   terminal-success Checks but still requires independent review. PR #103 has a
