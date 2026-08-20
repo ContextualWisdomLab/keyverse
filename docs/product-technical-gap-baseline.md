@@ -175,8 +175,8 @@ be converted into a synthetic success.
 **Root cause:** protected `main` did not cover `PATCH active=false` with the
 shared cross-process lock used by merge and full-replacement `PUT`.
 
-**Acceptance:** PR #113 adds the shared lock, SCIM-shaped 503 lock-timeout
-mapping, a real concurrent deactivation/merge regression, and reconciled
+**Acceptance:** PR #113 adds the shared lock, root-level SCIM `503`
+lock-timeout mapping, a real concurrent deactivation/merge regression, and reconciled
 PRD/TRD/UML/Threat/Test/Operability/doctoring records. The protected-main gap
 closes only after exact-head hosted Checks, independent review, protected merge,
 and a refreshed baseline prove the change on main.
