@@ -73,7 +73,7 @@ Checks; predecessor evidence remains non-transferable.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: hosted Checks queued on `9e82f163c1a33c290ca04f4e8de1c2f9e9b65e68` | review required | Obtain independent review and terminal exact-head Checks, then let protected automation merge; do not treat local GREEN as protected-main evidence. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: hosted Checks queued on `c2c03a5dba46b207b02d296c26d8bb1dbf215092` | review required | Obtain independent review and terminal exact-head Checks, then let protected automation merge; do not treat local GREEN as protected-main evidence. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | FAIL: account tests, CodeQL, Strix | review required | Keep coupled with #110; revalidate after lockfile and action-version coupling is resolved. |
 | [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7 | FAIL: account tests, CodeQL | review required | Treat as the companion of #111; do not merge the action pair independently. |

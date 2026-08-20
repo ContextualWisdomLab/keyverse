@@ -68,7 +68,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-20. PR #113's current SCIM lock head
-  `9e82f163c1a33c290ca04f4e8de1c2f9e9b65e68` includes a normal merge of
+  `c2c03a5dba46b207b02d296c26d8bb1dbf215092` includes a normal merge of
   prerequisite PR #112 and a spawned-process SQLite lock regression; its hosted
   Checks are queued and it requires independent review. Its local RED-to-GREEN,
   root-level SCIM error-wire, and cross-process sidecar evidence are not
