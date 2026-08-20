@@ -159,9 +159,9 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
   and #83 each have 22 successful Checks with no queued run; the other eleven
-  have queued Checks without a terminal failure. #111 and #113 each have 18
-  successful Checks and two queued Checks after their lock-refresh/external
-  security reruns.
+  have queued or in-progress Checks without a terminal failure. #110, #111,
+  and #113 each have 18 successful Checks and two queued Checks after their
+  lock-refresh/external-security reruns.
   No current open PR has a qualifying formal approval.
   Queued Checks remain unverified.
   PR #113's current SCIM lock head
@@ -180,7 +180,10 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   prior `account-unification-tests` failure occurred against the old `main`
   base because `uv sync --locked` found a stale `uv.lock` before tests began;
   the rerun against the lock-refresh base now has no terminal failure and two
-  queued Checks. It remains coupled to #112 and #110.
+  queued Checks. It remains coupled to #112 and #110. PR #110's current head
+  `07acd65145c9522a74858d1ff8761ea05a09e8f0` was likewise retargeted to #112
+  after the same pre-test lock failure; its rerun now has 18 successful Checks
+  and two queued Checks with no terminal failure.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
