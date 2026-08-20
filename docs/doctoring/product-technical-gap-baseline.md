@@ -88,6 +88,19 @@ placeholder credentials must not be committed to close it.
   remains `gap-not-claimed`; the local SQLite result must not be promoted into a
   production database acceptance claim.
 
+## 2026-08-21 physical PostgreSQL probe
+
+- The running Compose `idp_database` container uses the pinned PostgreSQL 17
+  image. A read-only catalog probe found 88 non-system tables, 3,981,312
+  relation bytes, zero partitioned tables, and `pg_is_in_recovery=false`.
+  Observed settings were `max_connections=100`, `shared_buffers=163848kB`,
+  `work_mem=4096kB`, `wal_level=replica`, and `archive_mode=off`.
+- This is local Keycloak system-of-record smoke evidence only. The
+  account-unification service uses its SQLite sidecar for local state, and
+  neither runtime path proves tenant-concentration behavior, application-owned
+  partitioning, backup/restore, failover, or production sizing. G5 therefore
+  remains `gap-not-claimed`.
+
 ## 2026-08-21 exact local CI contract verification
 
 - The repository CI-scoped command passed the full test suite with 2,786

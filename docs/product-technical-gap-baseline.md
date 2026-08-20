@@ -226,6 +226,15 @@ regression run (`tests/test_storage_concurrency.py` and
 sidecar's local locking and lifecycle behavior; it is not PostgreSQL migration,
 partition-skew, backup, restore, or production recovery evidence.
 
+**Current local PostgreSQL probe (2026-08-21):** the running Compose
+`idp_database` uses the pinned PostgreSQL 17 image and reports 88 non-system
+tables, 3,981,312 relation bytes, zero partitioned tables, and
+`pg_is_in_recovery=false`. Observed settings were `max_connections=100`,
+`shared_buffers=163848kB`, `work_mem=4096kB`, `wal_level=replica`, and
+`archive_mode=off`. This is a local Keycloak system-of-record smoke probe; it
+does not prove tenant skew tolerance, application-owned partitioning, backup/
+restore, failover, or production sizing.
+
 **Acceptance:** run PostgreSQL migration/rollback tests with tenant-scoped
 composite constraints, measure skew under concentrated tenants, document the
 chosen partition/index strategy, and prove backup/restore. Do not add a
