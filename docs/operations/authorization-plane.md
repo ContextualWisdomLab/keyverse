@@ -7,6 +7,12 @@ Keyverse operator token is in the deployment secret store. It covers grant
 changes, start-login troubleshooting, and PAT rotation. It does not replace
 federation or RP desired-state apply.
 
+The authorization router enforces the operator bearer and privileged path
+checks at its own module boundary. A parent application may embed the router,
+but must still provide the configured operator token; `actor_identity_id` in a
+grant is administrative policy metadata, not a caller identity derived from a
+shared operator bearer.
+
 ## Persist grants
 
 1. Confirm the org path is contiguous from `group_company`.

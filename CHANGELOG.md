@@ -68,6 +68,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- The hierarchical authorization router now carries its operator-authentication
+  and privileged-path dependencies at the module boundary, so direct CWL/Naruon
+  embedding cannot accidentally mount grant administration without the existing
+  operator gate.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate

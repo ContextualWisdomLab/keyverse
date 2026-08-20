@@ -215,10 +215,6 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         authorization_router,
-        dependencies=[
-            operator_auth_dependency,
-            admin_path_security_dependency,
-        ],
     )
     app.include_router(
         start_login_router,

@@ -43,7 +43,22 @@ clients in the portable realm.
 `services/account_unification/tests/test_org_authorization.py` and
 `tests/test_authorization_plane.py` cover inheritance, restriction, menu
 ABAC/RBAC, SSO combinations, reserved-name rejection, and fail-closed
-storage.
+storage. The HTTP regression suite also verifies that the authorization router
+rejects an unauthenticated direct embedding and accepts only the configured
+operator bearer. The router now owns both the operator-authentication and
+privileged-path dependencies rather than relying only on the application
+factory's include-site wiring.
+
+The operator bearer is intentionally coarse operator-admin authority. The
+`actor_identity_id` field is grant and audit metadata selected by that operator;
+it is not an end-user principal asserted by the bearer. The current service
+does not claim per-operator actor ownership. Any future multi-principal admin
+model must add an explicit authenticated-principal contract and negative
+cross-principal tests before changing this boundary. This distinction explains
+why a scanner proof of two end users presenting different body identities is
+not, by itself, a measured exploit of the operator-only route; the hosted Strix
+finding remains a required current-head security review until independently
+revalidated.
 
 ## Assumptions and limitations
 

@@ -70,6 +70,13 @@ application relying-party registration.
 - app start-login / IdP discovery helper for relying parties;
 - hashed programmable application tokens scoped to one software unit and API.
 
+The hierarchical authorization router carries the existing operator bearer and
+privileged-path dependencies itself, so an embedding application cannot make
+grant administration public by mounting the module without the application
+factory's outer dependency list. The operator credential is a coarse
+operator-admin boundary; ``actor_identity_id`` on a grant is policy metadata,
+not an end-user principal extracted from that bearer request.
+
 The core merge and SCIM layer depends on the narrow `AdminApi` protocol.
 Product extensions are isolated behind `ProductAdminApi`; relying-party client
 CRUD is further narrowed behind `RelyingPartyAdminApi`. Deterministic preflight

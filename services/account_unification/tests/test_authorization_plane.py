@@ -4,7 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from app.authorization_plane import (
@@ -12,6 +12,7 @@ from app.authorization_plane import (
     SOFTWARE_UNIT_GRANT_NAMESPACE,
     SSO_COMBINATION_NAMESPACE,
     AuthorizationPlaneService,
+    authorization_router,
     get_authorization_service,
 )
 from app.kv_store import InMemoryKvStore
@@ -92,6 +93,22 @@ def test_software_unit_grant_round_trip_and_inherited_decision(client) -> None:
     assert body["pep_enforcement_required"] is True
     assert "org" not in body["authorization_attributes"]
     assert body["authorization_attributes"]["group_company"] == "acme"
+
+
+def test_embedded_authorization_router_requires_operator_authentication() -> None:
+    """A directly embedded authorization router cannot be mounted open."""
+    app = FastAPI()
+    app.state.authorization_service = AuthorizationPlaneService(InMemoryKvStore())
+    app.state.operator_api_token = "test-operator-token"
+    app.include_router(authorization_router)
+    with TestClient(app) as embedded_client:
+        denied = embedded_client.get("/authorization/software-unit-grants")
+        allowed = embedded_client.get(
+            "/authorization/software-unit-grants",
+            headers={"Authorization": "Bearer test-operator-token"},
+        )
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
 
 
 def test_menu_and_sso_combination_http_surface(client) -> None:

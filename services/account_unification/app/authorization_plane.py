@@ -12,6 +12,7 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from .auth import operator_auth_dependency
 from .errors import AuthorizationPolicyError
 from .kv_store import KvStore
 from .org_authorization import (
@@ -28,12 +29,17 @@ from .org_authorization import (
     validate_slug,
     validate_snapshot,
 )
+from .path_security import admin_path_security_dependency
 
 SOFTWARE_UNIT_GRANT_NAMESPACE = "authorization_software_unit_grants"
 MENU_GRANT_NAMESPACE = "authorization_menu_grants"
 SSO_COMBINATION_NAMESPACE = "authorization_sso_combination_scopes"
 
-authorization_router = APIRouter(prefix="/authorization", tags=["authorization"])
+authorization_router = APIRouter(
+    prefix="/authorization",
+    tags=["authorization"],
+    dependencies=[operator_auth_dependency, admin_path_security_dependency],
+)
 
 
 class SoftwareUnitDecisionRequest(BaseModel):
