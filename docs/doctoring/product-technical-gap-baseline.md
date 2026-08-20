@@ -80,7 +80,8 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   changing exact hash. A complete read-only Keyverse Actions registry/tree
   reconciliation at protected `main` `ce207dfd` found 43 active identities:
   four repository workflow paths present in the exact tree, 37 active
-  repository paths absent from it, and two `dynamic/*` GitHub-owned paths.
-  No workflow state was mutated; the evidence is recorded on Keyverse issue
-  #99 and central issue #945 for the owning lifecycle operator. No credential,
-  private payload, or PII is recorded here.
+  repository paths absent from it, and two `dynamic/*` GitHub-owned paths. The
+  workflow registry used one API page and the recursive protected-tree response
+  was not truncated. No workflow state was mutated; the evidence is recorded
+  on Keyverse issue #99 and central issue #945 for the owning lifecycle
+  operator. No credential, private payload, or PII is recorded here.
