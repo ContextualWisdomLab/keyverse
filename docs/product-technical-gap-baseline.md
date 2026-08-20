@@ -135,15 +135,19 @@ counted.
 
 ### G2 — Stable downstream tenant semantics
 
-**State:** `gap-not-claimed` with `active-PR` evidence in #100 and #103
+**State:** `active-PR` contract clarification; runtime remains `gap-not-claimed`
 **Root cause:** Keyverse emits a deliberately closed `role`, `org`, and
 `workspace` profile, but a consumer must not guess that either account
 dimension is an application-specific `tenant_id`.
 
-**Acceptance:** publish one explicit consumer contract per RP: claim name,
-cardinality, lifecycle, audience, membership ambiguity behavior, and the
-negative vector in which a valid token for tenant B cannot authorize tenant A.
-Until a consumer proves that contract, it remains deployment-restricted.
+**Contract clarification:** for `lineageweave-web`, `org` is the one opaque
+external tenant key and `workspace` is one child namespace under that `org`.
+Multiple memberships have no comma-separated or array encoding; missing,
+unmapped, or ambiguous membership resolution denies before ABAC/RBAC. A
+membership change requires a new token or session renewal. The full consumer
+acceptance still requires the negative vector in which a valid token for tenant
+B cannot authorize tenant A, plus resource authorization evidence.
+Until a consumer proves that runtime contract, it remains deployment-restricted.
 Adding a generic tenant mapper to Keyverse is not an acceptable shortcut; it
 would expand the closed mapper policy without a separately reviewed profile.
 

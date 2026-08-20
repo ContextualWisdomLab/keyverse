@@ -67,6 +67,23 @@ acceptance must prove issuer/signature/expiry/audience validation, tenant and
 resource ABAC denial, role downgrade, logout, and rollback. A compose-only IdP
 or preflight receipt does not satisfy that evidence.
 
+### Normative tenant mapping for LineageWeave
+
+For the `lineageweave-web` profile, `org` is the opaque external tenant key
+and must resolve to exactly one local tenant record. `workspace` is a child
+namespace under `org` and must resolve to a workspace belonging to that tenant.
+Both claims are one trimmed scalar value per token; neither may be inferred
+from client ID, subject, email, or role. Multiple memberships are not
+represented by comma-separated values, arrays, or delimiter conventions.
+
+Before resource access, reject missing, malformed, unmapped, or ambiguous
+tenant/workspace resolution. If membership resolution is ambiguous, do not
+continue to role or scope checks. Operators must issue a new token or session
+renewal after organization, workspace, or membership changes; an existing
+token is bounded by its expiry and must not be silently rebound to another
+tenant. This mapping deliberately uses the existing `org` and `workspace`
+claims and does not add a generic `tenant` mapper.
+
 ## Example
 
 ```bash

@@ -21,6 +21,10 @@ Keep a Changelog, and releases use semantic versioning.
   same-client roles plus exact scalar `org` and `workspace` account attributes,
   with no static/dynamic mixing, a secret-free deployment template, and
   reconciliation regression coverage.
+- A normative LineageWeave tenant mapping: `org` is the opaque external tenant
+  key, `workspace` is its child namespace, ambiguous or multi-membership
+  resolution fails closed, and lifecycle changes require a new token or
+  session renewal; no generic `tenant` mapper was introduced.
 - Durable, secret-free OIDC relying-party desired-state CRUD and reconciliation
   with exact `clientId` matching, duplicate fail-closed behavior, post-mutation
   re-observation, canonical apply receipts, realm-rebuild recovery, per-client

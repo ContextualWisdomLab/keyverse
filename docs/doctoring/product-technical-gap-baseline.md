@@ -18,6 +18,15 @@ tenant/resource/purpose semantics before RBAC. Adding a generic tenant claim
 would be a new authorization profile and requires a separate ADR, red tests,
 consumer evidence, and traceability update.
 
+The follow-up LineageWeave contract makes the existing mapping explicit without
+expanding that profile: `org` is one opaque external tenant key, `workspace` is
+one child namespace under that organization, multiple memberships have no
+comma-separated or array encoding, and ambiguous membership resolution denies
+before ABAC/RBAC. A changed membership requires a new token or session renewal.
+This closes the contract ambiguity only; real login, token validation, local
+tenant binding, cross-tenant denial, and resource authorization remain runtime
+evidence gaps.
+
 ## Standards interpretation
 
 - OpenID Connect Core requires exact issuer matching, client audience

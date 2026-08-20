@@ -60,6 +60,29 @@ or recognized-role RBAC decision, then bind both values to the requested
 resource. A green Keyverse preflight or apply receipt is not controlled login
 or authorization evidence.
 
+### Normative tenant mapping
+
+For this profile, `org` is the opaque external tenant key. It has exactly one
+trimmed scalar value per token and is mapped by the receiving application to
+exactly one local tenant record through a verified configuration or membership
+lookup; it is never inferred from client ID, subject, email, or role.
+`workspace` is a child namespace under `org`, also with exactly one trimmed
+scalar value per token. It is not a replacement tenant key: a consumer must
+prove that the workspace belongs to the resolved organization before resource
+lookup.
+
+The profile does not represent multiple memberships. Multiple memberships are
+not represented by comma-separated values, arrays, or delimiter conventions.
+If membership resolution is ambiguous, missing, or maps either claim to more
+than one local record, the consumer must deny before ABAC or RBAC. Operators
+must issue a new token or session renewal after an organization, workspace, or
+membership change; existing tokens remain bounded by their configured expiry
+and must never be reinterpreted as a new tenant binding.
+
+This is a normative mapping from the existing `org` and `workspace` claims,
+not a new `tenant` mapper. A future multi-membership or scalar-tenant profile
+requires a separate ADR, RED regression, and downstream acceptance evidence.
+
 ```mermaid
 flowchart LR
     A["Verified Keyverse account"] --> B["Same-client role assignment"]
