@@ -58,5 +58,6 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 - ADR-0008 and ADR-0009 plus their related specification, plan, operations,
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
-  queries performed on 2026-08-20. No credential, private payload, or PII is
-  recorded here.
+  queries performed on 2026-08-20. The follow-up #100 head after this baseline
+  commit is recorded as pending until its new Checks complete. No credential,
+  private payload, or PII is recorded here.
