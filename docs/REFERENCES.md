@@ -110,10 +110,11 @@ normative final record in ADR 0001–0007.
 NIST SP 800-63B and SP 800-63C (June 2017; updated 2 March 2020) were
 withdrawn on 1 August 2025 and superseded by SP 800-63B-4 and SP 800-63C-4
 (Final 31 July 2025). This bibliography cites the current finals opened at
-https://csrc.nist.gov/pubs/sp/800/63/b/4/final,
-https://csrc.nist.gov/pubs/sp/800/63/c/4/final,
+https://csrc.nist.gov/pubs/sp/800/63/B/4/final,
+https://csrc.nist.gov/pubs/sp/800/63/C/4/final,
 https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-63B-4.pdf,
 and
-https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-63C-4.pdf.
+https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-63C-4.pdf
+
 Offline attachments under [`docs/papers/`](papers/README.md) may still
 hold the withdrawn 2017 texts; ADR 0001–0007 use the 2025 finals.
