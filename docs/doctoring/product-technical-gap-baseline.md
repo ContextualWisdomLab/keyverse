@@ -125,10 +125,11 @@ placeholder credentials must not be committed to close it.
   16 queued Checks, 2 successes, and no terminal failure.
 - Central `.github` PR #1178 is the canonical contextual-orchestrator hourly
   caller, open at exact head
-  `97b084ac28b5ccf6de7f68fd2e019d8da6f80143`. Its current rollup has 15 queued,
-  1 in-progress, and 8 successful Checks; the one cancelled scheduler run is
-  historical and a newer exact-head scheduler run is queued. Neither #1170 nor
-  #1178 has qualifying formal approval or protected merge evidence.
+  `97b084ac28b5ccf6de7f68fd2e019d8da6f80143`. Its current rollup has 18
+  successful, 7 queued, 3 neutral, and 1 cancelled Check with no terminal
+  failure; the cancelled scheduler run remains historical and the queued
+  checks are unverified. Neither #1170 nor #1178 has qualifying formal approval
+  or protected merge evidence.
 - Keyverse's existing `Hourly product development` workflow remains active at
   `41 * * * *`; its latest observed scheduled runs succeeded. No duplicate
   scheduler was added. Activation of the central caller remains conditional on
@@ -198,8 +199,10 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Current head
   `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
-  regression evidence, but the operator-admin trust boundary still requires
-  independent validation. PR #100's pre-doctoring-refresh head was
+  regression evidence and currently has 18 successful Checks, one in-progress
+  Strix Check, and one queued coverage Check with no terminal failure. The
+  operator-admin trust boundary still requires independent validation. PR
+  #100's pre-doctoring-refresh head was
   `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
   the validator's committed default realm/profile paths after an exact-head
