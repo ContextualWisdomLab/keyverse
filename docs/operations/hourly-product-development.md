@@ -120,6 +120,8 @@ and publication credentials are absent.
 The model receives a repository-specific contract requiring:
 
 - exactly one highest-impact buyer-visible product gap;
+- reading `docs/product-technical-gap-baseline.md` and the current exact-head
+  open PR/issue inventory before selecting a gap;
 - Superpowers design, test-driven development, systematic debugging, and
   verification-before-completion;
 - a real failing regression before production implementation;

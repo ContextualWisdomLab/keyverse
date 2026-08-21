@@ -7,6 +7,8 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- The hourly product-development prompt now reads the exact-head gap baseline and
+  open PR/issue inventory before selecting an independent buyer-visible slice.
 - A dated product and technical gap baseline that records the live PR/Issue
   queue, exact-head Check evidence, buyer-visible authorization and runtime
   acceptance gaps, and the protected hourly loop.

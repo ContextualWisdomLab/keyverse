@@ -17,6 +17,7 @@ patch across jobs, and independently re-runs the repository acceptance suite.
 | Supply-chain integrity | OpenCode and GitHub Actions are commit/digest pinned; generated patches are SHA-256 sealed and reverified on fresh checkouts. |
 | Verification | Realistic regression tests, 100% production docstrings, 100% statement and branch coverage, package/deployment validation, and exact-base race checks. |
 | Operational containment | One non-cancelling hourly decision; zero-open-PR and healthy-exact-main gates; one draft PR maximum; no approval, merge, tag, or release authority. |
+| Gap selection | The prompt reads the exact-head product/technical baseline and open PR/issue inventory before selecting work; predecessor evidence is non-transferable. |
 | Modularity | Generated work must preserve standalone Keyverse operation and CWL/Naruon module contracts. |
 
 ## Standards interpretation

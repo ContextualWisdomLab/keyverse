@@ -361,6 +361,9 @@ jobs:
 
           Inspect CLAUDE.md, README.md, CHANGELOG.md, docs/, deploy/templates/,
           services/account_unification/app/, and services/account_unification/tests/.
+          Read docs/product-technical-gap-baseline.md and the current exact-head open
+          PR/issue inventory before selecting a gap; preserve active stack dependencies
+          and never treat predecessor Checks or reviews as current evidence.
           Select exactly one highest-impact buyer-visible product gap that can be
           completed safely in one bounded pull request. If the protected branch is not
           healthy, restoring it is the only permitted objective.
