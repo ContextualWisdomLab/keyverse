@@ -184,10 +184,10 @@ metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 Internet Engineering Task Force. (2015). *Proof key for code exchange by OAuth
 public clients* (RFC 7636). https://doi.org/10.17487/RFC7636
 
-Internet Engineering Task Force. (2024). *OAuth 2.0 protected resource
+Internet Engineering Task Force. (2025). *OAuth 2.0 protected resource
 metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 
-Internet Engineering Task Force. (2024). *Resource indicators for OAuth 2.0*
+Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0*
 (RFC 8707). https://doi.org/10.17487/RFC8707
 
 Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
@@ -200,7 +200,7 @@ https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
 OpenID Foundation. (2014). *OpenID Connect discovery 1.0 incorporating errata
 set 2*. https://openid.net/specs/openid-connect-discovery-1_0.html
 
-OAuth Working Group. (2010). *OAuth 2.0 device authorization grant* (RFC 8628).
+Internet Engineering Task Force. (2019). *OAuth 2.0 device authorization grant* (RFC 8628).
 https://doi.org/10.17487/RFC8628
 
 ## Source limitations

@@ -1,7 +1,7 @@
 # Keyverse Requirements and Evidence Traceability
 
 **Status:** Accepted cross-cutting baseline  
-**Last reviewed:** 2026-08-12
+**Last reviewed:** 2026-08-21
 
 | Requirement / decision | Standards / authoritative basis | Source/evidence boundary | Maturity |
 |---|---|---|---|

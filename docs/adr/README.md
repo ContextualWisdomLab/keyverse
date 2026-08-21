@@ -14,6 +14,13 @@
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
 
+ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
+proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
+ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
+the next intended number without renumbering parallel work; it must be
+reconciled after those PRs land, and none of the absent records is accepted
+architecture on protected `main` yet.
+
 ## ADR triggers
 
 Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, or autonomous/release authority.
