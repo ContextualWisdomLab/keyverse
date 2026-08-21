@@ -203,6 +203,38 @@ fresh hosted Checks and independent review must bind to that later SHA.
 | [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 queued, 6 skipped; Devin and CodeRabbit pending on observed head `28b69f676e593333bc2ddf6cd492a4027355ea77` | changes requested | The current audience-only observation was dispositioned against the generic optional profile; the reserved dynamic account-derived profile still requires all three claims, and the prior static-claim mismatch is fixed by RED-to-GREEN coverage. This docs refresh creates a later head, then fresh exact-head Checks and independent review are required without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 successful, 8 skipped, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
+### Live queue refresh — 2026-08-21T11:22:53Z
+
+This later audit supersedes the older snapshot rows above for current-state
+decisions. PR #115 normally squash-merged into its stacked base at
+`2026-08-21T11:15:50Z`, producing merge commit
+`ec91eb3af436ac7fa5e682d31d78cd5b01782d01` from source head
+`e7ad4524712b18809d8c409371142071270b2ea0`. It was not a forced merge or a
+protected-main merge. The detached merge-result verification passed the root
+documentation contract (5 tests), the account-unification suite (742 tests),
+100% statement/branch coverage (2734/738), interrogate 100%, Ruff, and
+`git diff --check`. Hosted delayed runs remain queued and are not reported as
+success.
+
+The normal stacked merge advanced the #112 root branch to exact successor head
+`ec91eb3af436ac7fa5e682d31d78cd5b01782d01` against protected main
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. Its predecessor `f02acf9` Checks
+and review evidence are invalid. The successor currently has 14 queued and 7
+skipped Checks, no terminal failure, auto-merge armed, and zero exact-head
+formal approvals. Fresh independent review and hosted verification were
+requested for the combined lockfile plus #115 documentation diff.
+
+At this refresh, #100 and #103 each have 14 queued and 7 skipped Checks with
+no terminal failure; #113 has 18 successful, 1 in-progress, 1 queued, and 7
+skipped; #101 and #83 each have 22 successful and 8 skipped Checks; and
+#107/#108 each have 22 successful and 8 skipped Checks on their downstream
+stack base. All inspected merge candidates have zero exact-head formal
+approvals. Central `.github#1026` has 4 successful, 16 queued, and 13 skipped
+Checks with no exact-head approval. Queued or in-progress results remain
+unverified hosted evidence. No D1-D5 emergency deadlock classification is
+made; no bypass, direct protected push, force push, fake status, or
+self-approval occurred.
+
 ### Historical check failure root causes observed
 
 The evidence set contains two relevant terminal failures from earlier exact
@@ -276,7 +308,7 @@ evidence.
 
 | Issue | Product signal | Classification | Required outcome |
 |---:|---|---|---|
-| [#114](https://github.com/ContextualWisdomLab/keyverse/issues/114) | MCP-compatible OAuth client authorization for headless agents | `active-issue` / design `active-PR` | PR #115 proposes ADR-0013 and the doctoring record for Keycloak-backed discovery, public-client authorization code + PKCE, exact redirects, resource-bound least-privilege tokens, centralized revocation/audit, and negative browser/client evidence. Runtime implementation remains unclaimed; evaluate RFC 8628 only for clients that cannot use a callback. |
+| [#114](https://github.com/ContextualWisdomLab/keyverse/issues/114) | MCP-compatible OAuth client authorization for headless agents | `active-issue` / design merged in stacked PR #115 | PR #115's ADR-0013 and doctoring design merged normally into the #112 stack at `ec91eb3`; runtime implementation and real browser/client evidence remain unclaimed. Evaluate RFC 8628 only for clients that cannot use a callback. |
 | [#102](https://github.com/ContextualWisdomLab/keyverse/issues/102) | Hierarchical authorization plane, login helper, PATs | `active-PR` | Security-review the proposed authority model and prove fail-closed token/tenant/resource behavior. |
 | [#99](https://github.com/ContextualWisdomLab/keyverse/issues/99) | Orphaned federation and product-loop workflow identities | `active-issue` | The exact protected-main cleanup completed: 43 registry identities remain, with 4 supported repository paths active, 37 orphan repository-path identities `disabled_manually`, and 2 GitHub-owned dynamic identities unchanged. The recurrence detector, adversarial tests, and central coordination acceptance remain open. |
 | [#71](https://github.com/ContextualWisdomLab/keyverse/issues/71) | Remove runtime application RPs from portable import | `active-PR` | Merge #83 only after current-head protected evidence. |
@@ -347,8 +379,8 @@ be converted into a synthetic success.
 passwordless authorization-code path that is bound to one LineageWeave resource
 and centrally revocable.
 
-**Current action:** PR #115 proposes ADR-0013 and its doctoring record. The
-design keeps Keycloak as the authorization server, assigns RFC 9728 protected-
+**Current action:** PR #115 merged ADR-0013 and its doctoring record into the
+#112 stack. The design keeps Keycloak as the authorization server, assigns RFC 9728 protected-
 resource metadata to LineageWeave, requires exact public-client redirects and
 `S256` PKCE, binds one canonical RFC 8707 resource URI to the token audience and
 least-privilege scope set, and defers RFC 8628 until a real callback-less client
