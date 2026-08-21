@@ -515,6 +515,12 @@ def _normalized_observed_mappers(
         rank = _observed_mapper_rank(mapper)
         if rank is None or rank in seen_ranks:
             return None
+        if (
+            mapper["protocolMapper"] == "oidc-usermodel-client-role-mapper"
+            and mapper["config"].get("claim.name") == "role"
+            and "usermodel.clientRoleMapping.rolePrefix" not in mapper["config"]
+        ):
+            mapper["config"]["usermodel.clientRoleMapping.rolePrefix"] = ""
         seen_ranks.add(rank)
         ranked_mappers.append((rank, mapper))
 

@@ -255,8 +255,10 @@ def validate_user_profile(profile: dict) -> list[str]:
             errors.append(f"user profile '{name}' must be scalar")
         if attribute.get("permissions") != {"view": ["admin"], "edit": ["admin"]}:
             errors.append(f"user profile '{name}' must be admin-managed")
-        if attribute.get("required") != {"roles": ["admin"]}:
-            errors.append(f"user profile '{name}' must require administrators")
+        if "required" in attribute:
+            errors.append(
+                f"user profile '{name}' must remain optional during account creation"
+            )
         validations = attribute.get("validations")
         length = validations.get("length") if isinstance(validations, dict) else None
         maximum = length.get("max") if isinstance(length, dict) else None

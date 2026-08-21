@@ -234,7 +234,7 @@ def test_realm_validator_reports_missing_flow_and_required_clients() -> None:
 
 
 def test_user_profile_validator_reports_all_administrator_attribute_drift() -> None:
-    """Closed account claims stay scalar, admin-controlled, and required."""
+    """Closed account claims stay scalar, admin-controlled, and optional at creation."""
     validator = _load_validate_realm()
     profile = json.loads(
         (
@@ -260,7 +260,7 @@ def test_user_profile_validator_reports_all_administrator_attribute_drift() -> N
         "user profile must retain Keycloak built-in account attributes when the Admin API replaces the complete profile",
         "user profile 'org' must be scalar",
         "user profile 'org' must be admin-managed",
-        "user profile 'org' must require administrators",
+        "user profile 'org' must remain optional during account creation",
         "user profile 'org' must have a maximum length of 64",
         "user profile must define 'workspace'",
     } <= errors

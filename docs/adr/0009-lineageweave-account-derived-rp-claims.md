@@ -41,10 +41,13 @@ The Keyverse post-import declarative user profile declares `org` and
 `workspace` as product authorization attributes, alongside the Keycloak
 built-in account attributes required because its Admin API replaces the whole
 profile rather than patching it. Both product attributes are scalar, maximum
-64 characters, visible/editable only to administrators, and required with
-`{"roles":["admin"]}`. The administrative requiredness is deliberate: an
-end user cannot repair an attribute that the same policy makes
-administrator-managed. In the pinned Keycloak 26.3.2 runtime, the closed
+64 characters, visible/editable only to administrators, and intentionally
+optional during initial account creation. Keycloak applies an administrator
+role requirement to Admin REST user creation, so requiring either attribute
+would make the passwordless registration endpoint unable to create an
+unassigned account. Operators must assign both values before LineageWeave
+routing; the receiving application rejects missing claims before authorization.
+In the pinned Keycloak 26.3.2 runtime, the closed
 unmanaged-attribute policy is represented by an omitted/null value; its enum
 does not accept the documented `DISABLED` string, and its implementation denies
 unmanaged attributes when that value is null. Keycloak's realm-import
@@ -110,9 +113,10 @@ flowchart LR
 ## Consequences
 
 - Identity operators must provision a real Keyverse account with the two named
-  administrator-required attributes and an allowed `lineageweave-web` client
-  role before user routing; a missing attribute is a failed provisioning state,
-  not a downstream authorization default.
+  administrator-managed attributes and an allowed `lineageweave-web` client
+  role before user routing; an identity-only account may exist before that
+  assignment, but a missing attribute is a failed provisioning state, not a
+  downstream authorization default.
 - Account and role changes take effect through Keycloak session/token lifecycle;
   operators must test downgrade and revocation behavior in controlled runtime
   acceptance.
@@ -138,6 +142,9 @@ claim.
 
 Keycloak Project. (2026). *Protocol mappers*. Retrieved August 13, 2026, from
 https://www.keycloak.org/admin-api/protocol-mappers
+
+Keycloak Project. (2026). *Keycloak Admin REST API*. Retrieved August 21, 2026,
+from https://www.keycloak.org/docs-api/latest/rest-api/index.html
 
 Keycloak Project. (2026). *Server Administration Guide* (User profile).
 Retrieved August 14, 2026, from https://www.keycloak.org/docs/latest/server_admin/

@@ -119,6 +119,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Prevented Keycloak's omitted empty account-role `rolePrefix` read-back from
+  causing perpetual relying-party drift, while retaining fail-closed handling
+  for all other missing or changed mapper configuration.
+- Allowed passwordless registration to create an identity-only account before
+  administrator assignment of `org` and `workspace`; routing remains blocked
+  until both claims are assigned and downstream validation accepts them.
 - Disabled 37 orphaned active GitHub Actions registry identities whose
   repository paths were absent from protected `main`, while preserving the
   four supported workflow identities and two GitHub-owned dynamic Dependabot

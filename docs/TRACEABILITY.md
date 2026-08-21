@@ -14,7 +14,7 @@
 | LDAPS directory profile | LDAP RFC 4511–4515 + Keycloak component docs | directory preflight/reconciliation tests | implemented-main |
 | secret-free RP desired state | OAuth/OIDC/PKCE/Keycloak client docs | RP preflight/reconciliation/integrity tests | implemented-main |
 | RP audience/role/org/workspace mapper profile | OIDC/JWT audience + Keycloak mapper docs | PR #72 protected-main source/tests; downstream RP acceptance remains required | implemented-main |
-| LineageWeave account-derived RP claims | ADR-0009; Keycloak Protocol Mappers and post-import declarative user profile | scalar, administrator-required account attributes; exact validator statement/branch coverage; Compose profile reconciliation/template tests; real account, Keyverse apply, and downstream ABAC/RBAC acceptance remain required | accepted-contract |
+| LineageWeave account-derived RP claims | ADR-0009; Keycloak Protocol Mappers and post-import declarative user profile | scalar, administrator-managed account attributes optional at initial creation; exact validator statement/branch coverage; Compose profile reconciliation/template tests; real account, Keyverse apply, and downstream ABAC/RBAC acceptance remain required | accepted-contract |
 | merge/SCIM PUT shared operation lock | concurrency/data-integrity decision; ADR-0006 | merge + full-replacement lock/concurrency tests | implemented-main |
 | SCIM PATCH active=false shared-lock parity | ADR-0006 boundary | current PATCH source has no shared-lock proof | gap-not-claimed |
 | intent before mutation, receipt after re-observation | desired-state/recovery decision | federation/directory/RP reconciliation tests | implemented-main |

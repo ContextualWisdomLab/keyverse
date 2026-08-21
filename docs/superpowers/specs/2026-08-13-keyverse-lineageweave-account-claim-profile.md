@@ -25,8 +25,10 @@ closed and secret-free.
 
 ## Runtime prerequisites
 
-1. An identity operator creates or verifies the actual Keyverse account.
-2. The operator assigns the account's `org` and `workspace` values and one or
+1. Passwordless registration may create the identity-only account without
+   `org` or `workspace`; that incomplete account is not eligible for routing.
+2. An identity operator verifies the actual Keyverse account and assigns its
+   `org` and `workspace` values and one or
    more recognized `lineageweave-web` client roles.
 3. The private rendered template passes Keyverse preflight, is reconciled by
    Keyverse, and receives an exact observable receipt.

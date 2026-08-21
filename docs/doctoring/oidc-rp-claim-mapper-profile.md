@@ -60,6 +60,14 @@ orders known mapper identities canonically, and then performs semantic drift
 comparison. Unknown, malformed, or duplicate live mappers remain drift rather
 than being silently discarded.
 
+Measured on August 21, 2026 against a local Keycloak 26.3.2 Admin API read-back,
+the account-role mapper omitted `usermodel.clientRoleMapping.rolePrefix` when
+its value was empty. Keyverse normalizes that one vendor representation detail
+to the reviewed empty default only when the mapper is the exact account-derived
+`role` profile. A non-empty prefix, an unexpected field, or any other missing
+configuration remains drift. This is measured vendor behavior and a product
+normalization choice, not an authorization or token-validation guarantee.
+
 ADR-0009 adds one separate, exact `lineageweave-web` profile. It permits a
 client-role mapper whose configured client ID equals the registration client ID,
 has no role prefix, and emits multivalued `role`; it also permits two scalar
@@ -68,15 +76,23 @@ Keycloak documents these mapper IDs and their configuration properties. Keyverse
 intentionally rejects every other user attribute, role source, aggregation,
 group, script, audience, claim name, and destination.
 
-### Account-profile requiredness
+### Account-profile provisioning
 
-Keycloak's declarative user profile permits a required role of `admin` or
-`user`. The LineageWeave `org` and `workspace` attributes use
-`{"roles":["admin"]}` because the same profile makes those fields viewable and
-editable only in administrator context. A user-context requirement would direct
-an end user to repair attributes they cannot edit. This Keyverse policy proves
-only the issuer-side provisioning constraint; receiving-application claim
-validation is a separate operational-acceptance requirement.
+The LineageWeave `org` and `workspace` attributes are scalar, administrator-
+visible, administrator-editable, and intentionally optional during initial
+account creation. Keycloak's Admin REST user-creation path validates the same
+user-profile requirements as other management contexts; an administrator-only
+required attribute would therefore reject the passwordless registration request
+before an operator can assign the account's ABAC values. Operators must assign
+both values before routing, and the receiving application must reject missing,
+empty, or non-scalar claims before authorization.
+
+Measured on August 21, 2026 against the rebuilt local Keycloak 26.3.2 image,
+the reviewed profile rejected a no-`org`/`workspace` Admin REST create with HTTP
+400. After removing the administrator-only `required` entries while retaining
+administrator-only permissions and closed unmanaged-attribute policy, the same
+non-PII probe created successfully and was deleted. This is measured runtime
+evidence, not proof of downstream token validation or authorization.
 
 ## Stricter Keyverse product policy
 
@@ -116,7 +132,7 @@ The implementation is covered by production-shaped tests that exercise:
 - the committed `deploy/templates/oidc-rp-naruon.json` artifact after
   placeholder substitution;
 - the LineageWeave account-role, account-attribute, non-mixing, and
-  generated-ID/vendor-order reconciliation paths;
+  generated-ID/vendor-order and omitted-empty-prefix reconciliation paths;
 - the committed `deploy/templates/oidc-rp-lineageweave.json` artifact after
   HTTPS placeholder substitution;
 - complete production statement and branch coverage in the repository CI gate.
@@ -177,6 +193,9 @@ Distribution 26.x API). https://www.keycloak.org/docs-api/latest/javadocs/org/ke
 
 Keycloak Project. (2026). *Protocol mappers*. Retrieved August 13, 2026, from
 https://www.keycloak.org/admin-api/protocol-mappers
+
+Keycloak Project. (2026). *Keycloak Admin REST API*. Retrieved August 21, 2026,
+from https://www.keycloak.org/docs-api/latest/rest-api/index.html
 
 Keycloak Project. (2026). *Server Administration Guide* (User profile).
 Retrieved August 14, 2026, from https://www.keycloak.org/docs/latest/server_admin/

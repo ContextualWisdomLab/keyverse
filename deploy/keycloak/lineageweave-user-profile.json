@@ -79,9 +79,6 @@
           "max": "64"
         }
       },
-      "required": {
-        "roles": ["admin"]
-      },
       "permissions": {
         "view": ["admin"],
         "edit": ["admin"]
@@ -95,9 +92,6 @@
         "length": {
           "max": "64"
         }
-      },
-      "required": {
-        "roles": ["admin"]
       },
       "permissions": {
         "view": ["admin"],

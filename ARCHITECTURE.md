@@ -169,12 +169,22 @@ client cannot use the static hardcoded profile; the validator rejects that
 client-specific downgrade. Neither template contains a credential or proves a
 live account login.
 
+The post-import `org` and `workspace` account attributes remain scalar and
+administrator-managed but are optional during initial passwordless account
+creation because Keycloak validates administrator-only required fields on its
+Admin REST create path. An identity-only account cannot enter LineageWeave
+routing until an operator assigns both values and the receiving application
+accepts the resulting claims.
+
 Stateful reconciliation keys intent by validated `clientId`, classifies zero,
 one, or multiple exact Keycloak clients, and never mutates duplicates. Create or
 update is re-observed before a canonical receipt is written. Delete is remote-
 first. For mapper comparison, Keyverse ignores only a valid generated mapper
 `id`, canonicalizes the known mapper order, revalidates the closed shape, and
 treats unknown, malformed, duplicate, or semantically changed mappers as drift.
+Keycloak's account-role mapper may omit an empty `rolePrefix` on read-back;
+reconciliation restores only that exact empty default for the exact `role`
+account-role mapper and continues to reject all other missing or changed fields.
 The accepted representation has no client-secret field; credential provisioning
 remains an independent secret-management responsibility.
 

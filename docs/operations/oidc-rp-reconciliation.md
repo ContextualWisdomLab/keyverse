@@ -187,6 +187,8 @@ semantic comparison:
   string;
 - known mapper identities are sorted into the canonical audience, role, org,
   workspace order;
+- an omitted empty `usermodel.clientRoleMapping.rolePrefix` is restored only
+  for the exact account-derived `role` mapper;
 - the remaining mapper shape is revalidated against the same closed product
   policy used by preflight.
 

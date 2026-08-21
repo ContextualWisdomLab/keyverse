@@ -117,15 +117,26 @@ def test_product_account_attributes_are_constrained(
     assert any(expected in error for error in errors)
 
 
+def test_product_account_attributes_allow_unassigned_registration() -> None:
+    """Registration may create an account before operator ABAC assignment."""
+    validator = _validator_module()
+    profile = _user_profile()
+    for attribute in profile["attributes"]:
+        if attribute["name"] in {"org", "workspace"}:
+            attribute.pop("required", None)
+
+    assert validator.validate_user_profile(profile) == []
+
+
 @pytest.mark.parametrize("attribute_name", ("org", "workspace"))
 @pytest.mark.parametrize(
     "required",
     ({}, {"roles": ["user"]}, {"roles": ["admin", "user"]}),
 )
-def test_product_account_attributes_require_administrator_assignment(
+def test_product_account_attributes_cannot_be_required_at_creation(
     attribute_name: str, required: dict[str, object]
 ) -> None:
-    """Product ABAC attributes cannot be omitted in administrator-managed updates."""
+    """Product ABAC attributes cannot become user-required at creation time."""
     validator = _validator_module()
     profile = deepcopy(_user_profile())
     attribute = next(
@@ -135,7 +146,7 @@ def test_product_account_attributes_require_administrator_assignment(
 
     errors = validator.validate_user_profile(profile)
 
-    assert any("must require administrators" in error for error in errors)
+    assert any("must remain optional during account creation" in error for error in errors)
 
 
 def test_product_account_attribute_policy_reports_every_independent_violation() -> None:
@@ -152,7 +163,7 @@ def test_product_account_attribute_policy_reports_every_independent_violation() 
 
     assert any("must be scalar" in error for error in errors)
     assert any("must be admin-managed" in error for error in errors)
-    assert any("must require administrators" in error for error in errors)
+    assert any("must remain optional during account creation" in error for error in errors)
     assert any("maximum length of 64" in error for error in errors)
 
 
