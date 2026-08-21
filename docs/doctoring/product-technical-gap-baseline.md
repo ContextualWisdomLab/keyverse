@@ -9,7 +9,7 @@ The protected Keyverse `main` head remains
 `ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue is #83, #100,
 #101, #103, #112, and #113. Their current exact heads are respectively
 `dd1ab7444a75342b42e3af013ccda6d1dbfb359d`,
-`c70f2cb95217f7b18b7c1e1ca74d3def072bbd56`,
+`4d0d8677b7c78f2519eedf69736adc46d178a5a0`,
 `50dd9c96cab5c230f775685e8baea939fba390dd`,
 `77b8f4ea9995329f1c55b916d110b460b4bc7649`,
 `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd`, and
@@ -29,10 +29,10 @@ approval remains absent. No emergency bypass is justified.
 Current control-plane evidence is protected `.github` main
 `0156282022134484ea9d7541d5ba0730ba14fd96`. The OSV cross-fork
 result-isolation root #1209 is at
-`225c415179180606f9a935304f61b09dc3e5c084` with 4 successful, 21 skipped,
-4 cancelled, 16 queued, and 2 pending Checks. The hourly OIDC caller repair
+`225c415179180606f9a935304f61b09dc3e5c084` with 4 successful, 23 skipped,
+5 cancelled, 16 queued, and 2 pending Checks. The hourly OIDC caller repair
 #1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 23 successful, 18
-skipped, 1 cancelled, 3 in-progress, 1 queued, 3 neutral, and 2 pending
+skipped, 1 cancelled, 1 queued, 3 neutral, and 2 pending
 Checks. The combined security and scheduler root #1198 is at
 `3b91220405a2434f5b16bc336bf12b871bb374a1` with 5 successful, 21 skipped,
 4 cancelled, 16 queued, and 2 pending Checks; scheduler repair #1203 was normally merged into the
