@@ -9,7 +9,7 @@ The protected Keyverse `main` head remains
 `ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue is #83, #100,
 #101, #103, #112, and #113. Their current exact heads are respectively
 `dd1ab7444a75342b42e3af013ccda6d1dbfb359d`,
-`c492245b2f027d2698473b425d999ee166004a32`,
+`245329684fc663840f12465dc439da6da1e50c7f`,
 `50dd9c96cab5c230f775685e8baea939fba390dd`,
 `77b8f4ea9995329f1c55b916d110b460b4bc7649`,
 `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd`, and
@@ -18,8 +18,8 @@ The protected Keyverse `main` head remains
 masked-secret disposition. No PR has a formal approval satisfying the
 protected merge gate.
 
-Current Keyverse Checks are: #83 22 successful/8 skipped; #100 15
-successful/1 in progress/4 queued/7 skipped; #101 22 successful/8 skipped;
+Current Keyverse Checks are: #83 22 successful/8 skipped; #100 21
+successful/1 in progress/7 skipped; #101 22 successful/8 skipped;
 #103 22 successful/8 skipped; #112 22 successful/8 skipped; and #113 22
 successful/8 skipped. The #112 code fix for Keycloak's fixed masked
 `clientSecret` read-back is locally verified at 100% production statement and
@@ -28,15 +28,15 @@ approval remains absent. No emergency bypass is justified.
 
 Current control-plane evidence is protected `.github` main
 `fce028b4c3bf8e2e5e4819c1c5622e90cfa6ab39`; #1198 is at
-`94e2b28aee2029d36f272336a7cd4e4ad1516161` with 2 successful, 1 cancelled,
-15 skipped, and 16 queued Checks; security repair #1208 is at
-`9f0845517010f2c4695de83dd2bd50385c068a15` with 4 successful, 13 skipped,
-and 16 queued Checks; scheduler repair #1203 is at
-`f4161b1228bbcf4694002c324dacd1a2e2978dd7` with 3 successful, 1 in progress,
-13 skipped, and 16 queued Checks; CodeQL follow-up #1206 was normally merged
-into the #1198 stack at `b8737dadbcb9871dc939e500ecbb84ceccb8cf42`; and #1026
-is at `d70388abad872336a7a3fa6e9607e18fc3e86b25` with 1 successful, 3 in
-progress, 13 skipped, and 16 queued Checks. The dependency failure and
+`4d3d24aa404959f5067735fec0558d5924ade590` with 22 successful, 3 neutral,
+16 skipped, 1 cancelled, 1 in progress, and 6 queued Checks; scheduler repair
+#1203 was normally merged into the #1198 feature branch at
+`4d3d24aa404959f5067735fec0558d5924ade590`; OSV repair #1208 is closed
+without merge; review repair #1002 is at
+`b0967573949cfbb971cd812cf71aeaa4c361061c` with 4 successful, 13 skipped,
+1 in progress, and 14 queued Checks; and #1026 is at
+`d70388abad872336a7a3fa6e9607e18fc3e86b25` with 27 successful, 3 neutral,
+2 failed, 1 cancelled, and 15 skipped Checks. The dependency failure and
 hosted-gate state are source/hosted-gate problems, not demonstrated
 control-plane deadlocks. All predecessor evidence remains non-transferable.
 
