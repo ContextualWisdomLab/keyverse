@@ -92,8 +92,12 @@ and mandatory `S256` PKCE:
   `resource` URI;
 - scopes are an allowlisted subset of the resource's registered least-
   privilege scopes;
-- access tokens are accepted only for the configured issuer, client/resource
-  audience, subject, expiry, and required scopes.
+- access tokens are accepted only after checking the configured issuer, subject,
+  expiry, and required scopes; the JWT `aud` claim is the canonical MCP
+  resource URI, while RFC 9068 `client_id` is checked separately against the
+  registered public client ID. If `azp` is present, it is validated under the
+  same client profile. A Keycloak audience-mapper client ID must never be
+  reused as the MCP resource audience.
 
 Keyverse reuses the existing closed secret-free relying-party lifecycle for
 pre-registration. The MCP client representation is a separately named,
