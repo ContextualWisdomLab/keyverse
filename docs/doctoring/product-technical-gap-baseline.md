@@ -340,10 +340,11 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   successful, 1 pending, 14 queued, and 7 skipped Checks with changes
   requested. The new exact head remains unverified for protected merge.
   A subsequent docs-only push advanced PR #100 to
-  `7be7b488c2a6565cf3948f8c4ac6b91e3cfb0f45`; its latest live rollup is 2
+  `630cd320f6bfe305bc79c54755f6215a276bca9f`; its latest observed rollup is 2
   successful, 14 queued, and 7 skipped Checks with changes requested. The
-  product baseline table supersedes the earlier #100 sub-record for current
-  exact-head status.
+  product baseline table supersedes the earlier #100 sub-record; this
+  documentation refresh creates a later head that requires fresh hosted
+  revalidation.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.
   The active ruleset requires two approving reviews, resolved threads, and

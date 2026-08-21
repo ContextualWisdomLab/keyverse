@@ -95,10 +95,11 @@ After the inventory snapshot, PR #115 advanced normally to
 `0e0c15c4ba7d631660693c549dcbb7e863d6287b` to correct review-verified
 doctoring/ADR evidence. Its current rollup is 2 successful, 14 queued, and 7
 skipped Checks with no formal approval. PR #100 advanced normally to
-`7be7b488c2a6565cf3948f8c4ac6b91e3cfb0f45` after the baseline/reference
-updates; its latest rollup is 2 successful, 14 queued, and 7 skipped Checks
-with a changes-requested review state. These later exact heads remain
-unverified for protected merge.
+`630cd320f6bfe305bc79c54755f6215a276bca9f` after the baseline/reference
+updates; its latest observed rollup is 2 successful, 14 queued, and 7 skipped
+Checks with a changes-requested review state. This documentation update itself
+will create a later head, so the resulting head requires a fresh hosted
+recheck before any protected-merge claim.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
@@ -115,7 +116,7 @@ unverified for protected merge.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 21 successful, 1 queued, 8 skipped, 0 terminal failures on updated head `7da9d43087d5647fefb946eb154ee1e5c10c576d` | review required | Base remains `fix/account-unification-lock-20260819`; obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `e765f4860177af47b80b05ee3a918a4dc2cb4450` | changes requested | Exact-tree regressions and local 100% verification pass; wait for hosted security Checks and current-head independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 successful, 8 skipped, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on observed head `7be7b488c2a6565cf3948f8c4ac6b91e3cfb0f45` | changes requested | The current-tree review findings are addressed; wait for exact-head Checks and independent review without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on observed head `630cd320f6bfe305bc79c54755f6215a276bca9f` | changes requested | The current-tree review findings are addressed; this docs refresh creates a later head, then fresh exact-head Checks and independent review are required without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 successful, 8 skipped, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
