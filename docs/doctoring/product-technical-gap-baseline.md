@@ -9,7 +9,7 @@ The protected Keyverse `main` head remains
 `ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue is #83, #100,
 #101, #103, #112, and #113. Their current exact heads are respectively
 `dd1ab7444a75342b42e3af013ccda6d1dbfb359d`,
-`2fd5a77cf3765f933debd244f457e13241726929`,
+`98c33052dcf941a996e44d75c824cbb635702f01`,
 `50dd9c96cab5c230f775685e8baea939fba390dd`,
 `77b8f4ea9995329f1c55b916d110b460b4bc7649`,
 `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd`, and
