@@ -12,6 +12,7 @@
 | [0006](0006-user-operation-lock.md) | Merge and SCIM full replacement share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
+| [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
 
 ## ADR triggers
 
