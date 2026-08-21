@@ -17,16 +17,16 @@ server (Hardt, 2012, §2.3). The OAuth 2.0 Security BCP updates that
 threat model: secrets in front-channel URLs, leaked redirectors, and
 weak client authentication remain first-class failures (Lodderstedt et
 al., 2025). PKCE protects the authorization code for public clients; it
-does not replace confidential-client secret handling (Sakimura, Bradley,
-& Agarwal, 2015).
+does not replace confidential-client secret handling (Sakimura et al., 2015).
 
 NIST SP 800-63C-4 treats federation and assertion protection as a
 deployment concern between an IdP and separately administered RPs
 (Temoshok, Richer, et al., 2025). LDAP bind credentials are directory
-authentication secrets (Harrison, 2006). SCIM endpoints are
-bearer-protected HTTP resources (Hunt, Grizzle, Ansari, et al., 2015).
-None of those standards require publishing those secrets in a realm
-export.
+authentication secrets (Harrison, 2006). Keyverse account-unification SCIM
+endpoints are bearer-protected HTTP resources; RFC 7644 does not require
+bearer tokens for every SCIM deployment and leaves the authentication scheme
+to the underlying HTTP security boundary (Hunt et al., 2015). None of those
+standards require publishing those secrets in a realm export.
 
 ## Decision
 

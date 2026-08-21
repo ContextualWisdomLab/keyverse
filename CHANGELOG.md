@@ -55,6 +55,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Federation PUT and apply now report `applied_to_keycloak: true` only after a
+  fresh live Keycloak identity-provider observation matches the desired
+  representation; mutation or observation drift retains the desired state for
+  retry.
 - Buyer README and accepted ADRs 0001–0007 now describe Keyverse as a
   standalone identity leaf/hub, point operators at published OIDC/OAuth
   2.0, SAML, LDAP, and SCIM contracts, and cite independently opened

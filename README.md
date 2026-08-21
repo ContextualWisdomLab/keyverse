@@ -96,9 +96,11 @@ Orgmetra, or any other sibling checkout in order to start.
 ## How a relying party calls Keyverse
 
 Each RP is a separate trust boundary. A README listing, repository
-relationship, or client ID is not authorization. The RP validates issuer,
-signature, audience, subject, and expiry, then applies its own
-access-control policy ([ADR-0008](docs/adr/0008-keyverse-rp-authorization-boundary.md)).
+relationship, or client ID is not authorization. The RP validates the issuer,
+signature, allowed algorithm, audience, subject, expiry, `iat`, exact resource,
+tenant, and purpose. All of those token and request-context checks must
+complete before applying its own access-control policy, including RBAC
+([ADR-0008](docs/adr/0008-keyverse-rp-authorization-boundary.md)).
 
 Published operator contracts that already ship:
 

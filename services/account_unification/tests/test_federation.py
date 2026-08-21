@@ -90,6 +90,51 @@ def test_put_updates_existing_provider_in_place(federation, api) -> None:
     )
 
 
+def test_put_requires_exact_live_reobservation_after_apply(
+    federation, store, api, monkeypatch
+) -> None:
+    """A successful mutation is not enough when live state still differs."""
+    registration = _employer_adfs_registration()
+    observations = iter(
+        [
+            None,
+            {"alias": "employer-adfs", "enabled": False},
+        ]
+    )
+
+    def observe_provider(provider_alias: str) -> dict | None:
+        """Return the pre-apply absence and a mismatched post-apply state."""
+        assert provider_alias == "employer-adfs"
+        return next(observations)
+
+    monkeypatch.setattr(api, "get_identity_provider", observe_provider)
+
+    status = federation.put_registration("employer-adfs", registration)
+
+    assert status.applied_to_keycloak is False
+    assert store.get(FEDERATION_PROVIDER_NAMESPACE, "employer-adfs") is not None
+
+
+def test_put_requires_live_provider_after_apply(
+    federation, store, api, monkeypatch
+) -> None:
+    """A provider disappearing after mutation remains unapplied."""
+    registration = _employer_adfs_registration()
+    observations = iter([None, None])
+
+    def observe_provider(provider_alias: str) -> dict | None:
+        """Return absence before and after the attempted mutation."""
+        assert provider_alias == "employer-adfs"
+        return next(observations)
+
+    monkeypatch.setattr(api, "get_identity_provider", observe_provider)
+
+    status = federation.put_registration("employer-adfs", registration)
+
+    assert status.applied_to_keycloak is False
+    assert store.get(FEDERATION_PROVIDER_NAMESPACE, "employer-adfs") is not None
+
+
 def test_put_retains_desired_state_when_keycloak_is_unavailable(
     federation, store, api, monkeypatch
 ) -> None:

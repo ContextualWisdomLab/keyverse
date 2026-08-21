@@ -1,6 +1,6 @@
 # Product-technical gap baseline doctoring record
 
-**Date:** 2026-08-21
+**Date:** 2026-08-21T16:47:10Z
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
 
 ## Interpretation
@@ -22,14 +22,14 @@ child namespace; ambiguous membership denies before authorization.
 
 - The protected-main head observed for this snapshot is
   `ce207dfd42975db61c82a5963e206fc1db14ac2b`.
-- The #112 root stack is at `31dd486cb97ca215da451151f618a954a07b0ea5` with
-  hosted checks pending and `REVIEW_REQUIRED`; local 100% evidence does not
-  replace hosted checks or independent approval.
-- #104 was normally restacked onto #112 at `c623a3d8df6e0f6da0e9623b23e3178e0f0296f0`.
-  Its documentation-only conflict resolution preserved both CHANGELOG entries;
-  the baseline addition then advanced it to successor
-  `8077aa46e120ea5977464f2e611d44ab44bab695`; fresh hosted checks are required
-  for the successor and neither head is protected-main evidence.
+- The #112 root stack is at exact head `44c2adb18687f8df457bd4bafade551533cee5b9`
+  with 14 queued and 7 skipped Checks, six valid unresolved review threads,
+  and no exact-head formal approval; local 100% evidence does not replace
+  hosted checks or independent approval.
+- #104 is closed by squash merge at `44c2adb18687f8df457bd4bafade551533cee5b9`
+  on the feature base, while protected `main` remains
+  `ce207dfd42975db61c82a5963e206fc1db14ac2b`. This is audit evidence of a
+  feature-base governance gap, not protected-main approval evidence.
 - Central `.github#1203` has a cancelled scheduler predecessor and a queued
   retry. Cancellation is normal concurrency behavior; the observed age and
   evidence do not satisfy D1–D5 emergency bypass criteria.
@@ -66,5 +66,7 @@ status, or self-approval is part of this record.
 - Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current practice for OAuth 2.0 security* (RFC 9700). https://www.rfc-editor.org/rfc/rfc9700.html
 - Internet Engineering Task Force. (2018). *OAuth 2.0 authorization server metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 - Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0* (RFC 8707). https://doi.org/10.17487/RFC8707
+- Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens* (RFC 9068). https://doi.org/10.17487/RFC9068
+- Meyer zu Selhausen, K., & Fett, D. (2022). *OAuth 2.0 authorization server issuer identification* (RFC 9207). https://doi.org/10.17487/RFC9207
 - Internet Engineering Task Force. (2025). *OAuth 2.0 protected resource metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 - Model Context Protocol. (2026, July 28). *Authorization*. https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization

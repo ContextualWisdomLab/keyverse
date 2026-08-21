@@ -16,8 +16,8 @@ via Discovery **or may be obtained via other mechanisms** (Sakimura et
 al., 2023, §1). Keyverse chooses the latter for preflight: the operator
 supplies pinned HTTPS endpoints. OAuth 2.0 Security BCP requires exact
 redirect matching, PKCE for code flows, and rejects patterns that leak
-codes or tokens (Lodderstedt et al., 2025; Sakimura, Bradley, & Agarwal,
-2015). Native-app redirect guidance is recorded in RFC 8252; this
+codes or tokens (Lodderstedt et al., 2025; Sakimura et al., 2015).
+Native-app redirect guidance is recorded in RFC 8252; this
 product's first RP profile does not accept loopback or private-use
 schemes without a separate review (Denniss & Bradley, 2017).
 

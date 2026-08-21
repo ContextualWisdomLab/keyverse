@@ -101,16 +101,42 @@ def test_mcp_authorization_contract_tracks_current_issuer_and_token_rules() -> N
     changelog = _read("CHANGELOG.md")
     for text in (adr, doctoring):
         normalized = " ".join(text.split())
-        assert "authorization_response_iss_parameter_supported" in text
+        assert "`authorization_response_iss_parameter_supported=true`" in normalized
         assert "simple string comparison" in normalized
-        assert "at+jwt" in text
-        assert "application/at+jwt" in text
+        assert "`at+jwt`" in normalized
+        assert "`application/at+jwt`" in normalized
         assert "alg=none" in text
         assert "missing `iat`/`jti`" in text
     assert "MCP Authorization 2026-07-28" in traceability
     assert "RFC 9207" in traceability
     assert "mismatch rejects the authorization code" in traceability
-    assert "MCP Authorization\n  2026-07-28" in changelog
+    assert "MCP Authorization 2026-07-28" in " ".join(changelog.split())
+
+
+def test_baseline_carries_mcp_reference_and_current_rp_checklist() -> None:
+    """Keep product evidence and README guidance aligned with standards."""
+
+    baseline = _read("docs/product-technical-gap-baseline.md")
+    doctoring = _read("docs/doctoring/product-technical-gap-baseline.md")
+    readme = _read("README.md")
+    for text in (baseline, doctoring):
+        assert "RFC 9068" in text
+        assert "RFC 9207" in text
+    normalized_readme = " ".join(readme.split())
+    for requirement in (
+        "issuer",
+        "signature",
+        "allowed algorithm",
+        "audience",
+        "subject",
+        "expiry",
+        "iat",
+        "exact resource",
+        "tenant",
+        "purpose",
+    ):
+        assert requirement in normalized_readme
+    assert "before applying its own access-control policy" in normalized_readme
 
 
 def test_adr_index_contains_governing_identity_decisions() -> None:

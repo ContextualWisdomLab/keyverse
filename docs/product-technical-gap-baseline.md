@@ -1,6 +1,6 @@
 # Keyverse product and technical gap baseline
 
-**Evidence snapshot:** 2026-08-21T14:24:31Z (UTC)
+**Evidence snapshot:** 2026-08-21T16:47:10Z (UTC)
 **Repository:** `ContextualWisdomLab/keyverse`
 **Protected-main head observed:** `ce207dfd42975db61c82a5963e206fc1db14ac2b`
 **Status:** live inventory and gap register; not a release acceptance record
@@ -59,26 +59,31 @@ success, skipped, or non-terminal results.
 
 | PR | Scope | Base | Exact head | Checks | Gate / next safe action |
 |---:|---|---|---|---|---|
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM deactivation shared lock | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | 21 success / 8 skipped / 1 pending | `REVIEW_REQUIRED`; obtain exact-head independent approval and finish the pending review gate. |
-| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Account-unification lockfile and stacked contract updates | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `31dd486cb97ca215da451151f618a954a07b0ea5` | 0 success / 7 skipped / 14 pending | `REVIEW_REQUIRED`; local evidence is complete, but hosted Checks and independent approval are pending. |
-| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR 0001–0007 and operator README expansion | `31dd486cb97ca215da451151f618a954a07b0ea5` | `c623a3d8df6e0f6da0e9623b23e3178e0f0296f0` | 0 success / 0 skipped / 4 pending | Restacked normally; wait for fresh Checks and independent review before merging into the #112 stack. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, and PATs | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | 20 success / 8 skipped / 1 pending | `REVIEW_REQUIRED`; retain fail-closed security boundary and obtain current approval. |
-| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Coupled Python dependency updates | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `50dd9c96cab5c230f775685e8baea939fba390dd` | 22 success / 8 skipped / 0 pending | `REVIEW_REQUIRED`; revalidate against the final lockfile stack and obtain approval. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | LineageWeave account-derived RP profile | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `ede8075f82bb082b7d992b824992bf44792f744e` | 18 success / 7 skipped / 2 pending | `REVIEW_REQUIRED`; downstream issuer/audience/tenant acceptance remains unclaimed. |
-| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | 22 success / 8 skipped / 0 pending | `REVIEW_REQUIRED`; confirm exact-head approval and latest-pusher policy before merge. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM deactivation shared lock | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | 22 success / 8 skipped | `REVIEW_REQUIRED`; obtain exact-head independent approval. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Account-unification lockfile and stacked contract updates | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `44c2adb18687f8df457bd4bafade551533cee5b9` | 14 queued / 7 skipped | `REVIEW_REQUIRED`; six valid unresolved review threads were observed on this head and are being dispositioned; no approval. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, and PATs | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | 22 success / 8 skipped | `REVIEW_REQUIRED`; retain fail-closed security boundary and obtain current approval. |
+| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Coupled Python dependency updates | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `50dd9c96cab5c230f775685e8baea939fba390dd` | 22 success / 8 skipped | `REVIEW_REQUIRED`; obtain exact-head approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | LineageWeave account-derived RP profile | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `2fd5a77cf3765f933debd244f457e13241726929` | 14 queued / 7 skipped | `REVIEW_REQUIRED`; downstream issuer/audience/tenant acceptance remains unclaimed. |
+| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | 22 success / 8 skipped | `REVIEW_REQUIRED`; confirm exact-head approval and latest-pusher policy before merge. |
+
+PR #104 is closed by squash merge at
+`44c2adb18687f8df457bd4bafade551533cee5b9`, which advanced the #112 feature
+base without changing protected `main`. Its feature-base merge was outside the
+default-branch ruleset scope, so it is retained as governance audit evidence,
+not as a protected approval or force-merge precedent.
 
 The central coordination PR [`.github#1203`](https://github.com/ContextualWisdomLab/.github/pull/1203)
-is open at exact head `babb411e5132f67a665e302eb492da69f7d91afb` against
-`731af58e954901c4f1cc853231c592abb1eaf617`. Its `scan-pr-queue` run
-`32487969901` was cancelled by the normal concurrency scheduler; successor run
-`32488287515` is queued. This is not a source failure or D1–D5 emergency
-evidence, so no bypass or guarded force merge is allowed.
+is open at exact head `94c09152a843db1a0d3a3463900ef4d30467f085` against
+`dd58a88391e44a32fb399f7407f508d8e73cc1c7`; `pip-audit` and `strix` are failed
+while the provider outage and shared pip root are remediated. Central #1198 is
+at `d2490ad594bd2ab8cccd5ff9e0b6f2a3fa8e23d4` with no failed Checks and its
+normal auto-merge armed, but it still lacks required approval. Central #1026
+is at `71c0cc890bd06a0ff97aa10267cb075b02c62f9e` with no failed Checks and
+running/queued jobs. None supplies D1–D5 emergency evidence.
 
-This baseline is itself carried by #104. The table records that PR at the
-pre-baseline snapshot head `c623a3d8df6e0f6da0e9623b23e3178e0f0296f0`; adding
-this baseline advanced it normally to successor `8077aa46e120ea5977464f2e611d44ab44bab695`.
-The successor's hosted Checks and review state must be read from the live PR,
-and neither snapshot is protected-main evidence.
+This review update is prepared from exact #112 head `44c2adb`; its successor
+will invalidate the table's predecessor Checks and review evidence and must be
+re-queried before any merge decision.
 
 ## Open issue inventory
 
@@ -159,6 +164,8 @@ is claimed.
 - Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current practice for OAuth 2.0 security* (RFC 9700). https://www.rfc-editor.org/rfc/rfc9700.html
 - Internet Engineering Task Force. (2018). *OAuth 2.0 authorization server metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 - Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0* (RFC 8707). https://doi.org/10.17487/RFC8707
+- Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens* (RFC 9068). https://doi.org/10.17487/RFC9068
+- Meyer zu Selhausen, K., & Fett, D. (2022). *OAuth 2.0 authorization server issuer identification* (RFC 9207). https://doi.org/10.17487/RFC9207
 - Internet Engineering Task Force. (2025). *OAuth 2.0 protected resource metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 - Model Context Protocol. (2026, July 28). *Authorization*. https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
 

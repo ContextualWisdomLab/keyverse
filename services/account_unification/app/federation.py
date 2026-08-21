@@ -278,6 +278,15 @@ class FederationService:
         """Attempt convergence and report failure without losing desired state."""
         try:
             self._apply(registration)
+            observed = self._api.get_identity_provider(
+                registration.provider_alias
+            )
+            if not _identity_provider_matches(registration, observed):
+                logger.error(
+                    "identity-provider post-apply observation drift alias=%s",
+                    registration.provider_alias,
+                )
+                return False
         except Exception:
             logger.exception(
                 "identity-provider convergence failed alias=%s",
@@ -644,6 +653,17 @@ def _to_keycloak_payload(
         "linkOnly": False,
         "config": dict(registration.provider_config),
     }
+
+
+def _identity_provider_matches(
+    registration: IdentityProviderRegistration,
+    observed: dict | None,
+) -> bool:
+    """Compare every desired observable field with the live representation."""
+    if not isinstance(observed, dict):
+        return False
+    desired = _to_keycloak_payload(registration)
+    return all(observed.get(key) == value for key, value in desired.items())
 
 
 federation_router = APIRouter(prefix="/federation", tags=["federation"])
