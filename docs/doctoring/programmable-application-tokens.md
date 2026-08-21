@@ -28,8 +28,10 @@ both plaintext and hash.
 2. Lifetime bounded to 60 seconds–90 days.
 3. At least one API capability is required.
 4. Verification ignores org-tree grants; tokens never inherit.
-5. Rotation validates the replacement settings before revoking the previous
-   hash, then issues a replacement bound to the same software unit.
+5. Rotation accepts only an active, unexpired predecessor, validates the
+   replacement settings before revoking its hash, and issues a replacement
+   bound to the same software unit. Revoked, rotated, and expired predecessors
+   fail closed with a conflict response.
 
 ## Measured repository evidence
 

@@ -204,7 +204,8 @@ Keyverse binds an opaque subject and does not copy the Orgmetra tree.
 
 Relying applications start brokered login through the Keyverse start-login
 helper (ADR-0011) and may present software-unit-scoped programmable tokens
-(ADR-0012) that are hashed at rest and never inherit org-tree grants.
+(ADR-0012) that are hashed at rest, never inherit org-tree grants, and cannot be
+rotated after revocation, prior rotation, or expiry.
 
 ## Account and provisioning invariants
 

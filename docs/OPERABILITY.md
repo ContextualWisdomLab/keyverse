@@ -81,8 +81,9 @@ Mapper unit tests alone do not prove Naruon product authorization readiness.
 6. An operator calls `POST /application-tokens` with the operator bearer,
    stores the one-time plaintext response in the relying application's secret
    manager, and discards the response. The application presents that PAT to
-   `POST /application-tokens:verify` with the runtime service token. Rotate or
-   revoke instead of sharing a password.
+   `POST /application-tokens:verify` with the runtime service token. Rotate an
+   active, unexpired token or revoke it; retired and expired tokens cannot be
+   revived. Never share a password.
 
 See `docs/authorization-onboarding.md` and
 `docs/operations/authorization-plane.md`.
