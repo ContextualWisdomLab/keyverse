@@ -183,18 +183,21 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   failure occurred before that update; the fresh run is queued and remains
   unverified. It remains coupled to #112 and #110. PR #110's current head
   `07acd65145c9522a74858d1ff8761ea05a09e8f0` remains on the #112 base with
-  20 successful Checks and two queued Checks; its hosted reruns remain
-  unverified.
+  `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` has one completed success and 14
+  queued Checks; its hosted reruns remain unverified.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
   `7.15.4` and `84.0.0`; the current #105 head
-  `ef03c5a93c891980588b125f6c774fa84bf0feef` is stacked on #112 and has
-  21 successful Checks plus one queued Check with no terminal failure. The
-  current #106 and #109 heads remain stacked on #112 with 21 successful Checks
-  and one queued Check each.
+  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has one
+  completed success plus 14 queued Checks with no terminal failure. The
+  current #106 head `e7fafd4192cc3cc344b8f8e536bc0495afaa739f` likewise has
+  one completed success and 14 queued Checks. PR #109's merged head
+  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has 15 queued Checks; local
+  locked-install, full pytest, Ruff, Interrogate, and compileall verification
+  passed before its normal merge commit was pushed.
   PR #107 was rebased cleanly onto #112 at
   `53842560d397aa20309a6b16aceb560540611686`, and PR #108 was rebased cleanly
   onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; each now has one
@@ -214,12 +217,11 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's current
   documentation head is
-  `dbfea1419823d106be5f027d65c600891c01f007`, with one successful and 15
-  queued Checks; its prior review state is not approval. PR #104 is ready for review at
-  `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
-  lockfile head with no net lockfile change; its current rollup has 21
-  successful and one queued Check. #100 is current at
-  `dbfea1419823d106be5f027d65c600891c01f007` with one successful and 15
+  `899fb2061e20ce8a731db6972252bc81191ace07`, with one successful and 15
+  queued Checks; its prior review state is not approval. PR #104's updated
+  head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
+  head and has two successful plus 14 queued Checks. #100 is current at
+  `899fb2061e20ce8a731db6972252bc81191ace07` with one successful and 15
   queued Checks; its prior review state is not approval.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.
