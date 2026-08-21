@@ -162,8 +162,9 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and #83 each have 23 successful Checks with no queued run. #111's normal
   branch update created current head `032f730b0239d062cf9803525ba66c740e0b2d2e`
   with 14 queued Checks and one completed success; #113 has 22 successful and
-  one queued Check; #100 and #103 each have two successful and 14 queued
-  Checks. No current open PR has a qualifying formal approval. Queued Checks
+  one queued Check; #100 has one successful and 15 queued Checks, while #103
+  has two successful and 14 queued Checks. No current open PR has a qualifying
+  formal approval. Queued Checks
   remain unverified.
   PR #113's current SCIM lock head
   `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
@@ -213,12 +214,12 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's current
   documentation head is
-  `1604d8eda51a288a41ea5ac4cede4bfc77b59d2d`, with two successful and 14
+  `dbfea1419823d106be5f027d65c600891c01f007`, with one successful and 15
   queued Checks; its prior review state is not approval. PR #104 is ready for review at
   `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
   lockfile head with no net lockfile change; its current rollup has 21
   successful and one queued Check. #100 is current at
-  `1604d8eda51a288a41ea5ac4cede4bfc77b59d2d` with two successful and 14
+  `dbfea1419823d106be5f027d65c600891c01f007` with one successful and 15
   queued Checks; its prior review state is not approval.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.

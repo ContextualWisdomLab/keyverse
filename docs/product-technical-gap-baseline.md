@@ -67,7 +67,7 @@ tenant, or resource ownership.
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-21; it is not inherited from a predecessor commit.
 This record was refreshed after the final PR #100 documentation head
-`1604d8eda51a288a41ea5ac4cede4bfc77b59d2d`, the normal #111 branch update from
+`dbfea1419823d106be5f027d65c600891c01f007`, the normal #111 branch update from
 the #112 lock-refresh base, and the exact-head Checks audit below. The live PR
 record is authoritative for the exact hash and Checks; predecessor evidence
 remains non-transferable.
@@ -92,7 +92,7 @@ green evidence. Queued Checks remain unverified rather than green.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 1 queued, 21 successful, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: required Checks still pending/queued, 0 terminal failures on `9274d3184443fba6c6294e08dff20734f3ae6fb4` | changes requested; fresh review requested | Fresh head adds inactive/expired token-rotation denial, compensating token lifecycle recovery, separate runtime service authentication, tenant-qualified grant/combination isolation, software-unit ABAC, and trusted issuer binding; wait for exact-head security Checks and independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 queued, 2 successful, 0 terminal failures on `1604d8eda51a288a41ea5ac4cede4bfc77b59d2d` | changes requested; fresh review requested | The documentation successor records current #103 token-rotation evidence; obtain current-head review without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 15 queued, 1 successful, 0 terminal failures on `dbfea1419823d106be5f027d65c600891c01f007` | changes requested; fresh review requested | The documentation successor records current #103 token-rotation evidence; obtain current-head review without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
