@@ -47,10 +47,15 @@ enforce ABAC/RBAC at its own boundary.
    context; `org_path` attributes describe Macro-to-Micro assignment
    evidence.
 4. Inheritance: the most specific grant whose org path (and, for menus, menu
-   path) is an ancestor of the snapshot wins. An ancestor allow applies to
+   path) is an ancestor of the snapshot wins. For menu grants, menu-path
+   specificity is the primary tie-break and org-path specificity is the
+   secondary tie-break; this makes a more-specific menu restriction win over
+   a narrower org grant when both apply. An ancestor allow applies to
    descendants; a more-specific deny or replacement grant restricts that
-   subtree. Default is deny. Secrets and programmable application tokens
-   never inherit.
+   subtree. Decision responses set `inherited=true` when either the winning
+   org path or the winning menu path is a strict ancestor of the requested
+   path; exact org and menu matches are specific. Default is deny. Secrets and
+   programmable application tokens never inherit.
 5. SSO combination scopes are named sets of software units. A combination is
    tenant-scoped and is allowed only when its tenant matches the snapshot and
    every member software unit is allowed for that snapshot. Ambiguous

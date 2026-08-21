@@ -43,13 +43,22 @@ clients in the portable realm.
 2. Inheritance is most-specific-wins with default deny.
 3. Secrets and PATs never inherit.
 4. Decision evaluation performs no Orgmetra, DNS, or Keycloak I/O.
+5. Decision metadata reports inheritance for a strict org-path or menu-path
+   ancestor, so a menu prefix grant at the exact org node is not mislabeled as
+   a specific decision.
+6. Menu-path specificity is evaluated before org-path specificity. This is a
+   measured policy choice: a narrower menu restriction wins over a narrower
+   org grant when both are candidates.
 
 ## Measured repository evidence
 
 `services/account_unification/tests/test_org_authorization.py` and
 `tests/test_authorization_plane.py` cover inheritance, restriction, software-
 unit and menu ABAC/RBAC, tenant-isolated grants and combinations, reserved-name
-rejection, and fail-closed storage. The HTTP regression suite also verifies that the authorization router
+rejection, and fail-closed storage. The focused
+`test_menu_path_inheritance_is_reported_when_org_path_is_exact` regression
+proves that a strict menu-prefix match sets `inherited=true` even when the org
+path is exact. The HTTP regression suite also verifies that the authorization router
 rejects an unauthenticated direct embedding and accepts only the configured
 operator bearer. The router now owns both the operator-authentication and
 privileged-path dependencies rather than relying only on the application

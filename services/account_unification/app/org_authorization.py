@@ -484,7 +484,7 @@ def _select_winning_grant(
     grant_scope_code: str,
     requested_menu_path: str | None,
 ) -> tuple[AuthorizationGrant | None, bool]:
-    """Return the most specific matching grant and whether it was inherited."""
+    """Return the most specific grant and report org or menu inheritance."""
     candidates: list[tuple[int, int, AuthorizationGrant]] = []
     org_rank = {path: index for index, path in enumerate(snapshot_path.ancestor_paths())}
     menu_rank: dict[str, int] = {}
@@ -512,7 +512,13 @@ def _select_winning_grant(
         return None, False
     candidates.sort(key=lambda item: (item[0], item[1]))
     winning = candidates[0][2]
-    inherited = winning.org_path != snapshot_path.serialized
+    menu_inherited = (
+        grant_scope_code == MENU_GRANT_SCOPE
+        and winning.menu_path is not None
+        and requested_menu_path is not None
+        and winning.menu_path != requested_menu_path
+    )
+    inherited = winning.org_path != snapshot_path.serialized or menu_inherited
     return winning, inherited
 
 

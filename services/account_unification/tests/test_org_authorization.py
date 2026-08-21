@@ -209,6 +209,24 @@ def test_menu_inherit_and_more_specific_menu_deny() -> None:
     assert payroll.capability_codes == []
 
 
+def test_menu_path_inheritance_is_reported_when_org_path_is_exact() -> None:
+    """Menu-prefix inheritance is visible even at the exact org node."""
+    grants = [
+        _software_grant(PERSON_PATH),
+        _menu_grant(PERSON_PATH, menu_path="/invoices"),
+    ]
+    decision = decide_menu(
+        grants,
+        _snapshot(),
+        "naruon-web",
+        "/invoices/approve",
+    )
+    assert decision.effect is AuthorizationEffect.ALLOW
+    assert decision.winning_menu_path == "/invoices"
+    assert decision.inherited is True
+    assert decision.decision_code is AuthorizationDecisionCode.INHERITED_ALLOW
+
+
 def test_menu_abac_constraint_mismatch_denies() -> None:
     """ABAC constraints are evaluated before remaining menu capabilities."""
     grants = [

@@ -26,6 +26,8 @@ Keep a Changelog, and releases use semantic versioning.
 - Authorization decisions now require a tenant-qualified assignment snapshot;
   grant matching, ABAC constraints, duplicate identity, and KV keys preserve
   tenant boundaries.
+- Authorization decision metadata now marks strict menu-prefix inheritance
+  correctly when the org path is an exact match.
 - Start-login issuer input is bound to configured Keyverse public issuer state.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and

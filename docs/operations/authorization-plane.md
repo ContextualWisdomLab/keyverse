@@ -19,7 +19,10 @@ shared operator bearer.
 2. Put the explicit `tenant_deployment_id` on the snapshot and every grant.
 3. PUT the software-unit grant, then any menu grants.
 4. Decide with a current Orgmetra snapshot. If the effect is unexpected,
-   inspect winning_org_path and whether a more-specific deny exists.
+   inspect winning_org_path, winning_menu_path, `inherited`, and whether a
+   more-specific deny exists. `inherited=true` means the winning org path or
+   menu path is a strict ancestor of the requested path. For menu decisions,
+   menu-path specificity is evaluated before org-path specificity.
 5. Do not persist Orgmetra organization units into Keyverse.
 
 When the same combination name exists in more than one tenant, include
