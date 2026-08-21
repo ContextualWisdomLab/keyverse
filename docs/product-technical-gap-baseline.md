@@ -74,6 +74,12 @@ is open at exact head `babb411e5132f67a665e302eb492da69f7d91afb` against
 `32488287515` is queued. This is not a source failure or D1–D5 emergency
 evidence, so no bypass or guarded force merge is allowed.
 
+This baseline is itself carried by #104. The table records that PR at the
+pre-baseline snapshot head `c623a3d8df6e0f6da0e9623b23e3178e0f0296f0`; adding
+this baseline advanced it normally to successor `8077aa46e120ea5977464f2e611d44ab44bab695`.
+The successor's hosted Checks and review state must be read from the live PR,
+and neither snapshot is protected-main evidence.
+
 ## Open issue inventory
 
 | Issue | Signal | Classification | Required outcome |

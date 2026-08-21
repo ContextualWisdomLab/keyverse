@@ -27,7 +27,9 @@ child namespace; ambiguous membership denies before authorization.
   replace hosted checks or independent approval.
 - #104 was normally restacked onto #112 at `c623a3d8df6e0f6da0e9623b23e3178e0f0296f0`.
   Its documentation-only conflict resolution preserved both CHANGELOG entries;
-  fresh hosted checks are required.
+  the baseline addition then advanced it to successor
+  `8077aa46e120ea5977464f2e611d44ab44bab695`; fresh hosted checks are required
+  for the successor and neither head is protected-main evidence.
 - Central `.github#1203` has a cancelled scheduler predecessor and a queued
   retry. Cancellation is normal concurrency behavior; the observed age and
   evidence do not satisfy D1–D5 emergency bypass criteria.
