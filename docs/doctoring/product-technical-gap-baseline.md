@@ -147,6 +147,22 @@ placeholder credentials must not be committed to close it.
   `11491068712859e936e7ce4ed7f204f5c1157f0c` for the OpenCode retry path. Its
   current rollup has 1 successful and 16 pending Checks, with 13 skipped and
   no terminal source failure or qualifying formal approval.
+- Central `.github` PR #1174 is open at exact head
+  `11f397988f871b7566e6e1c5dcf5fd82be905dc0` for the mention-router
+  acknowledgement recovery path. Its current rollup has 26 terminal
+  successes, 1 pending (`opencode-review`), and 15 skipped Checks, with no
+  terminal source failure or qualifying formal approval. It is the normal
+  source fix for recent main-branch `Review Agent Mention Router` failures
+  (`32438800573`, `32438736861`, and `32438190241`) where a target
+  acknowledgement reaction returned HTTP 403 after durable dispatch. The
+  current head preserves the durable dispatch and retries only the cosmetic
+  acknowledgement without creating a duplicate dispatch.
+- The scheduled central `.github` Organization Commercial Readiness Loop run
+  `32437647976` failed before coordination because the configured
+  `PR_REVIEW_MERGE_TOKEN` was unavailable. This is a fail-closed credential
+  configuration gap, not permission to substitute `GITHUB_TOKEN` or bypass the
+  reviewer credential boundary; remediation requires the owning secret
+  configuration or an explicit owner decision.
 - Keyverse's existing `Hourly product development` workflow remains active at
   `41 * * * *`; its latest observed scheduled runs succeeded. No duplicate
   scheduler was added. Activation of the central caller remains conditional on
