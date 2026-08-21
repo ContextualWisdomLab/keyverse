@@ -211,6 +211,9 @@ Sheffer, Y., Hardt, D., & Jones, M. (2020). *JSON Web Token best current
 practices* (RFC 8725). Internet Engineering Task Force.
 https://www.rfc-editor.org/rfc/rfc8725.html
 
+GitHub. (2026). *REST API endpoints for workflows*.
+https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
+
 ## Evidence sources
 
 - `docs/PRD.md`, `docs/TRD.md`, `ARCHITECTURE.md`, `docs/OPERABILITY.md`,
@@ -300,10 +303,38 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `OrganizationAdmin` always-bypass actor. The ordinary documentation push
   emitted GitHub's server-side bypass warning; no explicit bypass option,
   protected merge, or self-approval was used. A complete read-only Keyverse
-  Actions registry/tree reconciliation at protected `main` `ce207dfd` found 43 active identities:
-  four repository workflow paths present in the exact tree, 37 active
-  repository paths absent from it, and two `dynamic/*` GitHub-owned paths. The
-  workflow registry used one API page and the recursive protected-tree response
-  was not truncated. No workflow state was mutated; the evidence is recorded
-  on Keyverse issue #99 and central issue #945 for the owning lifecycle
-  operator. No credential, private payload, or PII is recorded here.
+  Actions registry/tree reconciliation at protected `main` `ce207dfd` found 43
+  active identities: four repository workflow paths present in the exact tree,
+  37 active repository paths absent from it, and two `dynamic/*` GitHub-owned
+  paths. The workflow registry used one API page and the recursive
+  protected-tree response was not truncated. This is the immutable
+  pre-mutation record for Keyverse issue #99; no credential, private payload, or
+  PII is recorded here.
+
+## 2026-08-21 workflow registry lifecycle remediation
+
+- The protected-main ref was re-fetched immediately before mutation and
+  remained `ce207dfd42975db61c82a5963e206fc1db14ac2b`.
+- The four exact tree workflows (`ci.yml`, `codeql.yml`,
+  `hourly-pr-steward.yml`, and `hourly-product-development.yml`) were checked
+  for membership before any action and were excluded from mutation.
+- The GitHub Actions workflow endpoint was used by numeric workflow ID with
+  the recommended JSON accept header. The 37 active repository-path identities
+  absent from the protected tree were set to `disabled_manually`; the two
+  `dynamic/*` Dependabot identities were not changed. GitHub documents that
+  this operation changes a workflow's state to `disabled_manually` and returns
+  HTTP 204 (GitHub, 2026).
+- Fresh post-action reconciliation found 43 identities: 41 repository paths,
+  4 active supported workflows, 37 `disabled_manually` orphan records, and 2
+  unchanged active dynamic records. Active repository-path records absent from
+  the exact protected tree: zero.
+- Operational smoke evidence remained intact: protected-main
+  `Hourly product development` run `32443743245` succeeded, the latest
+  completed `Hourly PR steward` run `32425875355` succeeded, and CodeQL run
+  `31783415830` succeeded on the protected SHA. The latest `ci.yml` success
+  (`31555831037`) predates the protected SHA and is recorded as such rather
+  than promoted to current-head evidence.
+- This closes the live orphan cleanup portion of issue #99. A read-only
+  recurrence detector with pagination, path/ID reuse, branch movement,
+  permission-loss, transient HTTP failure, dynamic-workflow, and active-PR
+  cases remains required before the issue can close.

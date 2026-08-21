@@ -116,6 +116,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Disabled 37 orphaned active GitHub Actions registry identities whose
+  repository paths were absent from protected `main`, while preserving the
+  four supported workflow identities and two GitHub-owned dynamic Dependabot
+  identities; recorded exact before/after reconciliation and operational smoke
+  evidence for issue #99.
 - Packaged the portable Keycloak realm under the required `cwl-realm.json`
   directory-import name in Compose and mapped it in Helm, with a deployment
   contract that prevents a healthy-but-empty identity realm.

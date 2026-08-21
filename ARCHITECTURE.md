@@ -221,6 +221,13 @@ explicitly documented deployment-controller responsibility.
 
 ## Automation boundaries
 
+- GitHub Actions source files and the Actions workflow registry are separate
+  control-plane state. The central `.github` lifecycle inventory binds a
+  paginated registry observation to the exact protected default-branch tree and
+  reports dynamic identities separately from repository-path identities. The
+  inventory is read-only; any registry disablement requires a separately
+  reviewed, immediately revalidated operator action and a post-action
+  reconciliation.
 - The hourly PR steward advances only trusted same-repository PRs with exact-head
   approvals and required Checks.
 - The hourly product-development workflow runs OpenCode through
