@@ -206,10 +206,11 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   head `d540515be66a6ca0aa538c61f977a57bf7a69fb8` adds a RED-to-GREEN
   regression for percent-encoded discovery markers and normalizes
   `public_issuer_url` before the no-fetch policy check. Local focused/full
-  tests, Ruff, Interrogate, and 100% statement/branch coverage pass; its 16
-  hosted Checks remain pending, so hosted security and review success are not
-  claimed. The operator-admin trust boundary and the new URL-normalization
-  fix still require independent exact-head validation. PR
+  tests, Ruff, Interrogate, and 100% statement/branch coverage pass; 15 hosted
+  Checks remain pending while Devin Review is successful, so hosted security
+  and independent approval success are not claimed. The operator-admin trust
+  boundary and the new URL-normalization fix still require independent
+  exact-head validation. PR
   #100's pre-doctoring-refresh head was
   `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes

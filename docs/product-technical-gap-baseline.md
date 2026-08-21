@@ -88,7 +88,7 @@ rather than green.
 | [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `2f0e3fb19a63db7f51cdadfeae6155cd469a0c91` | review required | Obtain independent review on the refreshed #112 base; do not treat the queued Check as green. |
 | [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `ef03c5a93c891980588b125f6c774fa84bf0feef` | changes requested | Re-evaluate the prior requested changes against this refreshed #112 base and obtain current-head independent review. |
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 14 Checks queued, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 16 pending, 0 terminal failures on `d540515be66a6ca0aa538c61f977a57bf7a69fb8` | changes requested | Fresh head adds RED-to-GREEN rejection for percent-encoded discovery markers; wait for exact-head Strix, full Checks, and independent review before any merge claim. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 15 pending, 1 successful Devin Review, 0 terminal failures on `d540515be66a6ca0aa538c61f977a57bf7a69fb8` | changes requested | Fresh head adds RED-to-GREEN rejection for percent-encoded discovery markers; wait for exact-head Strix, full Checks, and independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 22 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
 | [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 Checks queued, 0 terminal failures on `0d4d1b98dfc8b722b5502dba942b322a1657902e` | changes requested; fresh review requested | Devin's exact-head coverage finding is addressed by the default-artifact regression test; obtain current-head review without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 22 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
@@ -137,8 +137,9 @@ evidence.
   and `discoveryEndpoint` markers. The implementation normalizes
   `public_issuer_url` with the standard-library URL decoder before the existing
   no-fetch policy check. Local focused/full tests, Ruff, Interrogate, and
-  100% statement/branch coverage pass; the 16 hosted Checks are still pending,
-  so no hosted security or review success is claimed.
+  100% statement/branch coverage pass; 15 hosted Checks remain pending while
+  Devin Review is successful, so no hosted security or independent approval
+  success is claimed.
 
 ## Open Issue inventory
 
