@@ -20,9 +20,14 @@ provider/incomplete-scan classification and remains protected by queued hosted
 Checks and missing formal review. Scheduler PR #1203 is at
 `94c09152a843db1a0d3a3463900ef4d30467f085`; its earlier queue observation has
 shown progress and is not currently a persistent D2 deadlock. OSV #1158,
-security/cadence #1198, docstring #1189, and fleet lifecycle #1026 are likewise waiting on hosted
-Checks and independent review. All observations are current-head evidence;
-predecessor results remain non-transferable.
+security/cadence #1198, docstring #1189, and fleet lifecycle #1026 are likewise
+waiting on hosted Checks and independent review. OSV #1158's exact-head
+`osv-scan` failure (run `32495942565`, job `96814227043`) is a real dependency
+finding, not an infrastructure-only failure: base and head both reported
+`pip==26.1.2` / `PYSEC-2026-3721`, fixed by pip 26.2 in #1198. #1158 must
+remain unmerged until #1198 is normally integrated and the new exact head is
+rechecked. All observations are current-head evidence; predecessor results
+remain non-transferable.
 
 ## Interpretation
 
