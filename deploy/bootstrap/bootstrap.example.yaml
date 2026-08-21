@@ -8,7 +8,9 @@
 # Copy to bootstrap.yaml and mount read-only at /bootstrap/bootstrap.yaml.
 # The store is expected to hold, under the namespace below, the Keycloak wiring
 # keys: keycloak_server_url, keycloak_realm, keycloak_client_id,
-# keycloak_client_secret (+ merge_conflict_policy, allow_unverified_email_link).
+# keycloak_client_secret, operator_api_token. Optional keys include
+# public_issuer_url and a distinct runtime_api_token for app-facing start-login
+# and token verification.
 
 config_store:
   # Backends: "sqlite" (dev/standalone), "postgres" (prod), "env-kv" (12-factor

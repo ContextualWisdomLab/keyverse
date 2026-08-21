@@ -137,3 +137,32 @@ def test_service_without_configured_token_fails_closed(
         },
     )
     assert client.get("/users/u1").status_code == 503
+
+
+def test_runtime_routes_use_a_distinct_service_token() -> None:
+    """Start-login accepts runtime auth without requiring operator auth."""
+    app = create_app(wire=False)
+    app.state.runtime_api_token = "runtime-token"
+    payload = {
+        "software_unit_id": "naruon-web",
+        "client_id": "naruon-web",
+        "redirect_uri": "https://naruon.example/callback",
+    }
+    with TestClient(app) as client:
+        assert client.post(
+            "/federation/identity-providers:start-login", json=payload
+        ).status_code == 401
+        assert client.post(
+            "/federation/identity-providers:start-login",
+            json=payload,
+            headers={"X-Keyverse-Runtime-Token": "wrong"},
+        ).status_code == 403
+        assert client.post(
+            "/federation/identity-providers:start-login",
+            json=payload,
+            headers={"X-Keyverse-Runtime-Token": "runtime-token"},
+        ).status_code == 503
+    with TestClient(create_app(wire=False)) as unconfigured_client:
+        assert unconfigured_client.post(
+            "/federation/identity-providers:start-login", json=payload
+        ).status_code == 503

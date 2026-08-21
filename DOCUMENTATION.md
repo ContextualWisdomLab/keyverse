@@ -16,6 +16,7 @@ Keyverse already has strong feature-specific specifications, doctoring, federati
 | Requirements/evidence traceability | [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md) |
 | Architecture decisions | [`docs/adr/README.md`](docs/adr/README.md) |
 | Federation onboarding | [`docs/federation-onboarding.md`](docs/federation-onboarding.md) |
+| Authorization onboarding | [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md) |
 | RP onboarding | [`docs/rp-onboarding.md`](docs/rp-onboarding.md) |
 | Account merge/unification | [`docs/merge-unification-flow.md`](docs/merge-unification-flow.md) |
 | Standards/APA 7 evidence | [`docs/doctoring/`](docs/doctoring/) and [`docs/papers/`](docs/papers/) |

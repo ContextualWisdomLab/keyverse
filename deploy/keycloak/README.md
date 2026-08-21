@@ -31,6 +31,13 @@ following account-unification KV entries:
 - `registration_redirect_uri`
 - `registration_action_lifespan_seconds`
 
+Application backends use a separate optional `runtime_api_token` for
+start-login and programmable-token verification. It must differ from both
+`operator_api_token` and `registration_api_token`; do not put it in browser
+code or source-controlled templates. Set `public_issuer_url` when the public
+Keycloak issuer differs from the service URL so start-login cannot redirect to
+an untrusted host.
+
 Without the registration token the endpoint is unavailable rather than open.
 See [`../../docs/passwordless-policy.md`](../../docs/passwordless-policy.md).
 

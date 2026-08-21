@@ -64,7 +64,18 @@ application relying-party registration.
 - SAML/OIDC identity-provider desired-state validation and reconciliation;
 - LDAP/Active Directory component preflight and desired-state reconciliation;
 - OIDC relying-party preflight and secret-free desired-state reconciliation;
-- audit and user-operation lock boundaries.
+- audit and user-operation lock boundaries;
+- hierarchical software-unit, menu, inheritance, and SSO-combination
+  authorization decisions consumed from Orgmetra assignment snapshots;
+- app start-login / IdP discovery helper for relying parties;
+- hashed programmable application tokens scoped to one software unit and API.
+
+The hierarchical authorization router carries the existing operator bearer and
+privileged-path dependencies itself, so an embedding application cannot make
+grant administration public by mounting the module without the application
+factory's outer dependency list. The operator credential is a coarse
+operator-admin boundary; ``actor_identity_id`` on a grant is policy metadata,
+not an end-user principal extracted from that bearer request.
 
 The core merge and SCIM layer depends on the narrow `AdminApi` protocol.
 Product extensions are isolated behind `ProductAdminApi`; relying-party client
@@ -93,7 +104,11 @@ modules require neither protocol nor any network client.
   `relying_party_sources`, `relying_party_apply_receipts`;
 - merge audit: `account_merge_audit`;
 - cross-process user mutation lock sidecar:
-  `user_operation_lock_state`.
+  `user_operation_lock_state`;
+- hierarchical authorization grants:
+  `authorization_software_unit_grants`, `authorization_menu_grants`;
+- SSO combination scopes: `authorization_sso_combination_scopes`;
+- hashed programmable tokens: `application_access_tokens`.
 
 Database objects and namespaces use descriptive two-word-or-longer snake_case
 names.
@@ -178,9 +193,21 @@ profiles.
 Each downstream RP is a separate trust boundary. The RP must validate the
 Keyverse issuer, signature/algorithm, expiry, subject, and audience, map the
 verified tenant (`org`/deployment mapping), apply resource and purpose ABAC,
-and then apply bounded role/scope/group RBAC. A registered client or accepted
-mapper receipt never grants authorization by itself; see ADR-0008 for the
-non-fork application matrix and remediation gates.
+and then apply bounded role/scope/group RBAC. A registered client, accepted
+mapper receipt, or Keyverse PDP decision never grants authorization by itself;
+see ADR-0008 for the non-fork application matrix and remediation gates.
+ADR-0010 adds issuer-side hierarchical attributes (`group_company`,
+`legal_entity`, `business_unit`, `team`, `person`, `org_path`) and decisions.
+Those names are distinct from the unmerged LineageWeave `role`/`org`/`workspace`
+profile reserved as ADR-0009 on PR #100. Orgmetra remains employment truth;
+Keyverse binds an opaque subject and does not copy the Orgmetra tree.
+
+Relying applications start brokered login through the Keyverse start-login
+helper (ADR-0011) and may present software-unit-scoped programmable tokens
+(ADR-0012) that are hashed at rest, never inherit org-tree grants, and cannot be
+rotated after revocation, prior rotation, or expiry. Rotation writes the
+replacement and predecessor through one KV-store transaction, then compensates
+the pair through one atomic upsert/delete operation if audit persistence fails.
 
 ## Account and provisioning invariants
 
@@ -246,6 +273,8 @@ explicitly documented deployment-controller responsibility.
 
 Detailed decisions and evidence are maintained under:
 
+- `docs/adr/` — accepted architecture decisions (0001–0008 plus 0010–0012;
+  0009 reserved for the unmerged LineageWeave profile);
 - `docs/superpowers/specs/` — approved feature architecture;
 - `docs/superpowers/plans/` — executable implementation plans;
 - `docs/doctoring/` — standards interpretation and APA 7th traceability;

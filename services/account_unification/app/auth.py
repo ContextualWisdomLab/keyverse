@@ -49,3 +49,27 @@ def require_operator_token(
 
 
 operator_auth_dependency = Depends(require_operator_token)
+
+
+def require_runtime_token(
+    request: Request,
+    runtime_token: str | None = Header(
+        default=None,
+        alias="X-Keyverse-Runtime-Token",
+    ),
+) -> None:
+    """Authenticate the least-privilege runtime service token."""
+    expected = getattr(request.app.state, "runtime_api_token", None)
+    if not expected:
+        raise HTTPException(status_code=503, detail="runtime authentication unavailable")
+    if not runtime_token:
+        raise HTTPException(
+            status_code=401,
+            detail="runtime service token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not hmac.compare_digest(runtime_token, expected):
+        raise HTTPException(status_code=403, detail="invalid runtime service token")
+
+
+runtime_auth_dependency = Depends(require_runtime_token)

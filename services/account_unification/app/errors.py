@@ -24,3 +24,12 @@ class NoMatchError(UnificationError):
 
 class InactiveAccountError(UnificationError):
     """Refused: an account is not active (already merged/deactivated)."""
+
+
+class AuthorizationPolicyError(UnificationError):
+    """Closed authorization-plane input or policy failure."""
+
+    def __init__(self, message: str, *, status_code: int = 400) -> None:
+        """Record one operator-safe policy failure and its HTTP status."""
+        super().__init__(message)
+        self.status_code = status_code
