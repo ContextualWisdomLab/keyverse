@@ -68,11 +68,11 @@ tenant, or resource ownership.
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-21; it is not inherited from a predecessor commit.
 This record was refreshed from a live exact-head audit while PR #100 stood at
-`2887258e8f8aeb3687c99504cb31d7321ef9e921`; the documentation commit that
+`ac2933158be90d72bf708890d1189a9aa92bda23`; the documentation commit that
 updates this snapshot is intentionally not recursively named. The audit also
 includes the current central `.github` coordination handoff for issue #99:
 PR #1026 is normally updated to exact head
-`30644f0b2d88de36af4b0156f83b56ef8c65dd89` against base
+`8d141d51d5b891fda7e8638164f64d5f6fed5ea8` against base
 `731af58e954901c4f1cc853231c592abb1eaf617`, with local central verification
 complete but hosted Checks and independent approval still pending. The
 organization-level `CWL Central required workflows` ruleset remains active,
@@ -87,8 +87,8 @@ queued Check; #107 and #108 each have 22 successful, 1 queued, and 8 skipped
 Checks; #104 has 22 successful, 1 queued, and 8 skipped Checks; #105, #106,
 #109, #110, and #111 each have 21 successful, 1 queued, and 8 skipped Checks;
 #115 and #113 each have 2 successful, 14 pending, and 7 skipped Checks; #103
-has 1 successful, 14 pending, and 7 skipped Checks;
-#100 has 1 successful, 15 pending, and 7 skipped Checks. The exact rollup is
+has 1 successful, 15 pending, and 7 skipped Checks;
+#100 has 2 successful, 14 pending, and 7 skipped Checks. The exact rollup is
 listed per PR below; pending and queued Checks remain unverified rather than
 green.
 There is no current terminal failure bucket in this inventory. Historical
@@ -100,8 +100,8 @@ evidence.
 The current exact-head audit confirms PR #115 at
 `e7ad4524712b18809d8c409371142071270b2ea0`, #113 at
 `9bd33ee0d00ef1874fd5efabac3462f678a256ed`, #103 at
-`86e87b2db0fc5aadfea6b141a523ee7cc59e3fcb`, and #100 at
-`2887258e8f8aeb3687c99504cb31d7321ef9e921`. #100's two current Devin
+`1af77b0fa0f0e7d52dd0992cb4b15ea011336023`, and #100 at
+`ac2933158be90d72bf708890d1189a9aa92bda23`. #100's two current Devin
 informational threads were independently checked against the current tree and
 resolved: the intentional fail-closed bootstrap availability boundary was
 documented, and the reserved `lineageweave-web` static-claim mismatch was
@@ -123,9 +123,9 @@ any protected-merge claim.
 | [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update, stacked on #112 lockfile refresh | PENDING: 21 successful, 1 queued, 8 skipped on updated head `e7fafd4192cc3cc344b8f8e536bc0495afaa739f` | review required | The normal branch update includes #112's lockfile base; wait for exact-head Checks and independent review. |
 | [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update, stacked on #112 lockfile refresh | PENDING: 21 successful, 1 queued, 8 skipped on updated head `77f83dfb2c4611345c0d48f92fceaa6195b4630c` | changes requested | The normal branch update includes #112's lockfile base; obtain current-head independent review. |
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 22 successful, 1 queued, 8 skipped on `7da9d43087d5647fefb946eb154ee1e5c10c576d` | review required | Base remains `fix/account-unification-lock-20260819`; obtain independent review and terminal stacked-head Checks. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 1 successful, 14 pending, 7 skipped on `86e87b2db0fc5aadfea6b141a523ee7cc59e3fcb` | changes requested | Menu inheritance metadata and tenant-scoped grant GET/DELETE gaps are fixed with RED-to-GREEN tests; wait for fresh hosted security Checks and current-head independent review before any merge claim. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 1 successful, 15 pending, 7 skipped on `1af77b0fa0f0e7d52dd0992cb4b15ea011336023` | changes requested | Menu inheritance metadata, tenant-scoped grant GET/DELETE, and atomic token rotation storage are fixed with RED-to-GREEN tests; wait for fresh hosted security Checks and current-head independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 successful, 8 skipped, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 1 successful, 15 pending, 7 skipped on observed head `2887258e8f8aeb3687c99504cb31d7321ef9e921` | changes requested | The two current informational review threads were dispositioned and resolved; the static-claim mismatch is fixed by the RED-to-GREEN regression. This docs refresh creates a later head, then fresh exact-head Checks and independent review are required without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 2 successful, 14 pending, 7 skipped on observed head `ac2933158be90d72bf708890d1189a9aa92bda23` | changes requested | The two current informational review threads were dispositioned and resolved; the static-claim mismatch is fixed by the RED-to-GREEN regression. This docs refresh creates a later head, then fresh exact-head Checks and independent review are required without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 successful, 8 skipped, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
@@ -185,12 +185,13 @@ evidence.
   operator token does not expose distinct end-user principals; independent
   security validation must resolve that trust-boundary interpretation. Until
   then the failure remains blocking and is not converted into a pass.
-- PR #103's current exact head `86e87b2db0fc5aadfea6b141a523ee7cc59e3fcb`
+- PR #103's current exact head `1af77b0fa0f0e7d52dd0992cb4b15ea011336023`
   adds RED-to-GREEN regressions for percent-encoded discovery markers,
   inactive and expired token rotation, invalid token rotation settings, KV/audit
   lifecycle failures, direct router embedding, tenant isolation, software-unit
   ABAC, runtime authentication, untrusted public issuers, exact-org menu
-  inheritance metadata, and tenant-scoped grant administration. Local
+  inheritance metadata, tenant-scoped grant administration, and atomic token
+  rotation storage. Local
   focused/full tests, Ruff, Interrogate, package/build, deployment, realm,
   Compose, Semgrep, and 100% application statement/branch coverage pass; its
   required hosted Checks are still pending or queued, so no hosted security or
