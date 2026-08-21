@@ -284,7 +284,7 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   produced no structured vulnerability report, so that run failed closed.
   Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process sidecar
   evidence are not protected-main evidence. PR #112's lockfile head
-  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 22 successful and 8 skipped
+  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 23 successful and 8 skipped
   Checks but still requires independent review. PR #111's current head
   `032f730b0239d062cf9803525ba66c740e0b2d2e` now contains #112's lockfile
   through a normal branch update. Its prior `account-unification-tests`
@@ -294,7 +294,7 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   #112 passed. A normal exact-head attempt 2 is queued. It remains coupled to
   #112 and #110. PR #110's current head
   `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` remains on the #112 base with
-  19 successful, 1 pending, and 8 skipped Checks; its hosted reruns remain
+  20 successful, 1 queued, and 8 skipped Checks; its hosted reruns remain
   unverified.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
@@ -302,11 +302,11 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
   `7.15.4` and `84.0.0`; the current #105 head
-  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has 19
-  successful, 1 pending, and 8 skipped Checks with no terminal failure. The
+  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has 20
+  successful, 1 queued, and 8 skipped Checks with no terminal failure. The
   current #106 head `e7fafd4192cc3cc344b8f8e536bc0495afaa739f` likewise has
-  19 successful, 1 pending, and 8 skipped Checks. PR #109's head
-  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has 19 successful, 1 pending,
+  20 successful, 1 queued, and 8 skipped Checks. PR #109's head
+  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has 20 successful, 1 queued,
   and 8 skipped
   Checks; local
   locked-install, full pytest, Ruff, Interrogate, and compileall verification
@@ -314,8 +314,8 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   PR #107 was rebased cleanly onto #112 at
   `53842560d397aa20309a6b16aceb560540611686`, and PR #108 was rebased cleanly
   onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; the latest rollups
-  are 20 successful, 1 pending, and 8 skipped for #107 and 20 successful,
-  1 pending, and 8 skipped for #108, with no terminal failure. Local
+  are 21 successful, 1 queued, and 8 skipped for #107 and 21 successful,
+  1 queued, and 8 skipped for #108, with no terminal failure. Local
   `uv sync --locked --extra dev` plus the full service pytest suite passed on
   both rebased trees. Their fresh hosted Checks remain unverified and #112
   remains the lock-refresh prerequisite.
@@ -330,15 +330,20 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   still pending or queued, so hosted security and independent approval success
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's
-  current documentation head is
+  earlier documentation head was
   `f331938a4f3cd6808101b8888b76c0f87b1eb841`, with 2 successful, 14 queued,
   and 7 skipped Checks; its changes-requested review state is not approval. PR #104's updated
   head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
   head and has 21 successful, 1 queued, and 8 skipped Checks.
   After the baseline/reference update, PR #100 advanced normally to
-  `ee6c13f059b6074f990f51ae7cf26de62d2c6d67`; its current rollup is 1
+  `ee6c13f059b6074f990f51ae7cf26de62d2c6d67`; its then-observed rollup was 1
   successful, 1 pending, 14 queued, and 7 skipped Checks with changes
   requested. The new exact head remains unverified for protected merge.
+  A subsequent docs-only push advanced PR #100 to
+  `7be7b488c2a6565cf3948f8c4ac6b91e3cfb0f45`; its latest live rollup is 2
+  successful, 14 queued, and 7 skipped Checks with changes requested. The
+  product baseline table supersedes the earlier #100 sub-record for current
+  exact-head status.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.
   The active ruleset requires two approving reviews, resolved threads, and
