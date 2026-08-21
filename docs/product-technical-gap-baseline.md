@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T15:51:37Z
+## Live queue refresh — 2026-08-22T16:36:47Z
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -60,11 +60,10 @@ exact-head formal approvals on every open Keyverse PR.
 | PR | Exact head | Base | Checks | Safe disposition |
 |---:|---|---|---|---|
 | [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
-| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `31dd486cb97ca215da451151f618a954a07b0ea5` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 19 success, 8 skipped, 1 queued, 1 failure | Re-run after central `.github` #1153; the failure was Caido bootstrap infrastructure with zero reported vulnerabilities. |
-| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | `fdf62541a0732adbee5faf0da1c4773d2f9bc37f` | `31dd486cb97ca215da451151f618a954a07b0ea5` | 5 success | Stacked on #112; await the root and independent approval. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `44c2adb18687f8df457bd4bafade551533cee5b9` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 queued, 7 skipped | #104 advanced its feature-base head; predecessor Checks and review evidence were discarded and current-head Checks are rerunning. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Re-establish current-head review; no formal approval exists. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `d0392099ad334034f7296d3e04eb862ffbcc015a` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 queued, 7 skipped | This refresh creates a new head; reacquire all Checks and review evidence. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `50276ff22b41eb771dab62327b01551a9ea64350` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 18 success, 7 skipped, 1 in progress, 1 queued | Current local verification is complete; await independent approval and terminal hosted Checks. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Re-establish current-head review; no formal approval exists. |
 
 The organization ruleset `CWL Central required workflows` (`18156473`) is
@@ -73,15 +72,26 @@ threads, and required workflows. Its live `bypass_actors` list is empty. No
 Keyverse PR therefore qualifies for an emergency bypass or a protected merge
 until the normal review and hosted gates are satisfied.
 
+PR #104 is now closed by squash merge at
+`44c2adb18687f8df457bd4bafade551533cee5b9` (2026-08-21T16:24:25Z), with the
+feature-base parent `31dd486cb97ca215da451151f618a954a07b0ea5`; protected
+`main` remains unchanged. Its feature-base merge was outside ruleset
+`18156473`, whose live ref condition is only `~DEFAULT_BRANCH`, so the merge
+did not establish a default-branch protected approval. This is a governance
+gap, not a force push or direct protected-branch push, and is retained here as
+audit evidence rather than as normal protected-merge evidence.
+
 The relevant central control-plane PRs are also not merge-ready: `.github`
-#1153 (`ebda81f832261489289447778b0e0e7726f9741e`) has 20 successful, 3
-neutral, and 7 active Checks; #1203 (`94c09152a843db1a0d3a3463900ef4d30467f085`)
-has 21 successful, 3 neutral, and 7 active Checks; #1198
-(`d2490ad594bd2ab8cccd5ff9e0b6f2a3fa8e23d4`) has 19 successful, 3 neutral, and
-7 active Checks; #1189 (`5838e0ae10d5cfbd7d7d6766cb0197fad9ffd641`) has 18
-successful, 3 neutral, and 7 active Checks; and #1026
-(`ef77ced213278396123f435f7e1db4646b3a631f`) has 4 successful and 16 active
-Checks. None has an exact-head formal approval. OSV #1158
+#1153 (`ebda81f832261489289447778b0e0e7726f9741e`) has 26 successful, 3
+neutral, 13 skipped, 1 failed, and 1 queued Check; #1203
+(`94c09152a843db1a0d3a3463900ef4d30467f085`) has 27 successful, 3 neutral, 21
+skipped, 2 failed, 2 cancelled, and 1 queued Check; #1198
+(`d2490ad594bd2ab8cccd5ff9e0b6f2a3fa8e23d4`) has 27 successful, 3 neutral, 17
+skipped, and 1 queued Check; #1189
+(`5838e0ae10d5cfbd7d7d6766cb0197fad9ffd641`) has 25 successful, 3 neutral, 17
+skipped, 1 failed, and 1 queued Check; and #1026
+(`71c0cc890bd06a0ff97aa10267cb075b02c62f9e`) has 4 successful, 15 skipped, 1
+cancelled, and 16 queued Checks. None has an exact-head formal approval. OSV #1158
 (`6ea77b1c59265e6f708d71128fa726cf447d427b`) has one exact-head failure: both
 base and head scans found vulnerable `pip==26.1.2` (`PYSEC-2026-3721`), which
 is owned by the dependency root #1198 and must be revalidated after that root
@@ -89,10 +99,9 @@ normally merges. Their local verification does not substitute for protected
 hosted evidence.
 
 Fleet-lifecycle PR #1026 is now normally synchronized at
-`ef77ced213278396123f435f7e1db4646b3a631f`. Its earlier exact-head Python
-Security failure was `PYSEC-2026-3721` in `pip==26.1.2`, which is owned by the
-central security root #1198; this is not evidence against the orphan-inventory
-source. The PR remains pending until #1198 and all current hosted gates settle.
+`71c0cc890bd06a0ff97aa10267cb075b02c62f9e`. Its local RED-to-GREEN repair
+fails closed on partial workflow inventories; its hosted Checks remain queued
+and the PR remains pending until #1198 and all current hosted gates settle.
 
 ## Current capability map
 
