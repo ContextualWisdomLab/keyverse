@@ -150,8 +150,8 @@ placeholder credentials must not be committed to close it.
 - Central `.github` PR #1174 is open at exact head
   `11f397988f871b7566e6e1c5dcf5fd82be905dc0` for the mention-router
   acknowledgement recovery path. Its current rollup has 26 terminal
-  successes, 1 pending (`opencode-review`), and 15 skipped Checks, with no
-  terminal source failure or qualifying formal approval. It is the normal
+  successes, 3 neutral, 1 queued, and 15 skipped Checks, with no terminal
+  source failure or qualifying formal approval. It is the normal
   source fix for recent main-branch `Review Agent Mention Router` failures
   (`32438800573`, `32438736861`, and `32438190241`) where a target
   acknowledgement reaction returned HTTP 403 after durable dispatch. The
@@ -161,9 +161,10 @@ placeholder credentials must not be committed to close it.
   `07cdefca207e8bc09e714e33740a47809cb5d9a4` to close the pre-existing
   repository-wide docstring gap in the organization commercial-readiness
   coordinator. The one-line behavior-neutral fix passed the full local suite,
-  100% statement/branch coverage, and 100% interrogate verification; hosted
-  Checks are newly pending and no qualifying formal approval or protected
-  merge exists.
+  100% statement/branch coverage, and 100% interrogate verification. Its
+  current hosted rollup has 3 successful, 16 queued, 1 cancelled, and 15
+  skipped Checks, with no terminal source failure or qualifying formal approval
+  or protected merge.
 - Central `.github` PR #1155 is open at exact head
   `4b9a933d77a1d68459bf2c51abfbdba9e2d03d8b` for stable deduplication of
   unscoped scheduler dispatches and bounded stale-review input. Its current
