@@ -6,28 +6,34 @@
 ## 2026-08-22 live PR and control-plane refresh
 
 The protected Keyverse `main` head remains
-`ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue contains
-#113, #112, #104, #103, #101, #100, and #83. Exact-head review audit found no
-valid unresolved thread and no formal approval on any of them. #112 has one
-terminal Strix failure and one queued Check; its exact run recorded zero
-vulnerabilities before the Strix-owned Caido bootstrap endpoint at
-`127.0.0.1:48080` failed after retries. This is infrastructure evidence, not
-permission to weaken the security gate or merge the lockfile PR.
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue is #83, #100,
+#101, #103, #112, and #113. Their current exact heads are respectively
+`dd1ab7444a75342b42e3af013ccda6d1dbfb359d`,
+`2fd5a77cf3765f933debd244f457e13241726929`,
+`50dd9c96cab5c230f775685e8baea939fba390dd`,
+`77b8f4ea9995329f1c55b916d110b460b4bc7649`,
+`ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd`, and
+`9bd33ee0d00ef1874fd5efabac3462f678a256ed`. All report
+`REVIEW_REQUIRED`; #112 has zero valid unresolved threads after the current
+masked-secret disposition. No PR has a formal approval satisfying the
+protected merge gate.
 
-The current control-plane dependency is `.github` PR #1153 at
-`ebda81f832261489289447778b0e0e7726f9741e`, which adds the bounded
-provider/incomplete-scan classification and remains protected by queued hosted
-Checks and missing formal review. Scheduler PR #1203 is at
-`94c09152a843db1a0d3a3463900ef4d30467f085`; its earlier queue observation has
-shown progress and is not currently a persistent D2 deadlock. OSV #1158,
-security/cadence #1198, docstring #1189, and fleet lifecycle #1026 are likewise
-waiting on hosted Checks and independent review. OSV #1158's exact-head
-`osv-scan` failure (run `32495942565`, job `96814227043`) is a real dependency
-finding, not an infrastructure-only failure: base and head both reported
-`pip==26.1.2` / `PYSEC-2026-3721`, fixed by pip 26.2 in #1198. #1158 must
-remain unmerged until #1198 is normally integrated and the new exact head is
-rechecked. All observations are current-head evidence; predecessor results
-remain non-transferable.
+Current Keyverse Checks are: #83 23 successful/8 skipped; #100 21
+successful/2 pending/7 skipped; #101 23 successful/8 skipped; #103 24
+successful/8 skipped; #112 1 successful/15 pending/7 skipped; and #113 24
+successful/8 skipped. The #112 code fix for Keycloak's fixed masked
+`clientSecret` read-back is locally verified at 100% production statement and
+branch coverage, but hosted terminal Checks and independent approval remain
+pending. No emergency bypass is justified.
+
+Current control-plane evidence is `.github` #1198 at
+`838bff80bab6045478efd13487e2d5d49f0cd8a7` with 2 successful, 18 pending, and
+13 skipped Checks; #1203 at `94c09152a843db1a0d3a3463900ef4d30467f085` with 31
+successful, 2 failed, and 20 skipped Checks in a conflicting/dirty state; and
+#1026 at `71c0cc890bd06a0ff97aa10267cb075b02c62f9e` with 28 successful, 1
+failed, 2 pending, and 17 skipped Checks while behind. The failures and
+conflict are source/hosted-gate or restack problems, not demonstrated
+control-plane deadlocks. All predecessor evidence remains non-transferable.
 
 ## Interpretation
 
