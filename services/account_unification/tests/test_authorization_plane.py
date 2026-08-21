@@ -26,6 +26,7 @@ PERSON_PATH = (
 )
 SNAPSHOT = {
     "keyverse_subject": "sub-jdoe-opaque",
+    "tenant_deployment_id": "default-deployment",
     "org_path": PERSON_PATH,
     "assignment_record_id": "assignment-record-77",
     "request_attributes": {"purpose": "hr-review"},
@@ -203,6 +204,71 @@ def test_authorization_plane_rejects_mismatches_duplicates_and_unknowns(client) 
     assert menu_mismatch.status_code == 400
     assert missing_menu.status_code == 404
     assert missing_menu_delete.status_code == 404
+
+
+def test_authorization_grants_with_same_identity_are_isolated_by_tenant(client) -> None:
+    """Equivalent grant geometry is valid once per tenant deployment."""
+    first = client.put(
+        "/authorization/software-unit-grants/shared-grant",
+        json={**SOFTWARE_GRANT, "grant_key": "shared-grant"},
+    )
+    second = client.put(
+        "/authorization/software-unit-grants/shared-grant-other",
+        json={
+            **SOFTWARE_GRANT,
+            "grant_key": "shared-grant-other",
+            "tenant_deployment_id": "other-deployment",
+        },
+    )
+    other_snapshot = {**SNAPSHOT, "tenant_deployment_id": "other-deployment"}
+    decision = client.post(
+        "/authorization/software-units:decide",
+        json={"snapshot": other_snapshot, "software_unit_id": "naruon-web"},
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert decision.json()["effect"] == "allow"
+
+
+def test_ambiguous_tenant_identifiers_require_scoped_lookup(
+    store: InMemoryKvStore,
+) -> None:
+    """Legacy identifier-only reads fail closed when tenants share a name."""
+    service = AuthorizationPlaneService(store)
+    service.put_software_unit_grant(
+        "shared-grant",
+        AuthorizationGrant.model_validate({**SOFTWARE_GRANT, "grant_key": "shared-grant"}),
+    )
+    service.put_software_unit_grant(
+        "shared-grant",
+        AuthorizationGrant.model_validate(
+            {
+                **SOFTWARE_GRANT,
+                "grant_key": "shared-grant",
+                "tenant_deployment_id": "other-deployment",
+            }
+        ),
+    )
+    service.put_combination(
+        "shared-suite",
+        SsoCombinationScope.model_validate(
+            {**COMBINATION, "combination_name": "shared-suite"}
+        ),
+    )
+    service.put_combination(
+        "shared-suite",
+        SsoCombinationScope.model_validate(
+            {
+                **COMBINATION,
+                "combination_name": "shared-suite",
+                "tenant_deployment_id": "other-deployment",
+            }
+        ),
+    )
+    with pytest.raises(Exception, match="tenant_deployment_id"):
+        service.get_software_unit_grant("shared-grant")
+    with pytest.raises(Exception, match="tenant_deployment_id"):
+        service.get_combination("shared-suite")
 
 
 def test_authorization_plane_delete_and_replace(client) -> None:

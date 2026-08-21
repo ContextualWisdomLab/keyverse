@@ -12,8 +12,8 @@ RFC 6750 describes bearer credentials presented to a resource server (Jones
 & Hardt, 2012). Keyverse stores only a SHA-256 hash and verifies equality
 with a compare-digest so the secret is not reconstructed from storage.
 
-NIST SP 800-63B distinguishes authenticators used to prove a subscriber
-account from other secrets (Grassi et al., 2017). Password and WebAuthn
+NIST SP 800-63B-4 distinguishes authenticators used to prove a subscriber
+account from other secrets (Temoshok et al., 2025). Password and WebAuthn
 purposes are therefore forbidden. A PAT is a machine credential for a
 software unit and API capability set, not a browser authenticator
 (ADR-0002).
@@ -35,8 +35,9 @@ both plaintext and hash.
 
 `services/account_unification/tests/test_application_tokens.py` covers issue,
 verify, revoke, rotate, expiry, capability denial, software-unit mismatch,
-password-purpose rejection, secret omission, and preservation of the active
-token after invalid rotation settings.
+password-purpose rejection, secret omission, preservation of the active token
+after invalid rotation settings, and compensation after injected KV or audit
+failure. Management and runtime router authentication are tested separately.
 
 ## Assumptions and limitations
 
@@ -46,10 +47,11 @@ evidence boundary.
 
 ## References
 
-Grassi, P. A., Garcia, M. E., & Fenton, J. L. (2017). *Digital identity
-guidelines: Authentication and lifecycle management* (NIST Special
-Publication 800-63B). National Institute of Standards and Technology.
-https://doi.org/10.6028/NIST.SP.800-63b
+Temoshok, D., Fenton, J., Choong, Y.-Y., Lefkovitz, N., Regenscheid, A.,
+Galluzzo, R., & Richer, J. (2025). *Digital identity guidelines:
+Authentication and authenticator management* (NIST Special Publication
+800-63B-4). National Institute of Standards and Technology.
+https://doi.org/10.6028/NIST.SP.800-63b-4
 
 Jones, M. B., & Hardt, D. (2012). *The OAuth 2.0 authorization framework:
 Bearer token usage* (RFC 6750). RFC Editor.

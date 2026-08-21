@@ -4,6 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -13,11 +14,38 @@ from app.application_tokens import (
     ApplicationTokenRecord,
     ApplicationTokenService,
     ApplicationTokenVerifyRequest,
+    application_token_router,
+    application_token_runtime_router,
     get_application_token_service,
 )
 from app.audit import AuditLogger, InMemoryAuditSink
 from app.kv_store import InMemoryKvStore
 from app.main import create_app
+
+
+class _FailingStore(InMemoryKvStore):
+    """Inject one storage failure at a chosen write."""
+
+    def __init__(self, *, fail_on_put: int) -> None:
+        """Create a store that fails on the requested one-based write."""
+        super().__init__()
+        self._fail_on_put = fail_on_put
+        self._put_count = 0
+
+    def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
+        """Raise once at the configured write and otherwise persist normally."""
+        self._put_count += 1
+        if self._put_count == self._fail_on_put:
+            raise RuntimeError("injected token storage failure")
+        super().put(namespace, entry_key, entry_value)
+
+
+class _FailingAuditSink(InMemoryAuditSink):
+    """Inject an audit persistence failure."""
+
+    def record(self, event) -> None:
+        """Reject every event to exercise lifecycle compensation."""
+        raise RuntimeError("injected audit storage failure")
 
 
 class _Clock:
@@ -62,7 +90,11 @@ def client(token_service, auth_header):
     app = create_app(wire=False)
     app.state.application_token_service = token_service
     app.state.operator_api_token = "test-operator-token"
-    with TestClient(app, headers=auth_header) as test_client:
+    app.state.runtime_api_token = "test-runtime-token"
+    with TestClient(
+        app,
+        headers={**auth_header, "X-Keyverse-Runtime-Token": "test-runtime-token"},
+    ) as test_client:
         yield test_client
 
 
@@ -128,6 +160,48 @@ def test_issue_verify_revoke_and_secret_omission(client, audit) -> None:
         "application_token_issued",
         "application_token_revoked",
     }
+
+
+def test_embedded_application_token_router_requires_operator_authentication(
+    token_service: ApplicationTokenService,
+) -> None:
+    """A directly embedded management router cannot be mounted open."""
+    app = FastAPI()
+    app.state.application_token_service = token_service
+    app.state.operator_api_token = "test-operator-token"
+    app.include_router(application_token_router)
+    with TestClient(app) as embedded_client:
+        denied = embedded_client.get("/application-tokens")
+        allowed = embedded_client.get(
+            "/application-tokens",
+            headers={"Authorization": "Bearer test-operator-token"},
+        )
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+
+
+def test_runtime_verify_does_not_require_operator_bearer(
+    token_service: ApplicationTokenService,
+) -> None:
+    """Runtime verification accepts its own service credential only."""
+    issued = token_service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    app = FastAPI()
+    app.state.application_token_service = token_service
+    app.state.runtime_api_token = "test-runtime-token"
+    app.include_router(application_token_runtime_router)
+    with TestClient(
+        app,
+        headers={"X-Keyverse-Runtime-Token": "test-runtime-token"},
+    ) as runtime_client:
+        response = runtime_client.post(
+            "/application-tokens:verify",
+            json={
+                "presented_token": issued.plaintext_token,
+                "software_unit_id": "naruon-web",
+            },
+        )
+    assert response.status_code == 200
+    assert response.json()["active"] is True
 
 
 def test_verify_denies_malformed_unknown_expired_and_capability(
@@ -253,6 +327,101 @@ def test_invalid_rotation_preserves_the_active_token(
 
     assert response.status_code == 400
     assert still_active.json()["active"] is True
+
+
+def test_issue_audit_failure_does_not_leave_an_active_token() -> None:
+    """An audit failure compensates the newly persisted issue record."""
+    store = InMemoryKvStore()
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(_FailingAuditSink()),
+        clock=_Clock(),
+    )
+    with pytest.raises(RuntimeError, match="audit storage"):
+        service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    assert store.get_all(APPLICATION_TOKEN_NAMESPACE) == {}
+
+
+def test_issue_storage_failure_does_not_persist_a_token() -> None:
+    """A failed initial storage write leaves no token record behind."""
+    store = _FailingStore(fail_on_put=1)
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(InMemoryAuditSink()),
+        clock=_Clock(),
+    )
+    with pytest.raises(RuntimeError, match="storage"):
+        service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    assert store.get_all(APPLICATION_TOKEN_NAMESPACE) == {}
+
+
+def test_revoke_audit_failure_restores_the_active_token() -> None:
+    """A revoke audit failure compensates the lifecycle update."""
+    store = InMemoryKvStore()
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(InMemoryAuditSink()),
+        clock=_Clock(),
+    )
+    issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    service._audit = AuditLogger(_FailingAuditSink())
+    with pytest.raises(RuntimeError, match="audit storage"):
+        service.revoke(issued.application_token_id, actor_identity_id="operator-ida")
+    verified = service.verify(
+        ApplicationTokenVerifyRequest(
+            presented_token=issued.plaintext_token,
+            software_unit_id="naruon-web",
+        )
+    )
+    assert verified.active is True
+
+
+def test_rotate_storage_failure_preserves_the_active_predecessor() -> None:
+    """A replacement write failure cannot rotate away the predecessor."""
+    store = _FailingStore(fail_on_put=2)
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(InMemoryAuditSink()),
+        clock=_Clock(),
+    )
+    issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    with pytest.raises(RuntimeError, match="storage"):
+        service.rotate(
+            issued.application_token_id,
+            ApplicationTokenIssueRequest.model_validate(ISSUE_BODY),
+        )
+    verified = service.verify(
+        ApplicationTokenVerifyRequest(
+            presented_token=issued.plaintext_token,
+            software_unit_id="naruon-web",
+        )
+    )
+    assert verified.active is True
+
+
+def test_rotate_audit_failure_restores_the_active_predecessor() -> None:
+    """An audit failure rolls back both replacement and predecessor state."""
+    store = InMemoryKvStore()
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(InMemoryAuditSink()),
+        clock=_Clock(),
+    )
+    issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    service._audit = AuditLogger(_FailingAuditSink())
+    with pytest.raises(RuntimeError, match="audit storage"):
+        service.rotate(
+            issued.application_token_id,
+            ApplicationTokenIssueRequest.model_validate(ISSUE_BODY),
+        )
+    verified = service.verify(
+        ApplicationTokenVerifyRequest(
+            presented_token=issued.plaintext_token,
+            software_unit_id="naruon-web",
+        )
+    )
+    assert verified.active is True
+    assert len(store.get_all(APPLICATION_TOKEN_NAMESPACE)) == 1
 
 
 def test_issue_rejects_password_purposes_and_bounds(client) -> None:

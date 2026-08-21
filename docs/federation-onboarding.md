@@ -200,6 +200,18 @@ certificate separately does not preserve active trust.
 After the identity provider is registered, a relying application starts
 brokered login through Keyverse rather than fetching metadata itself:
 
+Set `AUTH_CONFIG` to an existing private curl config file containing the
+runtime service-token header; this guard keeps the example from passing an
+undefined or empty path to `curl --config`:
+
+```bash
+: "${AUTH_CONFIG:?Set AUTH_CONFIG to a private curl config file}"
+test -r "$AUTH_CONFIG" || {
+  echo "AUTH_CONFIG is not readable" >&2
+  exit 1
+}
+```
+
 ```bash
 curl --config "$AUTH_CONFIG" \
   --fail-with-body \

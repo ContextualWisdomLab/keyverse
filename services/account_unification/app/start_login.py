@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import ServiceConfig
+from .auth import runtime_auth_dependency
 from .errors import AuthorizationPolicyError
 from .federation import (
     FEDERATION_PROVIDER_NAMESPACE,
@@ -22,7 +23,11 @@ from .federation import (
 from .kv_store import KvStore
 from .org_authorization import validate_slug
 
-start_login_router = APIRouter(prefix="/federation", tags=["federation"])
+start_login_router = APIRouter(
+    prefix="/federation",
+    tags=["federation"],
+    dependencies=[runtime_auth_dependency],
+)
 _HTTPS_SCHEME = "https"
 _HTTP_SCHEME = "http"
 _MAX_REDIRECT_URI_LENGTH = 2_048
@@ -182,6 +187,10 @@ def _authorization_endpoint(
     public_issuer_url: str | None, config: ServiceConfig
 ) -> str:
     """Build the local Keycloak authorization endpoint without discovery."""
+    configured_issuer = (
+        config.public_issuer_url
+        or f"{config.keycloak_server_url.rstrip('/')}/realms/{config.keycloak_realm}"
+    ).rstrip("/")
     if public_issuer_url:
         parsed = urlsplit(public_issuer_url)
         if (
@@ -197,10 +206,18 @@ def _authorization_endpoint(
                 "credentials, query, or fragment"
             )
         issuer = public_issuer_url.rstrip("/")
-    else:
-        issuer = (
-            f"{config.keycloak_server_url.rstrip('/')}/realms/{config.keycloak_realm}"
+        auth_suffix = "/protocol/openid-connect/auth"
+        candidate_issuer = (
+            issuer[: -len(auth_suffix)]
+            if issuer.endswith(auth_suffix)
+            else issuer
         )
+        if candidate_issuer != configured_issuer:
+            raise AuthorizationPolicyError(
+                "public_issuer_url must match the configured Keyverse issuer"
+            )
+    else:
+        issuer = configured_issuer
     if issuer.endswith("/protocol/openid-connect/auth"):
         return issuer
     return f"{issuer}/protocol/openid-connect/auth"

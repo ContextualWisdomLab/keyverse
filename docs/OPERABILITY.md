@@ -68,16 +68,21 @@ Mapper unit tests alone do not prove Naruon product authorization readiness.
 
 ## Authorization-plane and token runbook
 
-1. Obtain an Orgmetra assignment snapshot for the subject; do not copy the
-   Orgmetra tree into Keyverse.
+1. Obtain an Orgmetra assignment snapshot for the subject, including its
+   validated `tenant_deployment_id`; do not copy the Orgmetra tree into
+   Keyverse.
 2. PUT software-unit and menu grants at the intended org-path node.
 3. PUT an SSO combination when several RPs should share one session.
 4. Call the matching `:decide` endpoint and keep the RP as PEP.
-5. For app login, call `POST /federation/identity-providers:start-login`, add
-   PKCE locally, and redirect. Do not fetch IdP metadata from the app.
-6. Mint a PAT with `POST /application-tokens`, store the plaintext in the
-   application secret manager, and verify through Keyverse. Rotate or revoke
-   instead of sharing a password.
+5. For app login, the application backend calls
+   `POST /federation/identity-providers:start-login` with the separately
+   provisioned `X-Keyverse-Runtime-Token`, then adds PKCE locally and
+   redirects. Do not fetch IdP metadata from the app.
+6. An operator calls `POST /application-tokens` with the operator bearer,
+   stores the one-time plaintext response in the relying application's secret
+   manager, and discards the response. The application presents that PAT to
+   `POST /application-tokens:verify` with the runtime service token. Rotate or
+   revoke instead of sharing a password.
 
 See `docs/authorization-onboarding.md` and
 `docs/operations/authorization-plane.md`.

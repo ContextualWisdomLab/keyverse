@@ -20,7 +20,13 @@ Keep a Changelog, and releases use semantic versioning.
   after URL normalization at the same boundary.
 - Programmable application tokens (ADR-0012) hashed at rest, purpose-bound,
   software-unit and API scoped, rotatable, auditable, and never a password
-  substitute or inherited secret.
+  substitute or inherited secret; failed issue/rotation audit and storage
+  writes are compensated, and runtime verification uses a separate service
+  credential.
+- Authorization decisions now require a tenant-qualified assignment snapshot;
+  grant matching, ABAC constraints, duplicate identity, and KV keys preserve
+  tenant boundaries.
+- Start-login issuer input is bound to configured Keyverse public issuer state.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.

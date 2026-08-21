@@ -16,6 +16,7 @@ Ask Orgmetra for the current `assignment_record` and send Keyverse a snapshot:
 ```json
 {
   "keyverse_subject": "opaque-keyverse-subject",
+  "tenant_deployment_id": "buyer-deployment",
   "org_path": "/group_company/acme/legal_entity/holdco/business_unit/sales/team/alpha/person/jdoe",
   "assignment_record_id": "assignment-record-77",
   "request_attributes": {"purpose": "hr-review"}
@@ -61,13 +62,15 @@ session stays in Keycloak; this only authorizes the selected RP set.
 
 1. Register the employer IdP through the existing federation desired-state
    APIs (`docs/federation-onboarding.md`).
-2. From the application (or its deployment helper) call:
+2. From the application (or its deployment helper), call the runtime endpoint
+   with the separately provisioned `X-Keyverse-Runtime-Token` header. This is
+   not the operator bearer used for grant administration:
 
 ```bash
 curl --config "$AUTH_CONFIG" --request POST \
   --header "Content-Type: application/json" \
   --data '{"software_unit_id":"naruon-web","client_id":"naruon-web","redirect_uri":"https://naruon.example/callback","provider_alias_hint":"employer-adfs"}' \
-  "$KEYVERSE_ADMIN/federation/identity-providers:start-login"
+  "$KEYVERSE_RUNTIME/federation/identity-providers:start-login"
 ```
 
 3. Add PKCE `S256`, `state`, and `nonce` in the application.
@@ -84,10 +87,10 @@ curl --config "$AUTH_CONFIG" --request POST \
 ```
 
 Store `plaintext_token` in the application's secret manager and discard the
-response. Present the token only to `POST /application-tokens:verify` with
-the same software unit and requested API capabilities. Rotate or revoke
-instead of treating the token as a password. Tokens never inherit org-tree
-grants.
+response. Present the token only to `POST /application-tokens:verify` with the
+same software unit and requested API capabilities, plus the runtime service
+header. Rotate or revoke instead of treating the token as a password. Tokens
+never inherit org-tree grants.
 
 Keep bearer tokens out of `curl` process arguments; use a private `--config`
 file as in `docs/rp-onboarding.md`.

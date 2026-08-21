@@ -24,7 +24,9 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 - RP desired state remains separate from confidential client material.
 - Deployment controller, not public API, owns private bind/client and certificate material.
 - Each non-fork RP is a separate authorization boundary: verified Keyverse token validation, tenant/resource ABAC, and role/scope RBAC must be proven in the RP repository before production routing. The Keyverse authorization-plane PDP issues attributes and decisions; it does not replace ADR-0008 PEP enforcement.
-- Orgmetra remains the employment and org-tree system of record. Keyverse consumes assignment snapshots and persists only grants, combinations, and hashed application tokens.
+- Orgmetra remains the employment and org-tree system of record. Keyverse
+  consumes tenant-qualified assignment snapshots and persists only
+  tenant-qualified grants, combinations, and hashed application tokens.
 
 ## 4. Identity evidence
 
@@ -59,6 +61,10 @@ authorization readiness.
 ## 7. API/error boundary
 
 Authenticated operator APIs accept closed versioned schemas. Errors must not echo private values, raw provider responses, or arbitrary Keycloak Location/header content. Remote resource IDs parsed from Keycloak are validated before use in privileged paths.
+
+The start-login and token-verification runtime routes use a distinct
+`X-Keyverse-Runtime-Token`; grant and token-management writes retain the
+operator bearer boundary.
 
 ## 8. Persistence/data model
 

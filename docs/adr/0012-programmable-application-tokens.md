@@ -13,15 +13,18 @@ inherit down the org tree (ADR-0010).
 ## Decision
 
 1. Keyverse issues programmable application tokens (`kvt_<prefix>_<secret>`).
-   Only the SHA-256 hash, prefix, purpose, software unit, and capability codes
-   are stored.
+   The durable record stores the SHA-256 hash, prefix, purpose, software unit,
+   capability codes, `application_token_id`, `tenant_deployment_id`, lifecycle
+   state, creation/expiry/revocation timestamps, `actor_identity_id`, and
+   `replaced_token_id`. The plaintext secret is never stored.
 2. Closed purposes are `machine_api`, `integration_sync`, and
    `operator_export`. Password, WebAuthn, browser-login, and authenticator
    purposes are rejected.
 3. Tokens are software-unit and API-capability scoped, time-bounded (60
    seconds to 90 days), rotatable, revocable, and auditable. Rotation validates
-   the replacement before revoking the active token, so invalid replacement
-   settings do not destroy a working credential.
+   the replacement before revoking the active token and compensates storage or
+   audit failures, so invalid or incomplete replacement actions do not destroy
+   a working credential.
 4. The plaintext secret is returned only at issue or rotate time. List, get,
    verify, and revoke responses never include the secret or hash.
 5. Verification does not consult org-tree grants. Tokens never inherit.
@@ -31,6 +34,7 @@ inherit down the org tree (ADR-0010).
 ## Consequences
 
 - Relying applications store the plaintext token in their own secret manager
-  and present it only to `POST /application-tokens:verify`.
+  and present it only to `POST /application-tokens:verify`, authenticated with
+  the separately provisioned runtime service token.
 - Keycloak client secrets and operator bearers remain separate credentials.
 - This slice does not replace confidential RP client-secret placement.

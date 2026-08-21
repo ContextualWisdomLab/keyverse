@@ -8,9 +8,10 @@ OpenID Connect or Keycloak brokering conformance.
 
 ## Normative and authoritative evidence
 
-OpenID Connect Core defines the authorization endpoint and requires the RP
-to perform the authorization-code flow, including PKCE when public (OpenID
-Foundation, 2023). The helper only composes that endpoint with `client_id`,
+OpenID Connect Core defines the authorization endpoint and authorization-code
+flow. RFC 9700 requires public clients to use PKCE to prevent authorization
+code injection (Lodderstedt et al., 2025). The helper only composes that
+endpoint with `client_id`,
 `redirect_uri`, `response_type=code`, `scope=openid`, and Keycloak's
 `kc_idp_hint` parameter (Keycloak Project, 2026). The RP must still add
 PKCE, `state`, and `nonce`.
@@ -18,6 +19,11 @@ PKCE, `state`, and `nonce`.
 SAML and OIDC preflight in this repository already forbid metadata and
 discovery fetches. The helper preserves that boundary: it reads the local
 desired-state registry and rejects `.well-known` or metadata URLs.
+
+The authorization endpoint is also bound to the configured public Keyverse
+issuer (or the configured Keycloak realm URL when no public override exists).
+The request cannot redirect an RP to an arbitrary host. This is a Keyverse
+trust-boundary policy, not a network-fetch claim.
 
 NIST SP 800-63C treats the federation authority as distinct from the
 application (Grassi et al., 2017). The helper therefore stays Keyverse-owned
@@ -55,3 +61,7 @@ https://www.keycloak.org/docs/latest/server_admin/#_identity_broker
 
 OpenID Foundation. (2023). *OpenID Connect Core 1.0 incorporating errata set
 2*. https://openid.net/specs/openid-connect-core-1_0.html
+
+Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
+practice for OAuth 2.0 security* (RFC 9700; BCP 240). RFC Editor.
+https://www.rfc-editor.org/rfc/rfc9700

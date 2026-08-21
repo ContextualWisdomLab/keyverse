@@ -133,22 +133,42 @@ class AuthorizationPlaneService:
         with self._state_lock:
             self._store.put(
                 SSO_COMBINATION_NAMESPACE,
-                combination_name,
+                self._scoped_key(
+                    validated.tenant_deployment_id,
+                    combination_name,
+                ),
                 validated.model_dump_json(),
             )
         return validated
 
-    def get_combination(self, combination_name: str) -> SsoCombinationScope:
+    def get_combination(
+        self,
+        combination_name: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> SsoCombinationScope:
         """Return one stored SSO combination."""
         validate_slug(combination_name, field_name="combination_name")
-        with self._state_lock:
-            raw_value = self._store.get(SSO_COMBINATION_NAMESPACE, combination_name)
-        if raw_value is None:
+        combinations = [
+            combination
+            for combination in self.list_combinations()
+            if combination.combination_name == combination_name
+            and (
+                tenant_deployment_id is None
+                or combination.tenant_deployment_id == tenant_deployment_id
+            )
+        ]
+        if not combinations:
             raise AuthorizationPolicyError(
                 "sso combination is not registered",
                 status_code=404,
             )
-        return self._parse_combination(raw_value)
+        if len(combinations) > 1:
+            raise AuthorizationPolicyError(
+                "tenant_deployment_id is required for an ambiguous sso combination",
+                status_code=409,
+            )
+        return combinations[0]
 
     def list_combinations(self) -> list[SsoCombinationScope]:
         """Return every stored SSO combination."""
@@ -160,13 +180,15 @@ class AuthorizationPlaneService:
     def delete_combination(self, combination_name: str) -> None:
         """Remove one SSO combination."""
         validate_slug(combination_name, field_name="combination_name")
+        combination = self.get_combination(combination_name)
         with self._state_lock:
-            if self._store.get(SSO_COMBINATION_NAMESPACE, combination_name) is None:
-                raise AuthorizationPolicyError(
-                    "sso combination is not registered",
-                    status_code=404,
-                )
-            self._store.delete(SSO_COMBINATION_NAMESPACE, combination_name)
+            self._store.delete(
+                SSO_COMBINATION_NAMESPACE,
+                self._scoped_key(
+                    combination.tenant_deployment_id,
+                    combination_name,
+                ),
+            )
 
     def decide_software_unit(
         self, request: SoftwareUnitDecisionRequest
@@ -193,8 +215,11 @@ class AuthorizationPlaneService:
         self, request: SsoCombinationDecisionRequest
     ) -> SsoCombinationDecision:
         """Evaluate whether every member of a stored combination is allowed."""
-        combination = self.get_combination(request.combination_name)
         snapshot = validate_snapshot(request.snapshot)
+        combination = self.get_combination(
+            request.combination_name,
+            tenant_deployment_id=snapshot.tenant_deployment_id,
+        )
         return decide_sso_combination(
             self.list_software_unit_grants(),
             snapshot,
@@ -219,6 +244,7 @@ class AuthorizationPlaneService:
             )
         validated = validate_grant(grant)
         identity = (
+            validated.tenant_deployment_id,
             validated.grant_scope_code,
             validated.org_path,
             validated.software_unit_id,
@@ -227,6 +253,7 @@ class AuthorizationPlaneService:
         with self._state_lock:
             for existing in self._list_grants(namespace):
                 existing_identity = (
+                    existing.tenant_deployment_id,
                     existing.grant_scope_code,
                     existing.org_path,
                     existing.software_unit_id,
@@ -237,20 +264,28 @@ class AuthorizationPlaneService:
                         "an equivalent authorization grant already exists",
                         status_code=409,
                     )
-            self._store.put(namespace, grant_key, validated.model_dump_json())
+            self._store.put(
+                namespace,
+                self._scoped_key(validated.tenant_deployment_id, grant_key),
+                validated.model_dump_json(),
+            )
         return validated
 
     def _get_grant(self, namespace: str, grant_key: str) -> AuthorizationGrant:
         """Return one stored grant or raise a 404 policy error."""
         validate_slug(grant_key, field_name="grant_key")
-        with self._state_lock:
-            raw_value = self._store.get(namespace, grant_key)
-        if raw_value is None:
+        grants = [grant for grant in self._list_grants(namespace) if grant.grant_key == grant_key]
+        if not grants:
             raise AuthorizationPolicyError(
                 "authorization grant is not registered",
                 status_code=404,
             )
-        return self._parse_grant(raw_value)
+        if len(grants) > 1:
+            raise AuthorizationPolicyError(
+                "tenant_deployment_id is required for an ambiguous authorization grant",
+                status_code=409,
+            )
+        return grants[0]
 
     def _list_grants(self, namespace: str) -> list[AuthorizationGrant]:
         """Return every grant in one namespace, fail-closed on corrupt rows."""
@@ -262,13 +297,17 @@ class AuthorizationPlaneService:
     def _delete_grant(self, namespace: str, grant_key: str) -> None:
         """Delete one grant after proving it exists."""
         validate_slug(grant_key, field_name="grant_key")
+        grant = self._get_grant(namespace, grant_key)
         with self._state_lock:
-            if self._store.get(namespace, grant_key) is None:
-                raise AuthorizationPolicyError(
-                    "authorization grant is not registered",
-                    status_code=404,
-                )
-            self._store.delete(namespace, grant_key)
+            self._store.delete(
+                namespace,
+                self._scoped_key(grant.tenant_deployment_id, grant_key),
+            )
+
+    @staticmethod
+    def _scoped_key(tenant_deployment_id: str, identifier: str) -> str:
+        """Return one collision-free KV key within a tenant namespace."""
+        return f"{tenant_deployment_id}::{identifier}"
 
     def _parse_grant(self, raw_value: str) -> AuthorizationGrant:
         """Parse one stored grant or fail closed."""

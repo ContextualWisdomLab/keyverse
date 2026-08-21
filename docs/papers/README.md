@@ -39,9 +39,13 @@ Full BibTeX in [`citations.bib`](./citations.bib).
   & Scarfone, K. (2014). *Guide to Attribute Based Access Control (ABAC)
   Definition and Considerations.* NIST Special Publication 800-162.
   https://doi.org/10.6028/NIST.SP.800-162
-- Grassi, P. A., Garcia, M. E., & Fenton, J. L. (2017). *Digital Identity
-  Guidelines: Authentication and Lifecycle Management.* NIST Special
-  Publication 800-63B. https://doi.org/10.6028/NIST.SP.800-63b
+- Temoshok, D., Fenton, J., Choong, Y.-Y., Lefkovitz, N., Regenscheid, A.,
+  Galluzzo, R., & Richer, J. (2025). *Digital Identity Guidelines:
+  Authentication and Authenticator Management.* NIST Special Publication
+  800-63B-4. https://doi.org/10.6028/NIST.SP.800-63b-4
+- Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best Current
+  Practice for OAuth 2.0 Security.* RFC 9700 (BCP 240), IETF.
+  https://www.rfc-editor.org/rfc/rfc9700
 - Jones, M. B., & Hardt, D. (2012). *The OAuth 2.0 Authorization Framework:
   Bearer Token Usage.* RFC 6750, IETF. https://doi.org/10.17487/RFC6750
 
@@ -54,4 +58,5 @@ Full BibTeX in [`citations.bib`](./citations.bib).
 | OIDC Core | `deploy/templates/oidc-rp-client.json`, `docs/rp-onboarding.md`, start-login helper |
 | SAML V2.0 | `deploy/templates/saml-idp-employer-adfs.json`, `docs/topology.md` |
 | NIST SP 800-162 | hierarchical menu ABAC in `app/org_authorization.py` |
-| NIST SP 800-63B / RFC 6750 | programmable application tokens in `app/application_tokens.py` |
+| NIST SP 800-63B-4 / RFC 6750 | programmable application tokens in `app/application_tokens.py` |
+| RFC 9700 | public-client PKCE instruction in the start-login helper |

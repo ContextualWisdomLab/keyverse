@@ -33,9 +33,10 @@ enforce ABAC/RBAC at its own boundary.
    receipt is issuer-side evidence, not a substitute for issuer, audience,
    signature, expiry, or subject validation at the RP.
 2. Orgmetra remains employment SoR. Decision and grant APIs accept a caller-
-   supplied assignment snapshot (`keyverse_subject`, `org_path`, optional
-   `assignment_record_id`). Keyverse does not persist or synchronize the
-   Orgmetra tree.
+   supplied assignment snapshot (`keyverse_subject`, required validated
+   `tenant_deployment_id`, `org_path`, optional `assignment_record_id`).
+   Keyverse does not persist or synchronize the Orgmetra tree. Grant selection,
+   combination lookup, and duplicate identity are tenant-qualified.
 3. Hierarchical attributes use distinct names: `group_company`,
    `legal_entity`, `business_unit`, `team`, `person`, and structured
    `org_path`. `role`, `org`, and `workspace` stay reserved for the
@@ -60,6 +61,9 @@ enforce ABAC/RBAC at its own boundary.
 
 - Operators persist grants and combinations through authenticated Keyverse
   admin APIs and evaluate decisions without contacting Orgmetra or Keycloak.
+- Runtime RPs use the separately provisioned runtime service token for
+  start-login and token verification; operator bearer credentials stay on
+  management endpoints.
 - Downstream RPs must still prove ADR-0008 token validation. This slice does
   not claim production login or federation acceptance.
 - ADR-0009 remains reserved for the unmerged LineageWeave claim profile.

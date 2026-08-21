@@ -62,6 +62,7 @@ def config() -> ServiceConfig:
         keycloak_client_id="account-unification-svc",
         keycloak_client_secret="test-secret",
         operator_api_token="test-operator-token",
+        public_issuer_url="https://idp.example/realms/cwl",
     )
 
 
@@ -71,7 +72,11 @@ def client(store: InMemoryKvStore, config: ServiceConfig, auth_header):
     app = create_app(wire=False)
     app.state.start_login_service = StartLoginService(store, config)
     app.state.operator_api_token = config.operator_api_token
-    with TestClient(app, headers=auth_header) as test_client:
+    app.state.runtime_api_token = "test-runtime-token"
+    with TestClient(
+        app,
+        headers={**auth_header, "X-Keyverse-Runtime-Token": "test-runtime-token"},
+    ) as test_client:
         yield test_client
 
 
@@ -295,6 +300,21 @@ def test_start_login_public_issuer_and_redirect_bounds(client) -> None:
     assert ftp.status_code == 400
 
 
+def test_start_login_rejects_untrusted_public_issuer(client) -> None:
+    """The browser endpoint stays bound to configured Keyverse issuer state."""
+    response = client.post(
+        "/federation/identity-providers:start-login",
+        json={
+            "software_unit_id": "naruon-web",
+            "client_id": "naruon-web",
+            "redirect_uri": "https://naruon.example/callback",
+            "public_issuer_url": "https://attacker.example/realms/cwl",
+        },
+    )
+    assert response.status_code == 400
+    assert "configured Keyverse issuer" in response.json()["detail"]
+
+
 def test_empty_registry_returns_discovery_without_start_url(
     config: ServiceConfig, auth_header
 ) -> None:
@@ -302,7 +322,11 @@ def test_empty_registry_returns_discovery_without_start_url(
     app = create_app(wire=False)
     app.state.start_login_service = StartLoginService(InMemoryKvStore(), config)
     app.state.operator_api_token = config.operator_api_token
-    with TestClient(app, headers=auth_header) as client:
+    app.state.runtime_api_token = "test-runtime-token"
+    with TestClient(
+        app,
+        headers={**auth_header, "X-Keyverse-Runtime-Token": "test-runtime-token"},
+    ) as client:
         response = client.post(
             "/federation/identity-providers:start-login",
             json={

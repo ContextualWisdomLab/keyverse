@@ -19,9 +19,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .audit import AuditLogger
+from .auth import operator_auth_dependency, runtime_auth_dependency
 from .errors import AuthorizationPolicyError
 from .kv_store import KvStore
 from .org_authorization import validate_capability_codes, validate_slug
+from .path_security import admin_path_security_dependency
 
 APPLICATION_TOKEN_NAMESPACE = "application_access_tokens"
 TOKEN_SCHEME = "kvt"
@@ -38,7 +40,14 @@ MIN_LIFETIME_SECONDS = 60
 MAX_LIFETIME_SECONDS = 90 * 24 * 60 * 60
 
 application_token_router = APIRouter(
-    prefix="/application-tokens", tags=["application-tokens"]
+    prefix="/application-tokens",
+    tags=["application-tokens"],
+    dependencies=[operator_auth_dependency, admin_path_security_dependency],
+)
+application_token_runtime_router = APIRouter(
+    prefix="/application-tokens",
+    tags=["application-tokens"],
+    dependencies=[runtime_auth_dependency],
 )
 
 
@@ -163,12 +172,17 @@ class ApplicationTokenService:
     ) -> ApplicationTokenIssueResponse:
         """Mint one token, persist only the hash, and audit the issue."""
         record, plaintext = self._mint(request, replaced_token_id=None)
-        self._write_record(record)
-        self._audit_event(
-            "application_token_issued",
-            request.actor_identity_id,
-            record,
-        )
+        with self._state_lock:
+            self._write_record(record)
+            try:
+                self._audit_event(
+                    "application_token_issued",
+                    request.actor_identity_id,
+                    record,
+                )
+            except Exception:
+                self._delete_record(record)
+                raise
         return self._issue_response(record, plaintext)
 
     def list_tokens(self) -> list[ApplicationTokenView]:
@@ -205,11 +219,15 @@ class ApplicationTokenService:
                 }
             )
             self._write_record(updated)
-        self._audit_event(
-            "application_token_revoked",
-            actor_identity_id,
-            updated,
-        )
+            try:
+                self._audit_event(
+                    "application_token_revoked",
+                    actor_identity_id,
+                    updated,
+                )
+            except Exception:
+                self._write_record(record)
+                raise
         return self._view(updated)
 
     def rotate(
@@ -219,25 +237,33 @@ class ApplicationTokenService:
     ) -> ApplicationTokenIssueResponse:
         """Revoke one active token and issue a replacement in one actor action."""
         _validate_token_id(application_token_id)
-        existing = self._require_record(application_token_id)
-        if existing.software_unit_id != request.software_unit_id:
-            raise AuthorizationPolicyError(
-                "rotated token must stay bound to the same software unit"
+        with self._state_lock:
+            existing = self._require_record(application_token_id)
+            if existing.software_unit_id != request.software_unit_id:
+                raise AuthorizationPolicyError(
+                    "rotated token must stay bound to the same software unit"
+                )
+            record, plaintext = self._mint(
+                request, replaced_token_id=application_token_id
             )
-        record, plaintext = self._mint(
-            request, replaced_token_id=application_token_id
-        )
-        self.revoke(
-            application_token_id,
-            actor_identity_id=request.actor_identity_id,
-            lifecycle_status_code=ROTATED_LIFECYCLE,
-        )
-        self._write_record(record)
-        self._audit_event(
-            "application_token_rotated",
-            request.actor_identity_id,
-            record,
-        )
+            updated = existing.model_copy(
+                update={
+                    "lifecycle_status_code": ROTATED_LIFECYCLE,
+                    "revoked_at": self._clock(),
+                }
+            )
+            try:
+                self._write_record(record)
+                self._write_record(updated)
+                self._audit_event(
+                    "application_token_rotated",
+                    request.actor_identity_id,
+                    record,
+                )
+            except Exception:
+                self._write_record(existing)
+                self._delete_record(record)
+                raise
         return self._issue_response(record, plaintext)
 
     def verify(
@@ -334,6 +360,11 @@ class ApplicationTokenService:
                 record.application_token_id,
                 record.model_dump_json(),
             )
+
+    def _delete_record(self, record: ApplicationTokenRecord) -> None:
+        """Compensate one lifecycle write when its audit event fails."""
+        with self._state_lock:
+            self._store.delete(APPLICATION_TOKEN_NAMESPACE, record.application_token_id)
 
     def _records(self) -> list[ApplicationTokenRecord]:
         """Load every hashed token record, fail-closed on corruption."""
@@ -577,7 +608,7 @@ def rotate_application_token(
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
-@application_token_router.post(
+@application_token_runtime_router.post(
     ":verify",
     response_model=ApplicationTokenVerifyResponse,
 )

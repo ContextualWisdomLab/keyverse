@@ -34,6 +34,7 @@ def _snapshot(org_path: str = PERSON_PATH, **updates) -> AssignmentSnapshot:
     """Return one Orgmetra assignment snapshot bound to a Keyverse subject."""
     values = {
         "keyverse_subject": "sub-jdoe-opaque",
+        "tenant_deployment_id": "default-deployment",
         "org_path": org_path,
         "assignment_record_id": "assignment-record-77",
         "request_attributes": {"purpose": "hr-review"},
@@ -48,6 +49,7 @@ def _software_grant(
     grant_key: str = "acme-naruon",
     software_unit_id: str = "naruon-web",
     effect_code: str = "allow",
+    attribute_constraints: dict[str, str] | None = None,
 ) -> AuthorizationGrant:
     """Return one software-unit grant at an org node."""
     return AuthorizationGrant(
@@ -57,6 +59,7 @@ def _software_grant(
         org_path=org_path,
         software_unit_id=software_unit_id,
         effect_code=effect_code,
+        attribute_constraints=attribute_constraints or {},
         actor_identity_id="operator-ida",
     )
 
@@ -208,6 +211,51 @@ def test_menu_abac_constraint_mismatch_denies() -> None:
     assert allowed.effect is AuthorizationEffect.ALLOW
     assert denied.effect is AuthorizationEffect.DENY
     assert denied.decision_code is AuthorizationDecisionCode.ATTRIBUTE_MISMATCH
+
+
+def test_software_unit_abac_constraints_are_enforced() -> None:
+    """Software-unit grants apply the same closed ABAC contract as menus."""
+    grants = [
+        _software_grant(
+            "/group_company/acme",
+            attribute_constraints={"purpose": "hr-review"},
+        )
+    ]
+    allowed = decide_software_unit(
+        grants,
+        _snapshot(request_attributes={"purpose": "hr-review"}),
+        "naruon-web",
+    )
+    denied = decide_software_unit(
+        grants,
+        _snapshot(request_attributes={"purpose": "payroll"}),
+        "naruon-web",
+    )
+    assert allowed.effect is AuthorizationEffect.ALLOW
+    assert denied.effect is AuthorizationEffect.DENY
+    assert denied.decision_code is AuthorizationDecisionCode.ATTRIBUTE_MISMATCH
+
+
+def test_grants_are_selected_only_for_the_snapshot_tenant() -> None:
+    """A grant from another tenant cannot authorize this assignment snapshot."""
+    decision = decide_software_unit(
+        [_software_grant("/group_company/acme")],
+        _snapshot(tenant_deployment_id="other-deployment"),
+        "naruon-web",
+    )
+    assert decision.effect is AuthorizationEffect.DENY
+
+
+def test_sso_combination_must_match_snapshot_tenant() -> None:
+    """A combination cannot cross the assignment snapshot tenant boundary."""
+    combination = SsoCombinationScope(
+        combination_name="finance-suite",
+        tenant_deployment_id="other-deployment",
+        software_unit_ids=["naruon-web", "clearfolio-web"],
+        actor_identity_id="operator-ida",
+    )
+    with pytest.raises(AuthorizationPolicyError, match="tenant"):
+        decide_sso_combination([], _snapshot(), combination)
 
 
 def test_sso_combination_requires_every_member_allowed() -> None:
@@ -404,6 +452,7 @@ def test_closed_slug_capability_and_attribute_bounds() -> None:
     omitted = validate_snapshot(
         AssignmentSnapshot(
             keyverse_subject="sub-no-assignment",
+            tenant_deployment_id="default-deployment",
             org_path="/group_company/acme",
         )
     )

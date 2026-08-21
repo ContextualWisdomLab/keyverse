@@ -93,9 +93,11 @@ See [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
 [`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
 [`deploy/templates/README.md`](deploy/templates/README.md).
 
-An application starts brokered login through
-`POST /federation/identity-providers:start-login` and then adds PKCE locally.
-See [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md).
+An application backend starts brokered login through
+`POST /federation/identity-providers:start-login` with the separately
+provisioned `X-Keyverse-Runtime-Token`; it then adds PKCE locally. The operator
+Bearer token is reserved for grant and token-management endpoints. See
+[`docs/authorization-onboarding.md`](docs/authorization-onboarding.md).
 
 ### Onboard a relying party
 

@@ -16,6 +16,12 @@ opaque Keyverse subject plus org-path attributes, the resource is the
 software unit and menu path, and environment attributes are the closed
 `purpose` / `sensitivity` / `clearance` / `residency` set.
 
+The tenant deployment is an additional closed scope attribute. A decision
+snapshot must carry a validated `tenant_deployment_id`, and grants or SSO
+combinations from another deployment are not candidates. This is a Keyverse
+policy choice that operationalizes the tenant-qualified uniqueness described in
+the ERD; it is not a claim that NIST SP 800-162 prescribes this storage key.
+
 NIST SP 800-63C requires federation to keep identity proofing and
 authentication distinct from relying-party authorization (Grassi et al.,
 2017). Orgmetra therefore remains employment truth; Keyverse issues
@@ -41,9 +47,9 @@ clients in the portable realm.
 ## Measured repository evidence
 
 `services/account_unification/tests/test_org_authorization.py` and
-`tests/test_authorization_plane.py` cover inheritance, restriction, menu
-ABAC/RBAC, SSO combinations, reserved-name rejection, and fail-closed
-storage. The HTTP regression suite also verifies that the authorization router
+`tests/test_authorization_plane.py` cover inheritance, restriction, software-
+unit and menu ABAC/RBAC, tenant-isolated grants and combinations, reserved-name
+rejection, and fail-closed storage. The HTTP regression suite also verifies that the authorization router
 rejects an unauthenticated direct embedding and accepts only the configured
 operator bearer. The router now owns both the operator-authentication and
 privileged-path dependencies rather than relying only on the application

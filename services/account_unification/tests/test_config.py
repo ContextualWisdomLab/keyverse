@@ -53,6 +53,29 @@ def test_config_loads_from_kv() -> None:
     assert config.allow_unverified_email_link is False
     assert config.merge_conflict_policy == "survivor_wins"
     assert config.registration_api_token is None
+    assert config.runtime_api_token is None
+
+
+def test_runtime_and_public_issuer_settings_are_loaded_and_separated() -> None:
+    """Runtime callers use a distinct token and an explicit HTTPS issuer."""
+    config = load_service_config(
+        _config_store(
+            runtime_api_token="runtime-token",
+            public_issuer_url="https://login.example/realms/cwl",
+        ),
+        "account_unification",
+    )
+    assert config.runtime_api_token == "runtime-token"
+    assert config.public_issuer_url == "https://login.example/realms/cwl"
+
+
+def test_runtime_token_must_not_equal_operator_token() -> None:
+    """Runtime service credentials cannot silently gain operator authority."""
+    with pytest.raises(RuntimeError, match="runtime_api_token"):
+        load_service_config(
+            _config_store(runtime_api_token="operator-token"),
+            "account_unification",
+        )
 
 
 def test_missing_required_config_fails_loudly() -> None:

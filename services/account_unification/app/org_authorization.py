@@ -114,6 +114,7 @@ class AssignmentSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     keyverse_subject: str = Field(min_length=1, max_length=128)
+    tenant_deployment_id: str
     org_path: str = Field(min_length=1, max_length=_MAX_ORG_PATH_LENGTH)
     assignment_record_id: str | None = Field(default=None, max_length=128)
     request_attributes: dict[str, str] = Field(default_factory=dict)
@@ -368,6 +369,7 @@ def validate_snapshot(snapshot: AssignmentSnapshot) -> AssignmentSnapshot:
     """Validate one assignment snapshot without contacting Orgmetra."""
     if any(character.isspace() or ord(character) < 0x20 for character in snapshot.keyverse_subject):
         raise AuthorizationPolicyError("keyverse_subject must be an opaque bounded token")
+    validate_slug(snapshot.tenant_deployment_id, field_name="tenant_deployment_id")
     parsed_org = parse_org_path(snapshot.org_path)
     if snapshot.assignment_record_id is not None:
         validate_slug(
@@ -474,6 +476,7 @@ def _select_winning_grant(
     grants: list[AuthorizationGrant],
     *,
     snapshot_path: OrganizationPath,
+    tenant_deployment_id: str,
     software_unit_id: str,
     grant_scope_code: str,
     requested_menu_path: str | None,
@@ -487,6 +490,8 @@ def _select_winning_grant(
             path: index for index, path in enumerate(menu_ancestor_paths(requested_menu_path))
         }
     for grant in grants:
+        if grant.tenant_deployment_id != tenant_deployment_id:
+            continue
         if grant.grant_scope_code != grant_scope_code:
             continue
         if grant.software_unit_id != software_unit_id:
@@ -521,6 +526,7 @@ def decide_software_unit(
     winning, inherited = _select_winning_grant(
         validated_grants,
         snapshot_path=parsed_org,
+        tenant_deployment_id=validated_snapshot.tenant_deployment_id,
         software_unit_id=software_unit_id,
         grant_scope_code=SOFTWARE_UNIT_GRANT_SCOPE,
         requested_menu_path=None,
@@ -532,6 +538,14 @@ def decide_software_unit(
         winning=winning,
         inherited=inherited,
         menu_path=None,
+        attribute_mismatch=(
+            winning is not None
+            and winning.effect_code == ALLOW_EFFECT
+            and not _constraints_match(
+                winning.attribute_constraints,
+                validated_snapshot.request_attributes,
+            )
+        ),
     )
 
 
@@ -560,6 +574,7 @@ def decide_menu(
     winning, inherited = _select_winning_grant(
         validated_grants,
         snapshot_path=parsed_org,
+        tenant_deployment_id=validated_snapshot.tenant_deployment_id,
         software_unit_id=software_unit_id,
         grant_scope_code=MENU_GRANT_SCOPE,
         requested_menu_path=canonical_menu,
@@ -592,6 +607,10 @@ def decide_sso_combination(
     """Allow a combination only when every member software unit is allowed."""
     validated_combination = validate_combination(combination)
     validated_snapshot = validate_snapshot(snapshot)
+    if validated_combination.tenant_deployment_id != validated_snapshot.tenant_deployment_id:
+        raise AuthorizationPolicyError(
+            "sso combination and assignment snapshot must use the same tenant"
+        )
     member_decisions = [
         decide_software_unit(grants, validated_snapshot, software_unit_id)
         for software_unit_id in validated_combination.software_unit_ids
