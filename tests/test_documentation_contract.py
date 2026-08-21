@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
+
 REQUIRED_DOCUMENTS = (
     "DOCUMENTATION.md",
     "docs/PRD.md",
@@ -88,6 +88,27 @@ def test_erd_keeps_keycloak_internal_schema_external() -> None:
     erd = _read("docs/ERD.md")
     assert "Keycloak internal schema remains Keycloak-owned" in erd
     assert "does not duplicate or directly edit unsupported Keycloak internal tables" in erd
+
+
+def test_mcp_authorization_contract_tracks_current_issuer_and_token_rules() -> None:
+    """Keep the design-only MCP security contract aligned across its records."""
+
+    adr = _read("docs/adr/0013-mcp-oauth-client-authorization.md")
+    doctoring = _read("docs/doctoring/mcp-oauth-authorization.md")
+    traceability = _read("docs/TRACEABILITY.md")
+    changelog = _read("CHANGELOG.md")
+    for text in (adr, doctoring):
+        normalized = " ".join(text.split())
+        assert "authorization_response_iss_parameter_supported" in text
+        assert "simple string comparison" in normalized
+        assert "at+jwt" in text
+        assert "application/at+jwt" in text
+        assert "alg=none" in text
+        assert "missing `iat`/`jti`" in text
+    assert "MCP Authorization 2026-07-28" in traceability
+    assert "RFC 9207" in traceability
+    assert "mismatch rejects the authorization code" in traceability
+    assert "MCP Authorization\n  2026-07-28" in changelog
 
 
 def test_adr_index_contains_governing_identity_decisions() -> None:

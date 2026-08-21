@@ -60,6 +60,10 @@ Keep a Changelog, and releases use semantic versioning.
   2.0, SAML, LDAP, and SCIM contracts, and cite independently opened
   official records in `docs/REFERENCES.md`. OAuth 2.1 is labeled an IETF
   Internet-Draft, not a final RFC.
+- Updated the design-only MCP authorization contract to MCP Authorization
+  2026-07-28, RFC 9207 callback-issuer validation, and RFC 9068 JWT
+  access-token header, claim, signature, and algorithm rejection evidence;
+  runtime acceptance remains unimplemented.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
