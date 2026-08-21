@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T02:37:23+09:00
+## Live queue refresh — 2026-08-22T02:46:50+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -76,8 +76,8 @@ deliberately not treated as current merge evidence.
 The current central control-plane queue is also not merge-ready: `.github`
 #1198 is at `3a6c170deb15d19521bb10c30aa3839f789eb92f` with 2 successful, 16
 pending, and 13 skipped Checks; #1203 is at
-`aa88ee75b4c382cb60a1473def287a72759a5e93` with 4 successful, 16 pending, 15
-skipped, and one cancelled predecessor Check; #1026 is at
+`5ae2808b4e4397c155073e7094f8799960692c46` with 4 successful, 16 pending, 19
+skipped, and 3 cancelled predecessor Checks; #1026 is at
 `71c0cc890bd06a0ff97aa10267cb075b02c62f9e` with 28 successful, 3 neutral, 1
 failed, 1 pending, 1 cancelled, and 17 skipped Checks and is behind its base.
 These are normal source/hosted-gate or restack problems, not D1–D5 emergency

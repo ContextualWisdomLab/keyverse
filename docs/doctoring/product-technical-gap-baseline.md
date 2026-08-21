@@ -29,8 +29,8 @@ pending. No emergency bypass is justified.
 Current control-plane evidence is `.github` #1198 at
 `3a6c170deb15d19521bb10c30aa3839f789eb92f` with 2 successful, 16 pending, and
 13 skipped Checks; #1203 at
-`aa88ee75b4c382cb60a1473def287a72759a5e93` with 4 successful, 16 pending, 15
-skipped, and one cancelled predecessor Check; and #1026 at
+`5ae2808b4e4397c155073e7094f8799960692c46` with 4 successful, 16 pending, 19
+skipped, and 3 cancelled predecessor Checks; and #1026 at
 `71c0cc890bd06a0ff97aa10267cb075b02c62f9e` with 28 successful, 3 neutral, 1
 failed, 1 pending, 1 cancelled, and 17 skipped Checks while behind. The
 dependency failure and restack state are source/hosted-gate problems, not
