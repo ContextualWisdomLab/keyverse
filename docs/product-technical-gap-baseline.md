@@ -66,7 +66,8 @@ tenant, or resource ownership.
 
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-21; it is not inherited from a predecessor commit.
-This record was refreshed after the PR #100 validator-coverage test fix and the
+This record was refreshed after the PR #100 validator-coverage test fix at
+`99fdd8601bf037f324e4b47e3c611ef19abd11d8` and the
 intentional stacked-base rebase of PR #104. The live PR record is authoritative
 for the exact hash and Checks; predecessor evidence remains non-transferable.
 
@@ -88,9 +89,9 @@ rather than green.
 | [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `2f0e3fb19a63db7f51cdadfeae6155cd469a0c91` | review required | Obtain independent review on the refreshed #112 base; do not treat the queued Check as green. |
 | [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `ef03c5a93c891980588b125f6c774fa84bf0feef` | changes requested | Re-evaluate the prior requested changes against this refreshed #112 base and obtain current-head independent review. |
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 14 Checks queued, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 16 pending, 0 terminal failures on `ec8a1a5210c84c854eff365934ac7c057cf477ed` | changes requested | Fresh head adds RED-to-GREEN rejection for encoded discovery markers and preserves active tokens on invalid rotation; wait for exact-head security Checks and independent review before any merge claim. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 16 pending, 0 terminal failures on `1f8c8ac29e6860d289d4b54e9bd6e418bf731638` | changes requested; fresh review requested | Fresh head adds compensating token lifecycle recovery, separate runtime service authentication, tenant-qualified grant/combination isolation, software-unit ABAC, and trusted issuer binding; wait for exact-head security Checks and independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 22 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 Checks queued, 0 terminal failures on `0d4d1b98dfc8b722b5502dba942b322a1657902e` | changes requested; fresh review requested | Devin's exact-head coverage finding is addressed by the default-artifact regression test; obtain current-head review without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 Checks queued, 0 terminal failures on `99fdd8601bf037f324e4b47e3c611ef19abd11d8` | changes requested; fresh review requested | The documentation successor records current #103 token-rotation evidence; obtain current-head review without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 22 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
@@ -132,14 +133,13 @@ evidence.
   operator token does not expose distinct end-user principals; independent
   security validation must resolve that trust-boundary interpretation. Until
   then the failure remains blocking and is not converted into a pass.
-- PR #103's exact head `ec8a1a5210c84c854eff365934ac7c057cf477ed` adds
-  RED-to-GREEN regressions for percent-encoded `.well-known`, `metadataUrl`,
-  and `discoveryEndpoint` markers and for invalid token rotation settings. The
-  implementation normalizes `public_issuer_url` before the no-fetch policy
-  check and validates token replacement settings before revoking the active
-  token. Local focused/full tests, Ruff, Interrogate, and 100% statement/branch
-  coverage pass; its 16 hosted Checks are pending, so no hosted security or
-  independent approval success is claimed.
+- PR #103's current exact head `1f8c8ac29e6860d289d4b54e9bd6e418bf731638`
+  adds RED-to-GREEN regressions for percent-encoded discovery markers,
+  invalid token rotation settings, KV/audit lifecycle failures, direct router
+  embedding, tenant isolation, software-unit ABAC, runtime authentication, and
+  untrusted public issuers. Local focused/full tests, Ruff, Interrogate, and
+  100% application statement/branch coverage pass; its 16 hosted Checks are
+  pending, so no hosted security or independent approval success is claimed.
 
 ## Open Issue inventory
 
