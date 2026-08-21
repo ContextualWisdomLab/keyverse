@@ -231,10 +231,10 @@ https://www.rfc-editor.org/rfc/rfc8725.html
 Internet Engineering Task Force. (2018). *OAuth 2.0 authorization server
 metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 
-Internet Engineering Task Force. (2024). *Resource indicators for OAuth 2.0*
+Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0*
 (RFC 8707). https://doi.org/10.17487/RFC8707
 
-Internet Engineering Task Force. (2024). *OAuth 2.0 protected resource
+Internet Engineering Task Force. (2025). *OAuth 2.0 protected resource
 metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 
 Model Context Protocol. (2025, November 25). *Authorization*.
