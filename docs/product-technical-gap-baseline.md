@@ -235,6 +235,46 @@ unverified hosted evidence. No D1-D5 emergency deadlock classification is
 made; no bypass, direct protected push, force push, fake status, or
 self-approval occurred.
 
+### Live queue refresh — 2026-08-21T11:58:44Z
+
+This refresh is the current read-only GitHub inventory for Keyverse and
+supersedes earlier queue rows for merge decisions. The protected-main base is
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`; the local feature worktree used for
+this documentation update was clean and remote branch
+`codex/per-account-rp-claims` was at `a92fdcb038e26788eea17d8b77dbae60982b3e04`
+before this commit. Fourteen Keyverse PRs are open. The numeric Check columns
+count only terminal `success`/`skipped` and non-terminal status results;
+blank-provider contexts such as CodeRabbit or Devin are not promoted to
+success. No current open PR had a terminal failed Check in this observation.
+
+| PR | Base | Exact head | Checks (`success / skipped / pending`) | Live gate |
+|---:|---|---|---:|---|
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `main` | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `19 / 8 / 1` | protected, review required; `coverage-source-tree` pending |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `main` | `d2f48232fff1505c3274fe4296ca21cece5db102` | `0 / 7 / 14` | protected, review required; auto-merge armed |
+| [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | `fix/account-unification-lock-20260819` | `032f730b0239d062cf9803525ba66c740e0b2d2e` | `22 / 8 / 0` | downstream stack; no qualifying formal approval |
+| [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | `fix/account-unification-lock-20260819` | `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` | `21 / 8 / 1` | downstream stack; one pending Check |
+| [#109](https://github.com/ContextualWisdomLab/keyverse/pull/109) | `fix/account-unification-lock-20260819` | `7b726b16d38ce16d13d00c946b5c8bc0c406191f` | `21 / 8 / 1` | downstream stack; one pending Check |
+| [#108](https://github.com/ContextualWisdomLab/keyverse/pull/108) | `fix/account-unification-lock-20260819` | `538cead991a7c1bed32f2dcb5413b5fc56f53e93` | `22 / 8 / 0` | downstream stack; no qualifying formal approval |
+| [#107](https://github.com/ContextualWisdomLab/keyverse/pull/107) | `fix/account-unification-lock-20260819` | `53842560d397aa20309a6b16aceb560540611686` | `22 / 8 / 0` | downstream stack; no qualifying formal approval |
+| [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `fix/account-unification-lock-20260819` | `e7fafd4192cc3cc344b8f8e536bc0495afaa739f` | `21 / 8 / 1` | downstream stack; one pending Check |
+| [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `fix/account-unification-lock-20260819` | `77f83dfb2c4611345c0d48f92fceaa6195b4630c` | `21 / 8 / 1` | downstream stack; current review must be re-established |
+| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | `fix/account-unification-lock-20260819` | `7da9d43087d5647fefb946eb154ee1e5c10c576d` | `21 / 8 / 1` | downstream stack; `DIRTY`, no merge |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `main` | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `0 / 7 / 14` | protected, review required; auto-merge armed |
+| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `main` | `50dd9c96cab5c230f775685e8baea939fba390dd` | `22 / 8 / 0` | protected, review required; auto-merge armed |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `main` | `a92fdcb038e26788eea17d8b77dbae60982b3e04` | `0 / 7 / 14` | protected, review required; auto-merge armed |
+| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `main` | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `22 / 8 / 0` | protected, review required; auto-merge armed |
+
+The central lifecycle owner [`.github#1026`](https://github.com/ContextualWisdomLab/.github/pull/1026)
+was independently observed at exact head
+`84b84aededaf25d88441121fd8c171a94e13eac9`, base
+`731af58e954901c4f1cc853231c592abb1eaf617`, with `4 / 13 / 16`
+`success / skipped / pending`, zero failed Checks, and no formal approval.
+The queue contains no D1, D3, D4, or D5 evidence; the newly queued runs are
+also below the D2 six-hour and two-observation threshold. Stale
+infrastructure/predecessor `CHANGES_REQUESTED` reviews were dismissed with
+audit reasons, not converted into approvals. No bypass, direct protected
+push, force push, fake status, or self-approval was used.
+
 ### Historical check failure root causes observed
 
 The evidence set contains two relevant terminal failures from earlier exact
