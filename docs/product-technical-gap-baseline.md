@@ -66,33 +66,34 @@ tenant, or resource ownership.
 
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-21; it is not inherited from a predecessor commit.
-This record was refreshed after the PR #100 validator-coverage test fix at
-`99fdd8601bf037f324e4b47e3c611ef19abd11d8` and the
-intentional stacked-base rebase of PR #104. The live PR record is authoritative
-for the exact hash and Checks; predecessor evidence remains non-transferable.
+This record was refreshed after the final PR #100 documentation head
+`1604d8eda51a288a41ea5ac4cede4bfc77b59d2d`, the normal #111 branch update from
+the #112 lock-refresh base, and the exact-head Checks audit below. The live PR
+record is authoritative for the exact hash and Checks; predecessor evidence
+remains non-transferable.
 
-At this snapshot, 14 PRs are open: three have 22 successful Checks with none
-queued, and the other eleven have queued Checks without a terminal failure.
-#110, #111, and #113 each have 18 successful Checks and two queued Checks after
-their lock-refresh/external-security reruns. Queued Checks remain unverified
-rather than green.
+At this snapshot, 14 PRs are open. #112, #101, and #83 each have 23 successful
+Checks with no queued Check; #111 has a new branch-update head with 14 queued
+Checks and one completed success; the remaining PRs have queued Checks. The
+historical terminal failures are recorded separately and are not current-head
+green evidence. Queued Checks remain unverified rather than green.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: 2 queued, 18 successful, 0 terminal failures on `50f19ec6338fb8eb959b8c797bdfa938e1071c87` | review required | The earlier GHCR Strix image-pull failure was rerun; wait for the fresh exact-head security result and independent review. |
-| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 22 Checks successful, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
-| [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 2 queued, 18 successful, 0 terminal failures on `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` | review required | Now stacked on #112; the stale-lock failure is cleared on the new base, so wait for the remaining exact-head Checks and independent review. |
-| [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7, stacked on #112 lockfile refresh | PENDING: 2 queued, 18 successful, 0 terminal failures on `07acd65145c9522a74858d1ff8761ea05a09e8f0` | review required | Treat as the companion of #111 on the refreshed #112 base; wait for the remaining exact-head Checks and do not merge the action pair independently. |
-| [#109](https://github.com/ContextualWisdomLab/keyverse/pull/109) | `typing-inspection` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `28a4e05b23baa75d44b37589ba662a3c46c67129` | review required | Obtain independent review on the refreshed #112 base; do not treat the queued Check as green. |
-| [#108](https://github.com/ContextualWisdomLab/keyverse/pull/108) | Ruff update, stacked on #112 lockfile refresh | PENDING: 14 queued, 0 terminal failures on `538cead991a7c1bed32f2dcb5413b5fc56f53e93` | review required | The conflicting lockfile base was rebased cleanly onto #112; wait for the fresh exact-head Checks and independent review. |
-| [#107](https://github.com/ContextualWisdomLab/keyverse/pull/107) | Uvicorn update, stacked on #112 lockfile refresh | PENDING: 14 queued, 0 terminal failures on `53842560d397aa20309a6b16aceb560540611686` | review required | The conflicting lockfile base was rebased cleanly onto #112; wait for the fresh exact-head Checks and independent review. |
-| [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `2f0e3fb19a63db7f51cdadfeae6155cd469a0c91` | review required | Obtain independent review on the refreshed #112 base; do not treat the queued Check as green. |
-| [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 19 successful, 0 terminal failures on `ef03c5a93c891980588b125f6c774fa84bf0feef` | changes requested | Re-evaluate the prior requested changes against this refreshed #112 base and obtain current-head independent review. |
-| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 14 Checks queued, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: 1 queued, 22 successful, 0 terminal failures on `50f19ec6338fb8eb959b8c797bdfa938e1071c87` | review required | The earlier GHCR Strix image-pull failure was rerun; wait for the fresh exact-head security result and independent review. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 23 Checks successful, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
+| [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 14 queued, 1 successful, 0 terminal failures on updated head `032f730b0239d062cf9803525ba66c740e0b2d2e` | review required | The normal branch update merged #112's lockfile base into the CodeQL branch; wait for fresh exact-head Checks and independent review. |
+| [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7, stacked on #112 lockfile refresh | PENDING: 2 queued, 20 successful, 0 terminal failures on `07acd65145c9522a74858d1ff8761ea05a09e8f0` | review required | Treat as the companion of #111 on the refreshed #112 base; wait for the remaining exact-head Checks and do not merge the action pair independently. |
+| [#109](https://github.com/ContextualWisdomLab/keyverse/pull/109) | `typing-inspection` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 21 successful, 0 terminal failures on `28a4e05b23baa75d44b37589ba662a3c46c67129` | review required | Obtain independent review on the refreshed #112 base; do not treat the queued Check as green. |
+| [#108](https://github.com/ContextualWisdomLab/keyverse/pull/108) | Ruff update, stacked on #112 lockfile refresh | PENDING: 14 queued, 1 successful, 0 terminal failures on `538cead991a7c1bed32f2dcb5413b5fc56f53e93` | review required | The conflicting lockfile base was rebased cleanly onto #112; wait for the fresh exact-head Checks and independent review. |
+| [#107](https://github.com/ContextualWisdomLab/keyverse/pull/107) | Uvicorn update, stacked on #112 lockfile refresh | PENDING: 14 queued, 1 successful, 0 terminal failures on `53842560d397aa20309a6b16aceb560540611686` | review required | The conflicting lockfile base was rebased cleanly onto #112; wait for the fresh exact-head Checks and independent review. |
+| [#106](https://github.com/ContextualWisdomLab/keyverse/pull/106) | `setup-uv` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 21 successful, 0 terminal failures on `2f0e3fb19a63db7f51cdadfeae6155cd469a0c91` | review required | Obtain independent review on the refreshed #112 base; do not treat the queued Check as green. |
+| [#105](https://github.com/ContextualWisdomLab/keyverse/pull/105) | `harden-runner` update, stacked on #112 lockfile refresh | PENDING: 1 queued, 21 successful, 0 terminal failures on `ef03c5a93c891980588b125f6c774fa84bf0feef` | changes requested | Re-evaluate the prior requested changes against this refreshed #112 base and obtain current-head independent review. |
+| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 1 queued, 21 successful, 0 terminal failures on `0353001438efb060b85373c121f4d54dfd48e8c8` | review required | Base is intentionally `fix/account-unification-lock-20260819`; the net diff has no lockfile change. Obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: required Checks still pending/queued, 0 terminal failures on `9274d3184443fba6c6294e08dff20734f3ae6fb4` | changes requested; fresh review requested | Fresh head adds inactive/expired token-rotation denial, compensating token lifecycle recovery, separate runtime service authentication, tenant-qualified grant/combination isolation, software-unit ABAC, and trusted issuer binding; wait for exact-head security Checks and independent review before any merge claim. |
-| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 22 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 Checks queued, 0 terminal failures on `99fdd8601bf037f324e4b47e3c611ef19abd11d8` | changes requested; fresh review requested | The documentation successor records current #103 token-rotation evidence; obtain current-head review without self-approval. |
-| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 22 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
+| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 Checks successful, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 queued, 2 successful, 0 terminal failures on `1604d8eda51a288a41ea5ac4cede4bfc77b59d2d` | changes requested; fresh review requested | The documentation successor records current #103 token-rotation evidence; obtain current-head review without self-approval. |
+| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 Checks successful, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
 
@@ -108,10 +109,12 @@ evidence.
   required after the external image service recovers; no code change can make
   that exact failed run green.
 
-- PR #111's exact-head `account-unification-tests` failure stopped before tests
-  at `uv sync --locked`: the branch carries a stale `uv.lock`. PR #112 is the
-  existing lock-refresh prerequisite; rebase or regenerate #111 only after
-  the protected dependency sequence is resolved.
+- PR #111's prior exact-head `account-unification-tests` failure stopped before
+  tests at `uv sync --locked`: the branch tree did not contain the #112 lock
+  refresh even though its PR base had been retargeted. The normal, non-force
+  `gh pr update-branch 111` operation merged #112's base into the branch and
+  produced current head `032f730b`; its fresh `account-unification-tests` run
+  is queued, so the old failure is historical and the new result is unverified.
 
 - The representative account-test failure on Dependabot PRs stopped at
   `uv sync --locked`: the checked-in lockfile needed updating. This is a

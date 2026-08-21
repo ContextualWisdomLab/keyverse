@@ -159,48 +159,48 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
-  and #83 each have 22 successful Checks with no queued run; the other eleven
-  have queued or in-progress Checks without a terminal failure. #110, #111,
-  and #113 each have 18 successful Checks and two queued Checks after their
-  lock-refresh/external-security reruns.
-  No current open PR has a qualifying formal approval.
-  Queued Checks remain unverified.
+  and #83 each have 23 successful Checks with no queued run. #111's normal
+  branch update created current head `032f730b0239d062cf9803525ba66c740e0b2d2e`
+  with 14 queued Checks and one completed success; #113 has 22 successful and
+  one queued Check; #100 and #103 each have two successful and 14 queued
+  Checks. No current open PR has a qualifying formal approval. Queued Checks
+  remain unverified.
   PR #113's current SCIM lock head
   `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
   lockfile history and a realistic SCIM PatchOp race plus spawned-process
-  SQLite lock regression; its hosted Checks now have 18 successful runs and
-  two queued reruns with no terminal failure. The earlier Strix job could not
+  SQLite lock regression; its hosted Checks now have 22 successful runs and
+  one queued rerun with no terminal failure. The earlier Strix job could not
   pull `ghcr.io/usestrix/strix-sandbox:1.3.0` because GHCR returned HTTP
   500/EOF, and it produced no structured vulnerability report, so that run
   failed closed; the fresh exact-head rerun remains unverified while queued.
   Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process
   sidecar evidence are not protected-main evidence. PR #112's lockfile head
-  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 22 terminal-success Checks
+  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 23 terminal-success Checks
   but still requires independent review. PR #111's current head
-  `e1d0fee6ce29cb9ec75d9fbdb38cd15242bf4fdc` is now stacked on #112. Its
-  prior `account-unification-tests` failure occurred against the old `main`
-  base because `uv sync --locked` found a stale `uv.lock` before tests began;
-  the rerun against the lock-refresh base now has no terminal failure and two
-  queued Checks. It remains coupled to #112 and #110. PR #110's current head
-  `07acd65145c9522a74858d1ff8761ea05a09e8f0` was likewise retargeted to #112
-  after the same pre-test lock failure; its rerun now has 18 successful Checks
-  and two queued Checks with no terminal failure.
+  `032f730b0239d062cf9803525ba66c740e0b2d2e` now contains #112's lockfile
+  through a normal branch update. Its prior `account-unification-tests`
+  failure occurred before that update; the fresh run is queued and remains
+  unverified. It remains coupled to #112 and #110. PR #110's current head
+  `07acd65145c9522a74858d1ff8761ea05a09e8f0` remains on the #112 base with
+  20 successful Checks and two queued Checks; its hosted reruns remain
+  unverified.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
   `7.15.4` and `84.0.0`; the current #105 head
-  `ef03c5a93c891980588b125f6c774fa84bf0feef` is now stacked on #112 and has
-  19 successful Checks plus one queued Check with no terminal failure. The
-  current #106 and #109 heads remain stacked on #112 with that same rollup.
+  `ef03c5a93c891980588b125f6c774fa84bf0feef` is stacked on #112 and has
+  21 successful Checks plus one queued Check with no terminal failure. The
+  current #106 and #109 heads remain stacked on #112 with 21 successful Checks
+  and one queued Check each.
   PR #107 was rebased cleanly onto #112 at
   `53842560d397aa20309a6b16aceb560540611686`, and PR #108 was rebased cleanly
-  onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; each now has 14
-  queued Checks and no terminal failure. Local `uv sync --locked --extra dev`
-  plus the full service pytest suite passed on both rebased trees. Their fresh
-  hosted Checks remain unverified and #112 remains the lock-refresh
-  prerequisite.
+  onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; each now has one
+  completed success and 14 queued Checks with no terminal failure. Local
+  `uv sync --locked --extra dev` plus the full service pytest suite passed on
+  both rebased trees. Their fresh hosted Checks remain unverified and #112
+  remains the lock-refresh prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Its current exact
   head `9274d3184443fba6c6294e08dff20734f3ae6fb4` adds RED-to-GREEN regressions
@@ -211,16 +211,15 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   100% application statement/branch coverage pass; required hosted Checks are
   still pending or queued, so hosted security and independent approval success
   are not claimed. The operator-admin trust boundary and the fresh security
-  changes still require independent exact-head validation. PR
-  #100's pre-doctoring-refresh head was
-  `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
-  `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
-  the validator's committed default realm/profile paths after an exact-head
-  Devin coverage finding. The current documentation successor is
-  `0d4d1b98dfc8b722b5502dba942b322a1657902e`, with 14 queued Checks and no
-  terminal failure; its prior review state is not approval. PR #104 is ready for review at
+  changes still require independent exact-head validation. PR #100's current
+  documentation head is
+  `1604d8eda51a288a41ea5ac4cede4bfc77b59d2d`, with two successful and 14
+  queued Checks; its prior review state is not approval. PR #104 is ready for review at
   `0353001438efb060b85373c121f4d54dfd48e8c8`, intentionally based on #112's
-  lockfile head with no net lockfile change; its stacked Checks remain queued.
+  lockfile head with no net lockfile change; its current rollup has 21
+  successful and one queued Check. #100 is current at
+  `1604d8eda51a288a41ea5ac4cede4bfc77b59d2d` with two successful and 14
+  queued Checks; its prior review state is not approval.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.
   The active ruleset requires two approving reviews, resolved threads, and
