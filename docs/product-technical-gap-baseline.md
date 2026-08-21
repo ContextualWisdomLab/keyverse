@@ -125,6 +125,39 @@ without formal approval and hosted gates are pending. This documentation
 commit creates a later #100 head, so that resulting head requires a fresh
 hosted recheck before any protected-merge claim.
 
+### Post-fix exact-head delta — PR #100
+
+Before this baseline refresh, PR #100 was at exact head
+`44f0f7420d4b02d11c8f870bd0415aaa4a486b39` against base
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`, pushed through the normal feature
+branch path. Its live Check run currently has 14 queued and 7 completed runs;
+CodeRabbit is successful, Devin is pending, and no formal approval exists. This
+is pending hosted evidence, not a merge claim, and no D1-D5 emergency deadlock
+has been established.
+
+The three current Devin observations were processed against this exact head:
+
+- The admin-required `org`/`workspace` concern reproduced as an HTTP 400 on a
+  rebuilt local Keycloak 26.3.2 Admin REST create. The profile now keeps the
+  attributes scalar and administrator-managed but optional at initial creation;
+  the no-attribute probe then succeeded and was deleted. Operator assignment
+  and downstream fail-closed routing remain required.
+- The live account-role mapper read-back omitted an empty
+  `usermodel.clientRoleMapping.rolePrefix`; reconciliation now normalizes only
+  that exact vendor default and keeps all other missing/changed configuration
+  fail-closed.
+- The local-only `cwl-idp/keycloak:local` bootstrap image observation was
+  verified as the documented Compose build/dependency contract and required no
+  source change.
+
+Local exact-head evidence is 799 tests passed, 100% production statement and
+branch coverage, 100% `validate_realm.py` statement and branch coverage, 100%
+interrogate coverage, service/test Ruff success, Semgrep 151-rule success,
+package build, Compose config, dependency, and diff checks. Hosted Checks and
+independent protected review remain required.
+This baseline commit creates a later documentation-only #100 head, so hosted
+evidence must be refreshed against that later exact head.
+
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
 | [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 successful, 14 pending, 7 skipped on `e7ad4524712b18809d8c409371142071270b2ea0` | review required | The token-audience, metadata-member, scope-array, and missing-reference findings are fixed; obtain independent ADR review and do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
