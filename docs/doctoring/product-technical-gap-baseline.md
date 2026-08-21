@@ -120,29 +120,31 @@ placeholder credentials must not be committed to close it.
   `.github` PR #1178; it must not be reopened or merged while #1178 owns this
   dispatch boundary. Central PR #1183 is also closed without merge.
 - Central `.github` PR #1170 is open at exact head
-  `01b8cacc155993f20306589ebbf17a1114cf7344` for routing OpenCode reviews
-  through the contextual gateway. Its current hosted rollup has 1 successful,
-  2 pending, 17 cancelled, and 13 skipped Checks; no terminal source failure
-  or qualifying formal approval is recorded.
+  `1f2b93ead7205b33712de1865d84c004d93be7ed` for routing OpenCode reviews
+  through the contextual gateway. Its current hosted rollup has 4 successful,
+  17 pending, and 13 skipped Checks; no terminal source failure or qualifying
+  formal approval is recorded. The current head removes inherited GitHub
+  credentials and workflow-file channels from the child gateway process and
+  has passed the focused contract test plus full local central verification.
 - Central `.github` PR #1178 is the canonical contextual-orchestrator hourly
   caller, open at exact head
-  `97b084ac28b5ccf6de7f68fd2e019d8da6f80143`. Its current rollup has 26
-  successful and 2 pending Checks, with 18 skipped and no terminal source
-  failure. Neither #1170 nor #1178 has qualifying formal approval or protected
+  `97b084ac28b5ccf6de7f68fd2e019d8da6f80143`. Its current rollup has 25
+  successful, 3 neutral, 2 pending, 1 cancelled, and 19 skipped Checks, with
+  no terminal source failure. Neither #1170 nor #1178 has qualifying formal approval or protected
   merge evidence.
 - Central `.github` PR #1176 is open at exact head
   `33b85a8cf48d5b6e0880d5071b360ffa46f83457` to require central reviews for
-  stacked PRs. Its current rollup has 25 successful and 6 pending Checks, with
-  18 skipped and no qualifying formal approval.
+  stacked PRs. Its current rollup has 23 successful, 3 neutral, 6 pending, and
+  15 skipped Checks, with no qualifying formal approval.
 - Central `.github` PR #1187 is open at exact head
   `91c16ebf5187daad749ae57ec01d16cb7afec7b3` for scoped Rust coverage
-  evidence. Its current rollup has 8 successful, 16 pending, 15 skipped, and
+  evidence. Its current rollup has 6 successful, 16 pending, 15 skipped, and
   1 cancelled Check, with no terminal source failure; the cancelled
   `scan-pr-queue` job has a newer queued retry. It has no qualifying formal
   approval or protected merge evidence.
 - Central `.github` PR #1152 is open at exact head
   `11491068712859e936e7ce4ed7f204f5c1157f0c` for the OpenCode retry path. Its
-  current rollup has 3 successful and 16 pending Checks, with 13 skipped and
+  current rollup has 1 successful and 16 pending Checks, with 13 skipped and
   no terminal source failure or qualifying formal approval.
 - Keyverse's existing `Hourly product development` workflow remains active at
   `41 * * * *`; its latest observed scheduled runs succeeded. No duplicate
@@ -173,52 +175,50 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   and doctoring records.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
-  and #83 each have 23 successful Checks with no queued run. #111's normal
-  branch update created current head `032f730b0239d062cf9803525ba66c740e0b2d2e`
-  with 14 queued Checks and one completed success; #113 has 22 successful and
-  one queued Check; #108 has 14 successful and six queued, #107 has 19
-  successful and two queued, and #100 has two successful and 14 queued Checks.
-  No current open PR has a qualifying
-  formal approval. Queued Checks
-  remain unverified.
+  and #83 each have 22 successful and 8 skipped Checks with no pending run.
+  #107 has 19 successful, 1 pending, and 8 skipped; #108 has 17 successful,
+  2 pending, and 8 skipped; and #113, #100, #103, #104, #105, #106, #109,
+  #110, and #111 each have 14 pending and 7 skipped Checks. No current open PR
+  has a qualifying formal approval or terminal failure. Pending Checks remain
+  unverified.
   PR #113's current SCIM lock head
-  `50f19ec6338fb8eb959b8c797bdfa938e1071c87` includes the normal prerequisite
-  lockfile history and a realistic SCIM PatchOp race plus spawned-process
-  SQLite lock regression; its hosted Checks now have 22 successful runs and
-  one queued rerun with no terminal failure. The earlier Strix job could not
-  pull `ghcr.io/usestrix/strix-sandbox:1.3.0` because GHCR returned HTTP
-  500/EOF, and it produced no structured vulnerability report, so that run
-  failed closed; the fresh exact-head rerun remains unverified while queued.
-  Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process
-  sidecar evidence are not protected-main evidence. PR #112's lockfile head
-  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 23 terminal-success Checks
-  but still requires independent review. PR #111's current head
+  `aaafc2ca2f42bc171c1a0d0b538a99eb2f461233` includes the normal prerequisite
+  lockfile history, a realistic SCIM PatchOp race, and the corrected valid
+  root-level deactivation payload. Its hosted Checks remain pending with no
+  terminal failure. Local focused/full verification and 100% statement/branch
+  coverage passed, but hosted security and independent approval remain
+  unverified. The earlier Strix job could not pull
+  `ghcr.io/usestrix/strix-sandbox:1.3.0` because GHCR returned HTTP 500/EOF and
+  produced no structured vulnerability report, so that run failed closed.
+  Its local RED-to-GREEN, root-level SCIM error-wire, and cross-process sidecar
+  evidence are not protected-main evidence. PR #112's lockfile head
+  `f02acf93367a40dbfb23a73985017dca8d42ff39` has 22 successful and 8 skipped
+  Checks but still requires independent review. PR #111's current head
   `032f730b0239d062cf9803525ba66c740e0b2d2e` now contains #112's lockfile
   through a normal branch update. Its prior `account-unification-tests`
-  failure occurred before that update; the fresh run is queued and remains
-  unverified. It remains coupled to #112 and #110. PR #110's current head
+  failure occurred before that update; the fresh run remains unverified. It
+  remains coupled to #112 and #110. PR #110's current head
   `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` remains on the #112 base with
-  one completed success and 14 queued Checks; its hosted reruns remain
-  unverified.
+  14 pending and 7 skipped Checks; its hosted reruns remain unverified.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
   `7.15.4` and `84.0.0`; the current #105 head
-  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has one
-  completed success plus 14 queued Checks with no terminal failure. The
+  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has 14
+  pending and 7 skipped Checks with no terminal failure. The
   current #106 head `e7fafd4192cc3cc344b8f8e536bc0495afaa739f` likewise has
-  one completed success and 14 queued Checks. PR #109's merged head
-  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has one completed success and 14
-  queued Checks; local
+  14 pending and 7 skipped Checks. PR #109's head
+  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has 14 pending and 7 skipped
+  Checks; local
   locked-install, full pytest, Ruff, Interrogate, and compileall verification
   passed before its normal merge commit was pushed.
   PR #107 was rebased cleanly onto #112 at
   `53842560d397aa20309a6b16aceb560540611686`, and PR #108 was rebased cleanly
   onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; the latest rollups
-  are 19 successful plus two queued for #107 and 14 successful plus six queued
-  for #108, with no terminal failure. Local
+  are 19 successful, 1 pending, and 8 skipped for #107 and 17 successful,
+  2 pending, and 8 skipped for #108, with no terminal failure. Local
   `uv sync --locked --extra dev` plus the full service pytest suite passed on
   both rebased trees. Their fresh hosted Checks remain unverified and #112
   remains the lock-refresh prerequisite.
@@ -234,10 +234,10 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's
   pre-refresh documentation head is
-  `58c6bb5b8ba5dd84dd7e3c73f4f629520ad0110c`, with two successful and 14
-  queued Checks; its prior review state is not approval. PR #104's updated
+  `bcd4b15220852cf85feaff4922ce6b2557d7688d`, with 14 pending and 7 skipped
+  Checks; its prior review state is not approval. PR #104's updated
   head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
-  head and has two successful plus 14 queued Checks. The resulting #100 head
+  head and has 14 pending and 7 skipped Checks. The resulting #100 head
   from this documentation refresh must be re-audited after the commit; its
   pre-refresh review state is not approval.
   This record travels in these PRs, so the live PR records remain authoritative
