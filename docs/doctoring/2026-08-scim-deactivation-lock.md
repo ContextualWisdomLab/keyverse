@@ -1,6 +1,6 @@
 # SCIM deactivation lock boundary
 
-**Date:** 2026-08-20  
+**Date:** 2026-08-20
 **Status:** Implementation evidence for the active PR; not protected-main or live Keycloak acceptance
 
 ## Scope
