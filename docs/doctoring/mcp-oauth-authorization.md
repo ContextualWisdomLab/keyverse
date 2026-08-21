@@ -184,6 +184,10 @@ and timestamps. No bearer material is logged or persisted.
 Internet Engineering Task Force. (2018). *OAuth 2.0 authorization server
 metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 
+Richer, J., Jones, M., Bradley, J., Machulak, M., & Hunt, P. (2015). *OAuth
+2.0 dynamic client registration protocol* (RFC 7591). Internet Engineering
+Task Force. https://doi.org/10.17487/RFC7591
+
 Internet Engineering Task Force. (2015). *Proof key for code exchange by OAuth
 public clients* (RFC 7636). https://doi.org/10.17487/RFC7636
 
@@ -192,6 +196,9 @@ metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 
 Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0*
 (RFC 8707). https://doi.org/10.17487/RFC8707
+
+Internet Engineering Task Force. (2021). *JSON Web Token (JWT) profile for
+OAuth 2.0 access tokens* (RFC 9068). https://doi.org/10.17487/RFC9068
 
 Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
 practice for OAuth 2.0 security* (BCP 240, RFC 9700). Internet Engineering Task
