@@ -38,6 +38,9 @@ jobs:
         run: uv run interrogate .
       - name: Compile Python sources
         run: uv run python -m compileall -q app tests tools
+      - name: Test repository documentation contracts
+        working-directory: ${{ github.workspace }}
+        run: uv run --project services/account_unification pytest tests/test_documentation_contract.py -q
       - name: Test and enforce production coverage
         run: |
           uv run coverage run --branch --source=app -m pytest -q
