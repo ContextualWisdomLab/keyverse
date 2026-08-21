@@ -73,7 +73,9 @@ authorization attributes with visible constants while retaining the same
 LineageWeave audience. In the standalone Compose path, the post-import profile
 bootstrap is a required one-shot prerequisite for the account service; a failed
 bootstrap intentionally leaves that service stopped until the issuer profile is
-repaired.
+repaired. The bootstrap script reports the specific missing `org` or `workspace`
+attribute in its failure output so operators can repair the read-back profile
+without exposing credentials.
 
 ### Normative tenant mapping for LineageWeave
 

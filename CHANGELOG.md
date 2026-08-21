@@ -85,6 +85,9 @@ Keep a Changelog, and releases use semantic versioning.
   `lineageweave-web` profile, and a non-string observed mapper type is treated
   as reconciliation drift rather than causing an exception. Operator guides now
   consistently name issued `org` (company) and `workspace` (PU) claims.
+- The post-import LineageWeave profile bootstrap now reports which required
+  `org` or `workspace` account attribute is missing from the read-back profile
+  before it stops the dependent service.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
