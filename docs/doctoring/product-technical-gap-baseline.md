@@ -55,11 +55,15 @@ evidence gaps.
   discovery, public-client authorization code plus `S256` PKCE, exact
   redirects, RFC 8707 resource binding, RFC 9728 LineageWeave metadata,
   centralized revocation/audit, and negative evidence.
-- PR #115 is documentation-only. Its current rollup has 2 pending, 14 queued,
+- PR #115 is documentation-only. Its initial post-publication rollup had 2 pending, 14 queued,
   and 7 skipped Checks with review required; no MCP browser flow, resource
   metadata endpoint, resource-bound token, revocation check, or LineageWeave
   end-to-end result is claimed. RFC 8628 remains deferred until a real
   callback-less client requires it.
+- After its review corrections, PR #115's current exact head is
+  `0e0c15c4ba7d631660693c549dcbb7e863d6287b`; its current rollup is 2
+  successful, 14 queued, and 7 skipped Checks. This remains documentation
+  evidence only, not a protected merge or runtime acceptance.
 
 ## 2026-08-21 local runtime probe
 
@@ -331,6 +335,10 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   and 7 skipped Checks; its changes-requested review state is not approval. PR #104's updated
   head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
   head and has 21 successful, 1 queued, and 8 skipped Checks.
+  After the baseline/reference update, PR #100 advanced normally to
+  `ee6c13f059b6074f990f51ae7cf26de62d2c6d67`; its current rollup is 1
+  successful, 1 pending, 14 queued, and 7 skipped Checks with changes
+  requested. The new exact head remains unverified for protected merge.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.
   The active ruleset requires two approving reviews, resolved threads, and

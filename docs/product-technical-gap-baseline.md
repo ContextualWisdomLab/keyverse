@@ -89,9 +89,20 @@ There is no current terminal failure bucket in this inventory. Historical
 terminal failures are recorded separately and are not current-head green
 evidence.
 
+### Post-snapshot exact-head delta
+
+After the inventory snapshot, PR #115 advanced normally to
+`0e0c15c4ba7d631660693c549dcbb7e863d6287b` to correct review-verified
+doctoring/ADR evidence. Its current rollup is 2 successful, 14 queued, and 7
+skipped Checks with no formal approval. PR #100 advanced normally to
+`ee6c13f059b6074f990f51ae7cf26de62d2c6d67` after the baseline/reference
+updates; its current rollup is 1 successful, 1 pending, 14 queued, and 7
+skipped Checks with a changes-requested review state. These later exact heads
+remain unverified for protected merge.
+
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
-| [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 pending, 14 queued, 7 skipped, 0 terminal failures on `7281c3d961f40bf47383b8cddeae750af1298ad5` | review required | Obtain independent ADR review; do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
+| [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `0e0c15c4ba7d631660693c549dcbb7e863d6287b` | review required | Obtain independent ADR review; do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
 | [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `49136c24fb07e3a8ed01171785e6946c559ea2a5` | review required | The valid SCIM PatchOp review fix and local full verification are complete; wait for fresh exact-head hosted Checks and independent review. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 23 successful, 8 skipped, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 19 successful, 2 queued, 7 skipped, 0 terminal failures on updated head `032f730b0239d062cf9803525ba66c740e0b2d2e` | review required | The normal branch update merged #112's lockfile base into the CodeQL branch; resolve the queued Strix retry and remaining coverage Check, then obtain independent review. |
@@ -104,7 +115,7 @@ evidence.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 21 successful, 1 queued, 8 skipped, 0 terminal failures on updated head `7da9d43087d5647fefb946eb154ee1e5c10c576d` | review required | Base remains `fix/account-unification-lock-20260819`; obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `e765f4860177af47b80b05ee3a918a4dc2cb4450` | changes requested | Exact-tree regressions and local 100% verification pass; wait for hosted security Checks and current-head independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 successful, 8 skipped, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on observed head `f331938a4f3cd6808101b8888b76c0f87b1eb841` | changes requested | The current-tree review findings are addressed; wait for exact-head Checks and independent review without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 1 successful, 1 pending, 14 queued, 7 skipped, 0 terminal failures on observed head `ee6c13f059b6074f990f51ae7cf26de62d2c6d67` | changes requested | The current-tree review findings are addressed; wait for exact-head Checks and independent review without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 successful, 8 skipped, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
