@@ -322,7 +322,7 @@ def test_scim_patch_is_serialized_with_merge(
                     "urn:ietf:params:scim:api:messages:2.0:PatchOp"
                 ],
                 "Operations": [
-                    {"op": "replace", "path": "active", "value": False}
+                    {"op": "replace", "value": {"active": False}}
                 ]
             },
         )
