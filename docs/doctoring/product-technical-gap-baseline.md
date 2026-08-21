@@ -27,15 +27,21 @@ branch coverage, and its hosted Checks are terminal-success; independent
 approval remains absent. No emergency bypass is justified.
 
 Current control-plane evidence is protected `.github` main
-`0156282022134484ea9d7541d5ba0730ba14fd96`; #1198 is at
-`4c659d28622e37666c5f55845ac1974213dc1676` with 5 successful, 17 skipped,
-2 cancelled, 16 queued, and 2 pending Checks; scheduler repair #1203 was normally merged into the
+`0156282022134484ea9d7541d5ba0730ba14fd96`. The OSV cross-fork
+result-isolation root #1209 is at
+`53781cc16b79a03a36f9dc9f7e1d6b9886cd0622` with 3 successful, 19 skipped,
+19 cancelled, 1 queued, and 2 pending Checks. The hourly OIDC caller repair
+#1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 7 successful, 15
+skipped, 1 cancelled, 14 queued, and 2 pending Checks. The combined security
+and scheduler root #1198 is at
+`4c659d28622e37666c5f55845ac1974213dc1676` with 19 successful, 19 skipped,
+2 cancelled, 1 in-progress, 6 queued, 3 neutral, and 2 pending Checks; scheduler repair #1203 was normally merged into the
 #1198 feature branch at `4d3d24aa404959f5067735fec0558d5924ade590`; review
 repair #1002 was then normally merged into that feature branch at
 `3016543f735bb24db760cfaa768e64f95f408473`; OSV repair #1208 is closed
 without merge; and #1026 is at
-`740379ab33dbb414b2265411d7a557b7f966f57c` with 27 successful, 3 neutral,
-1 cancelled, 17 skipped, and 1 queued Checks. The dependency failure and
+`740379ab33dbb414b2265411d7a557b7f966f57c` with 28 successful, 3 neutral,
+1 cancelled, 17 skipped, 1 queued, and 2 pending Checks. The dependency failure and
 hosted-gate state are source/hosted-gate problems, not demonstrated
 control-plane deadlocks. All predecessor evidence remains non-transferable.
 

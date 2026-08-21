@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T04:52:47+09:00
+## Live queue refresh — 2026-08-22T05:09:32+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -74,15 +74,21 @@ creates a later #100 head, so its predecessor Checks and review evidence are
 deliberately not treated as current merge evidence.
 
 The current central control-plane queue is also not merge-ready: protected
-`.github` main is `0156282022134484ea9d7541d5ba0730ba14fd96`; #1198 is at
-`4c659d28622e37666c5f55845ac1974213dc1676` with 5 successful, 17 skipped,
-2 cancelled, 16 queued, and 2 pending Checks; scheduler repair #1203 was normally merged into the
+`.github` main is `0156282022134484ea9d7541d5ba0730ba14fd96`. The OSV
+cross-fork result-isolation root #1209 is at
+`53781cc16b79a03a36f9dc9f7e1d6b9886cd0622` with 3 successful, 19 skipped,
+19 cancelled, 1 queued, and 2 pending Checks. The hourly OIDC caller repair
+#1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 7 successful, 15
+skipped, 1 cancelled, 14 queued, and 2 pending Checks. The combined security
+and scheduler root #1198 is at
+`4c659d28622e37666c5f55845ac1974213dc1676` with 19 successful, 19 skipped,
+2 cancelled, 1 in-progress, 6 queued, 3 neutral, and 2 pending Checks; scheduler repair #1203 was normally merged into the
 #1198 feature branch at `4d3d24aa404959f5067735fec0558d5924ade590` from child
 head `c627d4ae7a26222ed3d2ee1ded19e270930aa1f2`; review repair #1002 was then
 normally merged into that same feature branch at `3016543f735bb24db760cfaa768e64f95f408473`;
 OSV repair #1208 is closed without merge; and #1026 is at
-`740379ab33dbb414b2265411d7a557b7f966f57c` with 27 successful, 3 neutral,
-1 cancelled, 17 skipped, and 1 queued Checks. These are normal
+`740379ab33dbb414b2265411d7a557b7f966f57c` with 28 successful, 3 neutral,
+1 cancelled, 17 skipped, 1 queued, and 2 pending Checks. These are normal
 source/hosted-gate or dependency-order problems, not D1–D5 emergency
 deadlocks. The central heads can move again through normal scheduler restacks;
 all listed evidence is observation-time only.
