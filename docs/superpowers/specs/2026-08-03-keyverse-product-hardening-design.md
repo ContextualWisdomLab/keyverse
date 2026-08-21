@@ -89,7 +89,8 @@ silently leak. A failed apply retains desired state and returns
 
 ### Mutation serialization
 
-Account merge and SCIM full replacement both acquire `UserOperationLocks`.
+Account merge, SCIM full replacement, and supported `PATCH active=false`
+deprovisioning all acquire `UserOperationLocks`.
 Standalone deployments use the two-word table `user_operation_lock_state` in a
 dedicated SQLite sidecar and `BEGIN IMMEDIATE`. Persistent audit deployments
 place that sidecar next to the audit database; in-memory tests receive a secure

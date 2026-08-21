@@ -1,6 +1,7 @@
 """Shared user-operation serialization for merge and SCIM writes."""
 from __future__ import annotations
 
+import multiprocessing
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -44,6 +45,14 @@ def _assert_overlapping_operation_waits(first_manager, second_manager) -> None:
     assert second_entered.is_set()
 
 
+def _hold_sqlite_lock(database_path: str, control) -> None:
+    """Hold one SQLite lock in a separate process until the parent releases it."""
+    manager = SqliteUserOperationLocks(database_path)
+    with manager.hold("dup"):
+        control.send("held")
+        assert control.recv() == "release"
+
+
 def test_in_memory_locks_serialize_overlapping_user_ids() -> None:
     """The process-local manager serializes intersecting user ID sets."""
     manager = InMemoryUserOperationLocks()
@@ -70,6 +79,38 @@ def test_sqlite_lock_timeout_is_explicit_and_retryable(tmp_path) -> None:
         with pytest.raises(UserOperationLockTimeout):
             with impatient_manager.hold("dup"):
                 pytest.fail("contending operation unexpectedly acquired the lock")
+
+
+def test_sqlite_locks_serialize_across_processes(tmp_path) -> None:
+    """The production sidecar lock blocks and then releases across processes."""
+    database_path = str(tmp_path / "user-operation-locks.sqlite3")
+    impatient_manager = SqliteUserOperationLocks(
+        database_path, timeout_seconds=0.05
+    )
+    context = multiprocessing.get_context("spawn")
+    parent_control, child_control = context.Pipe()
+    process = context.Process(
+        target=_hold_sqlite_lock,
+        args=(database_path, child_control),
+    )
+    process.start()
+    child_control.close()
+    try:
+        assert parent_control.poll(5)
+        assert parent_control.recv() == "held"
+        with pytest.raises(UserOperationLockTimeout):
+            with impatient_manager.hold("dup"):
+                pytest.fail("a separate process unexpectedly acquired the lock")
+        parent_control.send("release")
+        process.join(timeout=5)
+        assert process.exitcode == 0
+        with impatient_manager.hold("dup"):
+            pass
+    finally:
+        if process.is_alive():
+            parent_control.send("release")
+            process.join(timeout=5)
+        parent_control.close()
 
 
 def test_lock_manager_rejects_empty_user_ids() -> None:

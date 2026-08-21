@@ -9,7 +9,7 @@
 | [0003](0003-identity-matching.md) | Exact external subject → verified email → explicit link matching precedence | Accepted |
 | [0004](0004-desired-state-reconciliation.md) | Side-effect-free preflight plus intent/reconcile/re-observe/receipt lifecycle | Accepted |
 | [0005](0005-secret-ownership.md) | Deployment/KV owns secrets; portable desired state remains secret-minimized | Accepted |
-| [0006](0006-user-operation-lock.md) | Merge and SCIM full replacement share one user-operation lock boundary | Accepted |
+| [0006](0006-user-operation-lock.md) | Merge/link, SCIM full replacement, and supported `PATCH active=false` share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 
