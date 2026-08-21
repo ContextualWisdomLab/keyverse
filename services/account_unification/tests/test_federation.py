@@ -135,6 +135,27 @@ def test_put_requires_live_provider_after_apply(
     assert store.get(FEDERATION_PROVIDER_NAMESPACE, "employer-adfs") is not None
 
 
+def test_put_accepts_keycloak_default_config_fields(
+    federation, api, monkeypatch
+) -> None:
+    """Vendor defaults do not invalidate fields owned by desired state."""
+    registration = _employer_adfs_registration()
+    original_get = api.get_identity_provider
+
+    def observe_provider(provider_alias: str) -> dict | None:
+        """Return the live payload with a vendor-owned default field."""
+        observed = original_get(provider_alias)
+        if observed is not None:
+            observed["config"]["keycloakDefaultOption"] = "IMPORT"
+        return observed
+
+    monkeypatch.setattr(api, "get_identity_provider", observe_provider)
+
+    status = federation.put_registration("employer-adfs", registration)
+
+    assert status.applied_to_keycloak is True
+
+
 def test_put_retains_desired_state_when_keycloak_is_unavailable(
     federation, store, api, monkeypatch
 ) -> None:

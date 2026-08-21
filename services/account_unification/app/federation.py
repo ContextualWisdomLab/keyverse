@@ -663,7 +663,19 @@ def _identity_provider_matches(
     if not isinstance(observed, dict):
         return False
     desired = _to_keycloak_payload(registration)
-    return all(observed.get(key) == value for key, value in desired.items())
+    observed_config = observed.get("config")
+    return (
+        all(
+            observed.get(key) == value
+            for key, value in desired.items()
+            if key != "config"
+        )
+        and isinstance(observed_config, dict)
+        and all(
+            observed_config.get(key) == value
+            for key, value in desired["config"].items()
+        )
+    )
 
 
 federation_router = APIRouter(prefix="/federation", tags=["federation"])
