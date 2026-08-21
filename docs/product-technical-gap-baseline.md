@@ -44,6 +44,7 @@ tenant, or resource ownership.
 |---|---|
 | `implemented-main` | Source and tests are on the observed protected-main head. |
 | `active-PR` | Work exists in an open PR and is not part of protected-main evidence. |
+| `active-issue` | A buyer or operational gap is tracked in an open issue and is not implemented evidence. |
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
@@ -160,6 +161,7 @@ evidence.
 
 | Issue | Product signal | Classification | Required outcome |
 |---:|---|---|---|
+| [#114](https://github.com/ContextualWisdomLab/keyverse/issues/114) | MCP-compatible OAuth client authorization for headless agents | `active-issue` | Define the Keyverse authorization-server and OIDC discovery contract, public-client authorization code + PKCE, exact redirects, resource-bound least-privilege tokens, centralized revocation/audit, and negative browser/client evidence. Evaluate RFC 8628 only for clients that cannot use a callback; do not implement it speculatively. |
 | [#102](https://github.com/ContextualWisdomLab/keyverse/issues/102) | Hierarchical authorization plane, login helper, PATs | `active-PR` | Security-review the proposed authority model and prove fail-closed token/tenant/resource behavior. |
 | [#99](https://github.com/ContextualWisdomLab/keyverse/issues/99) | Orphaned federation and product-loop workflow identities | `gap-not-claimed` | Live evidence at protected `main` `ce207dfd` found 43 active registry identities: 4 present repository paths, 37 missing repository paths, and 2 GitHub-owned dynamic paths. Disable only through the owning protected workflow/organization path and revalidate by workflow ID immediately before mutation. |
 | [#71](https://github.com/ContextualWisdomLab/keyverse/issues/71) | Remove runtime application RPs from portable import | `active-PR` | Merge #83 only after current-head protected evidence. |

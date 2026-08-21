@@ -174,6 +174,11 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   `docs/THREAT_MODEL.md`, `docs/TEST_STRATEGY.md`, and `docs/TRACEABILITY.md`.
 - ADR-0008 and ADR-0009 plus their related specification, plan, operations,
   and doctoring records.
+- The live open-Issue query performed on 2026-08-21 found five open issues;
+  newly tracked Issue #114 defines the buyer gap for MCP-compatible OAuth client
+  authorization for headless agents. Its standards list is issue scope, not
+  yet an adopted Keyverse runtime contract; implementation remains deferred
+  until the PR and Issue queue is exhausted.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
   and #83 each have 22 successful and 8 skipped Checks with no pending run.
