@@ -4,8 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from app.application_tokens import (
@@ -46,7 +45,7 @@ class _FailingAuditSink(InMemoryAuditSink):
 
     def record(self, event) -> None:
         """Reject every event to exercise lifecycle compensation."""
-        raise RuntimeError("injected audit storage failure")
+        raise RuntimeError("audit unavailable")
 
 
 class _Clock:
@@ -105,6 +104,7 @@ ISSUE_BODY = {
     "capability_codes": ["api.invoices.read", "api.invoices.write"],
     "lifetime_seconds": 3600,
     "actor_identity_id": "operator-ida",
+    "tenant_deployment_id": "default-deployment",
 }
 
 
@@ -133,6 +133,7 @@ def test_issue_verify_revoke_and_secret_omission(client, audit) -> None:
         "/application-tokens:verify",
         json={
             "presented_token": plaintext,
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
             "requested_capability_codes": ["api.invoices.read"],
         },
@@ -149,6 +150,7 @@ def test_issue_verify_revoke_and_secret_omission(client, audit) -> None:
         "/application-tokens:verify",
         json={
             "presented_token": plaintext,
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
             "requested_capability_codes": ["api.invoices.read"],
         },
@@ -198,6 +200,7 @@ def test_runtime_verify_does_not_require_operator_bearer(
             "/application-tokens:verify",
             json={
                 "presented_token": issued.plaintext_token,
+                "tenant_deployment_id": "default-deployment",
                 "software_unit_id": "naruon-web",
             },
         )
@@ -216,6 +219,7 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
         "/application-tokens:verify",
         json={
             "presented_token": "not-a-token",
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
         },
     )
@@ -223,6 +227,7 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
         "/application-tokens:verify",
         json={
             "presented_token": f"kvt_{prefix}_wrong-secret-material-value",
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
         },
     )
@@ -230,6 +235,7 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
         "/application-tokens:verify",
         json={
             "presented_token": plaintext,
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "clearfolio-web",
         },
     )
@@ -237,8 +243,17 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
         "/application-tokens:verify",
         json={
             "presented_token": plaintext,
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
             "requested_capability_codes": ["api.payroll.admin"],
+        },
+    )
+    wrong_tenant = client.post(
+        "/application-tokens:verify",
+        json={
+            "presented_token": plaintext,
+            "tenant_deployment_id": "other-deployment",
+            "software_unit_id": "naruon-web",
         },
     )
     clock.now += 3601
@@ -246,6 +261,7 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
         "/application-tokens:verify",
         json={
             "presented_token": plaintext,
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
         },
     )
@@ -253,6 +269,7 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
         "/application-tokens:verify",
         json={
             "presented_token": plaintext,
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "Not a slug",
         },
     )
@@ -261,6 +278,7 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
     assert unknown.json()["denial_code"] == "unknown_token"
     assert wrong_unit.json()["denial_code"] == "software_unit_mismatch"
     assert capability.json()["denial_code"] == "capability_denied"
+    assert wrong_tenant.json()["denial_code"] == "tenant_mismatch"
     assert expired.json()["denial_code"] == "expired_token"
     assert all(item.json()["inherits_org_grants"] is False for item in (
         malformed, unknown, wrong_unit, capability, expired
@@ -270,6 +288,10 @@ def test_verify_denies_malformed_unknown_expired_and_capability(
 def test_rotate_replaces_token_and_rejects_software_unit_change(client) -> None:
     """Rotation revokes the old secret and issues a same-unit replacement."""
     issued = client.post("/application-tokens", json=ISSUE_BODY).json()
+    tenant_mismatch = client.post(
+        f"/application-tokens/{issued['application_token_id']}:rotate",
+        json={**ISSUE_BODY, "tenant_deployment_id": "other-deployment"},
+    )
     rotated = client.post(
         f"/application-tokens/{issued['application_token_id']}:rotate",
         json=ISSUE_BODY,
@@ -280,6 +302,7 @@ def test_rotate_replaces_token_and_rejects_software_unit_change(client) -> None:
         "/application-tokens:verify",
         json={
             "presented_token": issued["plaintext_token"],
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
         },
     )
@@ -287,11 +310,13 @@ def test_rotate_replaces_token_and_rejects_software_unit_change(client) -> None:
         "/application-tokens:verify",
         json={
             "presented_token": rotated.json()["plaintext_token"],
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
         },
     )
     assert old.json()["denial_code"] == "revoked_token"
     assert new.json()["active"] is True
+    assert tenant_mismatch.status_code == 400
     mismatch = client.post(
         f"/application-tokens/{rotated.json()['application_token_id']}:rotate",
         json={**ISSUE_BODY, "software_unit_id": "clearfolio-web"},
@@ -351,6 +376,7 @@ def test_invalid_rotation_preserves_the_active_token(
         "/application-tokens:verify",
         json={
             "presented_token": issued["plaintext_token"],
+            "tenant_deployment_id": "default-deployment",
             "software_unit_id": "naruon-web",
         },
     )
@@ -367,7 +393,7 @@ def test_issue_audit_failure_does_not_leave_an_active_token() -> None:
         AuditLogger(_FailingAuditSink()),
         clock=_Clock(),
     )
-    with pytest.raises(RuntimeError, match="audit storage"):
+    with pytest.raises(RuntimeError, match="audit unavailable"):
         service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
     assert store.get_all(APPLICATION_TOKEN_NAMESPACE) == {}
 
@@ -395,11 +421,12 @@ def test_revoke_audit_failure_restores_the_active_token() -> None:
     )
     issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
     service._audit = AuditLogger(_FailingAuditSink())
-    with pytest.raises(RuntimeError, match="audit storage"):
+    with pytest.raises(RuntimeError, match="audit unavailable"):
         service.revoke(issued.application_token_id, actor_identity_id="operator-ida")
     verified = service.verify(
         ApplicationTokenVerifyRequest(
             presented_token=issued.plaintext_token,
+            tenant_deployment_id="default-deployment",
             software_unit_id="naruon-web",
         )
     )
@@ -423,6 +450,7 @@ def test_rotate_storage_failure_preserves_the_active_predecessor() -> None:
     verified = service.verify(
         ApplicationTokenVerifyRequest(
             presented_token=issued.plaintext_token,
+            tenant_deployment_id="default-deployment",
             software_unit_id="naruon-web",
         )
     )
@@ -439,7 +467,7 @@ def test_rotate_audit_failure_restores_the_active_predecessor() -> None:
     )
     issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
     service._audit = AuditLogger(_FailingAuditSink())
-    with pytest.raises(RuntimeError, match="audit storage"):
+    with pytest.raises(RuntimeError, match="audit unavailable"):
         service.rotate(
             issued.application_token_id,
             ApplicationTokenIssueRequest.model_validate(ISSUE_BODY),
@@ -447,6 +475,7 @@ def test_rotate_audit_failure_restores_the_active_predecessor() -> None:
     verified = service.verify(
         ApplicationTokenVerifyRequest(
             presented_token=issued.plaintext_token,
+            tenant_deployment_id="default-deployment",
             software_unit_id="naruon-web",
         )
     )
@@ -516,6 +545,7 @@ def test_corrupt_single_record_and_control_characters(
     denied = token_service.verify(
         ApplicationTokenVerifyRequest(
             presented_token="kvt_deadbeefcafe_\x00secret",
+            tenant_deployment_id="default-deployment",
             software_unit_id="naruon-web",
         )
     )
@@ -538,6 +568,7 @@ def test_stored_hash_length_mismatch_is_unknown(
     denied = token_service.verify(
         ApplicationTokenVerifyRequest(
             presented_token=issued.plaintext_token,
+            tenant_deployment_id="default-deployment",
             software_unit_id="naruon-web",
         )
     )

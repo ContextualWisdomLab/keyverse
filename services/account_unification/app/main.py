@@ -230,10 +230,6 @@ def create_app(*, wire: bool = True) -> FastAPI:
     )
     app.include_router(
         application_token_router,
-        dependencies=[
-            operator_auth_dependency,
-            admin_path_security_dependency,
-        ],
     )
     app.include_router(application_token_runtime_router)
     app.include_router(

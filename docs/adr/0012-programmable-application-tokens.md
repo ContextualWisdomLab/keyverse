@@ -29,7 +29,12 @@ inherit down the org tree (ADR-0010).
 4. The plaintext secret is returned only at issue or rotate time. List, get,
    verify, and revoke responses never include the secret or hash.
 5. Verification does not consult org-tree grants. Tokens never inherit.
-6. A token is not an authenticator. Browser passwordless policy (ADR-0002)
+6. Tenant is explicit at issue, verify, and rotate time; a token is accepted
+   only for its stored tenant. Management routes require the operator bearer,
+   while `:verify` is a runtime route authenticated by the presented token.
+7. Issue, revoke, and rotate mutations roll back token state when audit
+   persistence fails. Expired or retired predecessors cannot be rotated.
+8. A token is not an authenticator. Browser passwordless policy (ADR-0002)
    remains unchanged.
 
 ## Consequences

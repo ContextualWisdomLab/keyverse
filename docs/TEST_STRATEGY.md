@@ -84,10 +84,14 @@ repository supplies its own exact token-validation and ABAC/RBAC evidence.
 - software-unit ACL isolation per relying party;
 - menu decisions require software-unit allow, then ABAC, then RBAC capabilities;
 - SSO combinations allow only when every member software unit is allowed;
-- start-login uses the local registry, rejects discovery/metadata URLs, and
-  performs no Keycloak or network I/O;
+- start-login uses the local registry, rejects discovery/metadata URLs and
+  untrusted issuer overrides, and performs no Keycloak or network I/O;
 - PAT issue returns plaintext once; verify/revoke/rotate never echo secrets;
 - PAT purposes cannot be password or authenticator substitutes;
+- authorization snapshots, grants, SSO combinations, and PAT verification
+  require explicit matching tenants;
+- PAT mutation state rolls back when audit persistence fails, and expired or
+  retired predecessors cannot rotate;
 - PATs do not inherit org-tree grants;
 - Orgmetra trees are not persisted as source of record.
 

@@ -50,11 +50,12 @@ def _software_grant(
     software_unit_id: str = "naruon-web",
     effect_code: str = "allow",
     attribute_constraints: dict[str, str] | None = None,
+    tenant_deployment_id: str = "default-deployment",
 ) -> AuthorizationGrant:
     """Return one software-unit grant at an org node."""
     return AuthorizationGrant(
         grant_key=grant_key,
-        tenant_deployment_id="default-deployment",
+        tenant_deployment_id=tenant_deployment_id,
         grant_scope_code="software_unit",
         org_path=org_path,
         software_unit_id=software_unit_id,
@@ -107,6 +108,27 @@ def test_ancestor_allow_inherits_to_person_unless_restricted() -> None:
     assert decision.inherited is True
     assert decision.winning_org_path == "/group_company/acme"
     assert decision.pep_enforcement_required is True
+
+
+def test_authorization_grants_cannot_cross_tenant_boundaries() -> None:
+    """A grant only participates in decisions for its explicit tenant."""
+    grants = [
+        _software_grant("/group_company/acme", grant_key="tenant-a-allow"),
+        _software_grant(
+            "/group_company/acme",
+            grant_key="tenant-b-deny",
+            tenant_deployment_id="other-deployment",
+            effect_code="deny",
+        ),
+    ]
+    default_decision = decide_software_unit(grants, _snapshot(), "naruon-web")
+    other_decision = decide_software_unit(
+        grants,
+        _snapshot(tenant_deployment_id="other-deployment"),
+        "naruon-web",
+    )
+    assert default_decision.effect is AuthorizationEffect.ALLOW
+    assert other_decision.effect is AuthorizationEffect.DENY
 
 
 def test_more_specific_deny_restricts_inherited_allow() -> None:
@@ -213,27 +235,14 @@ def test_menu_abac_constraint_mismatch_denies() -> None:
     assert denied.decision_code is AuthorizationDecisionCode.ATTRIBUTE_MISMATCH
 
 
-def test_software_unit_abac_constraints_are_enforced() -> None:
-    """Software-unit grants apply the same closed ABAC contract as menus."""
-    grants = [
-        _software_grant(
-            "/group_company/acme",
-            attribute_constraints={"purpose": "hr-review"},
-        )
-    ]
-    allowed = decide_software_unit(
-        grants,
-        _snapshot(request_attributes={"purpose": "hr-review"}),
-        "naruon-web",
+def test_software_unit_abac_constraints_are_rejected() -> None:
+    """Software-unit grants stay RBAC-only; ABAC belongs to menu grants."""
+    grant = _software_grant(
+        "/group_company/acme",
+        attribute_constraints={"purpose": "hr-review"},
     )
-    denied = decide_software_unit(
-        grants,
-        _snapshot(request_attributes={"purpose": "payroll"}),
-        "naruon-web",
-    )
-    assert allowed.effect is AuthorizationEffect.ALLOW
-    assert denied.effect is AuthorizationEffect.DENY
-    assert denied.decision_code is AuthorizationDecisionCode.ATTRIBUTE_MISMATCH
+    with pytest.raises(AuthorizationPolicyError, match="software_unit grants"):
+        validate_grant(grant)
 
 
 def test_grants_are_selected_only_for_the_snapshot_tenant() -> None:
@@ -284,6 +293,18 @@ def test_sso_combination_requires_every_member_allowed() -> None:
     assert allowed.decision_code is AuthorizationDecisionCode.COMBINATION_ALLOW
     assert denied.effect is AuthorizationEffect.DENY
     assert denied.decision_code is AuthorizationDecisionCode.COMBINATION_DENIED
+
+
+def test_sso_combination_requires_matching_snapshot_tenant() -> None:
+    """An SSO scope from another tenant cannot authorize this snapshot."""
+    combination = SsoCombinationScope(
+        combination_name="finance-suite",
+        tenant_deployment_id="other-deployment",
+        software_unit_ids=["naruon-web", "clearfolio-web"],
+        actor_identity_id="operator-ida",
+    )
+    with pytest.raises(AuthorizationPolicyError, match="tenant"):
+        decide_sso_combination([], _snapshot(), combination)
 
 
 def test_reserved_lineageweave_names_are_rejected_on_org_and_attributes() -> None:
@@ -337,6 +358,12 @@ def test_invalid_grant_shapes_fail_closed() -> None:
         validate_grant(_software_grant("/group_company/acme", effect_code="deny").model_copy(
             update={"attribute_constraints": {"purpose": "hr-review"}}
         ))
+    with pytest.raises(AuthorizationPolicyError, match="software_unit grants"):
+        validate_grant(
+            _software_grant("/group_company/acme").model_copy(
+                update={"attribute_constraints": {"purpose": "hr-review"}}
+            )
+        )
     with pytest.raises(AuthorizationPolicyError, match="capability_codes"):
         validate_grant(_software_grant("/group_company/acme", effect_code="deny").model_copy(
             update={"capability_codes": ["menu.read"]}

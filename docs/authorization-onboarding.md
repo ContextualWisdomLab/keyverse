@@ -73,7 +73,9 @@ curl --config "$AUTH_CONFIG" --request POST \
   "$KEYVERSE_RUNTIME/federation/identity-providers:start-login"
 ```
 
-3. Add PKCE `S256`, `state`, and `nonce` in the application.
+3. Add PKCE `S256`, `state`, and `nonce` in the application. The helper uses
+   the configured Keycloak public issuer and does not accept an arbitrary
+   issuer in the request.
 4. Redirect the browser to `start_login_url`. Do not fetch IdP metadata from
    the app. Federation ownership stays in Keyverse.
 
@@ -82,7 +84,7 @@ curl --config "$AUTH_CONFIG" --request POST \
 ```bash
 curl --config "$AUTH_CONFIG" --request POST \
   --header "Content-Type: application/json" \
-  --data '{"software_unit_id":"naruon-web","purpose_code":"machine_api","capability_codes":["api.invoices.read"],"lifetime_seconds":3600,"actor_identity_id":"operator-ida"}' \
+  --data '{"tenant_deployment_id":"buyer-deployment","software_unit_id":"naruon-web","purpose_code":"machine_api","capability_codes":["api.invoices.read"],"lifetime_seconds":3600,"actor_identity_id":"operator-ida"}' \
   "$KEYVERSE_ADMIN/application-tokens"
 ```
 
@@ -91,6 +93,9 @@ response. Present the token only to `POST /application-tokens:verify` with the
 same software unit and requested API capabilities, plus the runtime service
 header. Rotate or revoke instead of treating the token as a password. Tokens
 never inherit org-tree grants.
+The request must also carry the same explicit tenant; use the runtime service
+header and never treat the token as a password. Tokens never inherit org-tree
+grants.
 
 Keep bearer tokens out of `curl` process arguments; use a private `--config`
 file as in `docs/rp-onboarding.md`.

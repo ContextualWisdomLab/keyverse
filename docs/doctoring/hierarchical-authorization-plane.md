@@ -68,9 +68,11 @@ revalidated.
 
 ## Assumptions and limitations
 
-Callers supply a current Orgmetra snapshot. This slice does not subscribe to
-Orgmetra change feeds. Production login acceptance remains a separate
-runtime evidence boundary.
+Callers supply a current Orgmetra snapshot with an explicit tenant deployment.
+Grant and SSO evaluation filters that tenant before applying inheritance; a
+software-unit grant cannot carry menu ABAC constraints. This slice does not
+subscribe to Orgmetra change feeds. Production login acceptance remains a
+separate runtime evidence boundary.
 
 ## References
 

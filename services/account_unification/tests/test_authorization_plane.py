@@ -162,6 +162,55 @@ def test_menu_and_sso_combination_http_surface(client) -> None:
     assert combo_decision.json()["effect"] == "allow"
 
 
+def test_authorization_decisions_are_isolated_by_tenant(client) -> None:
+    """Same paths and names remain separate across tenant deployments."""
+    for tenant, effect in (("default-deployment", "allow"), ("other-deployment", "deny")):
+        for software_unit_id in ("naruon-web", "clearfolio-web"):
+            grant_key = f"{tenant.split('-')[0]}-{software_unit_id.split('-')[0]}"
+            response = client.put(
+                f"/authorization/software-unit-grants/{grant_key}",
+                json={
+                    **SOFTWARE_GRANT,
+                    "grant_key": grant_key,
+                    "tenant_deployment_id": tenant,
+                    "software_unit_id": software_unit_id,
+                    "effect_code": effect,
+                },
+            )
+            assert response.status_code == 200
+        response = client.put(
+            "/authorization/sso-combination-scopes/finance-suite",
+            json={**COMBINATION, "tenant_deployment_id": tenant},
+        )
+        assert response.status_code == 200
+
+    listed = client.get("/authorization/sso-combination-scopes")
+    default_decision = client.post(
+        "/authorization/sso-combinations:decide",
+        json={"snapshot": SNAPSHOT, "combination_name": "finance-suite"},
+    )
+    other_decision = client.post(
+        "/authorization/sso-combinations:decide",
+        json={
+            "snapshot": {**SNAPSHOT, "tenant_deployment_id": "other-deployment"},
+            "combination_name": "finance-suite",
+        },
+    )
+    assert len(listed.json()) == 2
+    assert client.get("/authorization/sso-combination-scopes/finance-suite").status_code == 409
+    assert client.delete("/authorization/sso-combination-scopes/finance-suite").status_code == 409
+    assert client.get(
+        "/authorization/sso-combination-scopes/finance-suite"
+        "?tenant_deployment_id=other-deployment"
+    ).status_code == 200
+    assert client.delete(
+        "/authorization/sso-combination-scopes/finance-suite"
+        "?tenant_deployment_id=other-deployment"
+    ).status_code == 204
+    assert default_decision.json()["effect"] == "allow"
+    assert other_decision.json()["effect"] == "deny"
+
+
 def test_authorization_plane_rejects_mismatches_duplicates_and_unknowns(client) -> None:
     """Path mismatches, duplicate identities, and missing keys fail closed."""
     mismatch = client.put(
@@ -354,6 +403,11 @@ def test_direct_service_helpers_cover_getters(store: InMemoryKvStore) -> None:
     service.put_software_unit_grant("acme-naruon", grant)
     service.put_menu_grant("acme-naruon-invoices", menu)
     service.put_combination("finance-suite", combination)
+    service.put_combination(
+        "other-suite",
+        combination.model_copy(update={"combination_name": "other-suite"}),
+    )
     assert service.get_software_unit_grant("acme-naruon").grant_key == "acme-naruon"
     assert service.get_menu_grant("acme-naruon-invoices").menu_path == "/invoices"
     assert service.get_combination("finance-suite").combination_name == "finance-suite"
+    service.delete_combination("finance-suite")

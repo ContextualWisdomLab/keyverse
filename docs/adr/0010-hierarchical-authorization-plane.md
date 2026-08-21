@@ -37,6 +37,8 @@ enforce ABAC/RBAC at its own boundary.
    `tenant_deployment_id`, `org_path`, optional `assignment_record_id`).
    Keyverse does not persist or synchronize the Orgmetra tree. Grant selection,
    combination lookup, and duplicate identity are tenant-qualified.
+   Keyverse never infers tenant from a client, realm, UUID, email, or
+   federation source name.
 3. Hierarchical attributes use distinct names: `group_company`,
    `legal_entity`, `business_unit`, `team`, `person`, and structured
    `org_path`. `role`, `org`, and `workspace` stay reserved for the
@@ -50,12 +52,15 @@ enforce ABAC/RBAC at its own boundary.
    subtree. Default is deny. Secrets and programmable application tokens
    never inherit.
 5. SSO combination scopes are named sets of software units. A combination is
-   allowed only when every member software unit is allowed for that snapshot.
+   tenant-scoped and is allowed only when its tenant matches the snapshot and
+   every member software unit is allowed for that snapshot. Ambiguous
+   same-name administration reads and deletes require an explicit tenant.
    The Keycloak session remains Keycloak-owned; this plane only authorizes
    which RP set may share it.
 6. Menu decisions apply software-unit ACL first, then ABAC constraints
    (`purpose`, `sensitivity`, `clearance`, `residency`), then remaining RBAC
-   capability codes.
+   capability codes. Software-unit grants carry capabilities only; their
+   attribute constraints are rejected because ABAC is a menu-level contract.
 
 ## Consequences
 

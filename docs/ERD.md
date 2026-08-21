@@ -234,6 +234,10 @@ or documentation labels are bypassed.
 - Keycloak UUIDs, federation aliases, RP client IDs, email values, and external subjects are data identifiers, not authorization by themselves.
 - Exact external identity key is `(identity_provider, subject)`; verified email may support matching under policy but unverified email never authorizes linking.
 - `tenant_deployment_id` is explicit in Keyverse-owned records; deployment/customer separation must not be inferred from realm/resource names.
+- The non-persisted `AssignmentSnapshot` decision input also requires an
+  explicit `tenant_deployment_id`. Software-unit `attribute_constraints` are
+  intentionally absent: ABAC belongs to `AUTHORIZATION_MENU_GRANT`; a
+  software-unit payload carrying those constraints is rejected.
 - Secrets are referenced through protected values/handles where possible; secret-free desired-state tables must never gain client/bind credentials accidentally.
 - Application access tokens store the hashed secret and lifecycle metadata only;
   plaintext tokens and org-tree secrets never appear on grant or combination

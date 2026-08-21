@@ -75,6 +75,13 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Authorization decisions now require explicit tenant-bound assignment
+  snapshots, grants, SSO combinations, and application-token verification;
+  software-unit grants reject menu-only ABAC constraints.
+- Start-login now uses a configured Keycloak public issuer and is exposed as a
+  front-channel runtime helper, while PAT management remains operator-gated
+  and PAT verification remains token-gated.
+
 - The hierarchical authorization router now carries its operator-authentication
   and privileged-path dependencies at the module boundary, so direct CWL/Naruon
   embedding cannot accidentally mount grant administration without the existing
@@ -115,6 +122,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 - Application-token rotation now rejects revoked, already-rotated, and expired
   predecessors instead of reviving retired credentials.
+- Prevented cross-tenant authorization selection, SSO-name collisions, PAT
+  tenant confusion, expired-token revival, and audit-failure state leakage;
+  start-login can no longer reflect an attacker-selected issuer.
 
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,

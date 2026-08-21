@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import threading
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from .auth import operator_auth_dependency
@@ -149,6 +149,11 @@ class AuthorizationPlaneService:
     ) -> SsoCombinationScope:
         """Return one stored SSO combination."""
         validate_slug(combination_name, field_name="combination_name")
+        if tenant_deployment_id is not None:
+            validate_slug(
+                tenant_deployment_id,
+                field_name="tenant_deployment_id",
+            )
         combinations = [
             combination
             for combination in self.list_combinations()
@@ -177,18 +182,44 @@ class AuthorizationPlaneService:
         combinations = [self._parse_combination(raw_value) for raw_value in raw_values]
         return sorted(combinations, key=lambda item: item.combination_name)
 
-    def delete_combination(self, combination_name: str) -> None:
+    def delete_combination(
+        self,
+        combination_name: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> None:
         """Remove one SSO combination."""
         validate_slug(combination_name, field_name="combination_name")
-        combination = self.get_combination(combination_name)
-        with self._state_lock:
-            self._store.delete(
-                SSO_COMBINATION_NAMESPACE,
-                self._scoped_key(
-                    combination.tenant_deployment_id,
-                    combination_name,
-                ),
+        if tenant_deployment_id is not None:
+            validate_slug(
+                tenant_deployment_id,
+                field_name="tenant_deployment_id",
             )
+        with self._state_lock:
+            matches = []
+            for entry_key, raw_value in self._store.get_all(
+                SSO_COMBINATION_NAMESPACE
+            ).items():
+                combination = self._parse_combination(raw_value)
+                if (
+                    combination.combination_name == combination_name
+                    and (
+                        tenant_deployment_id is None
+                        or combination.tenant_deployment_id == tenant_deployment_id
+                    )
+                ):
+                    matches.append((entry_key, combination))
+            if not matches:
+                raise AuthorizationPolicyError(
+                    "sso combination is not registered",
+                    status_code=404,
+                )
+            if len(matches) > 1:
+                raise AuthorizationPolicyError(
+                    "tenant_deployment_id is required for an ambiguous sso combination",
+                    status_code=409,
+                )
+            self._store.delete(SSO_COMBINATION_NAMESPACE, matches[0][0])
 
     def decide_software_unit(
         self, request: SoftwareUnitDecisionRequest
@@ -515,11 +546,15 @@ def list_sso_combinations(
 )
 def get_sso_combination(
     combination_name: str,
+    tenant_deployment_id: str | None = Query(default=None),
     service: AuthorizationPlaneService = Depends(get_authorization_service),
 ) -> SsoCombinationScope:
     """Return one stored SSO combination."""
     try:
-        return service.get_combination(combination_name)
+        return service.get_combination(
+            combination_name,
+            tenant_deployment_id=tenant_deployment_id,
+        )
     except AuthorizationPolicyError as exc:
         _raise_policy_error(exc)
 
@@ -530,11 +565,15 @@ def get_sso_combination(
 )
 def delete_sso_combination(
     combination_name: str,
+    tenant_deployment_id: str | None = Query(default=None),
     service: AuthorizationPlaneService = Depends(get_authorization_service),
 ) -> None:
     """Delete one SSO combination."""
     try:
-        service.delete_combination(combination_name)
+        service.delete_combination(
+            combination_name,
+            tenant_deployment_id=tenant_deployment_id,
+        )
     except AuthorizationPolicyError as exc:
         _raise_policy_error(exc)
 

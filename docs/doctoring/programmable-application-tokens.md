@@ -40,6 +40,8 @@ verify, revoke, rotate, expiry, capability denial, software-unit mismatch,
 password-purpose rejection, secret omission, preservation of the active token
 after invalid rotation settings, and compensation after injected KV or audit
 failure. Management and runtime router authentication are tested separately.
+Tenant mismatch, direct router embedding, and retired-predecessor rejection are
+also covered.
 
 ## Assumptions and limitations
 

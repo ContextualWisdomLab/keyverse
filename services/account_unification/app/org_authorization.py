@@ -114,7 +114,7 @@ class AssignmentSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     keyverse_subject: str = Field(min_length=1, max_length=128)
-    tenant_deployment_id: str
+    tenant_deployment_id: str = Field(min_length=1, max_length=128)
     org_path: str = Field(min_length=1, max_length=_MAX_ORG_PATH_LENGTH)
     assignment_record_id: str | None = Field(default=None, max_length=128)
     request_attributes: dict[str, str] = Field(default_factory=dict)
@@ -320,9 +320,9 @@ def validate_grant(grant: AuthorizationGrant) -> AuthorizationGrant:
             raise AuthorizationPolicyError(
                 "software_unit grants must not carry a menu_path"
             )
-        if constraints and grant.effect_code == DENY_EFFECT:
+        if constraints:
             raise AuthorizationPolicyError(
-                "deny grants cannot carry attribute_constraints"
+                "software_unit grants must not carry attribute_constraints"
             )
         if capability_codes and grant.effect_code == DENY_EFFECT:
             raise AuthorizationPolicyError("deny grants cannot carry capability_codes")
@@ -369,7 +369,10 @@ def validate_snapshot(snapshot: AssignmentSnapshot) -> AssignmentSnapshot:
     """Validate one assignment snapshot without contacting Orgmetra."""
     if any(character.isspace() or ord(character) < 0x20 for character in snapshot.keyverse_subject):
         raise AuthorizationPolicyError("keyverse_subject must be an opaque bounded token")
-    validate_slug(snapshot.tenant_deployment_id, field_name="tenant_deployment_id")
+    validate_slug(
+        snapshot.tenant_deployment_id,
+        field_name="tenant_deployment_id",
+    )
     parsed_org = parse_org_path(snapshot.org_path)
     if snapshot.assignment_record_id is not None:
         validate_slug(
@@ -488,7 +491,7 @@ def _select_winning_grant(
     if requested_menu_path is not None:
         menu_rank = {
             path: index for index, path in enumerate(menu_ancestor_paths(requested_menu_path))
-        }
+    }
     for grant in grants:
         if grant.tenant_deployment_id != tenant_deployment_id:
             continue
@@ -607,9 +610,12 @@ def decide_sso_combination(
     """Allow a combination only when every member software unit is allowed."""
     validated_combination = validate_combination(combination)
     validated_snapshot = validate_snapshot(snapshot)
-    if validated_combination.tenant_deployment_id != validated_snapshot.tenant_deployment_id:
+    if (
+        validated_combination.tenant_deployment_id
+        != validated_snapshot.tenant_deployment_id
+    ):
         raise AuthorizationPolicyError(
-            "sso combination and assignment snapshot must use the same tenant"
+            "snapshot and combination tenant_deployment_id must match"
         )
     member_decisions = [
         decide_software_unit(grants, validated_snapshot, software_unit_id)

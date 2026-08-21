@@ -18,7 +18,9 @@ PKCE, `state`, and `nonce`.
 
 SAML and OIDC preflight in this repository already forbid metadata and
 discovery fetches. The helper preserves that boundary: it reads the local
-desired-state registry and rejects `.well-known` or metadata URLs.
+desired-state registry, rejects `.well-known` or metadata URLs, and accepts
+only the configured Keycloak public issuer. Start-login is a runtime
+front-channel helper rather than an operator-admin route.
 
 The authorization endpoint is also bound to the configured public Keyverse
 issuer (or the configured Keycloak realm URL when no public override exists).
@@ -40,6 +42,7 @@ are normalized before the no-fetch policy check. The service only constructs a
 response URL; it does not dereference the supplied issuer, so a security scan's
 SSRF label is recorded here as a URL-normalization policy defect rather than
 live server-side network evidence.
+They also prove untrusted issuer rejection and authenticated runtime embedding.
 
 ## Assumptions and limitations
 

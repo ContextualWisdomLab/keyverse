@@ -20,6 +20,11 @@ SAML/OIDC preflight already forbids metadata and discovery fetches.
 4. The RP must add PKCE `S256`, `state`, and `nonce` locally, then redirect
    the browser. The helper does not mint secrets or replace the OIDC client.
 5. A discovery-document or metadata URL in the request is rejected.
+6. The authorization issuer is the configured Keycloak public issuer (or the
+   configured server/realm fallback). A request may not redirect the helper
+   to an attacker-selected issuer.
+7. Start-login is a front-channel runtime helper; it does not require the
+   operator bearer used by federation desired-state administration.
 
 ## Consequences
 

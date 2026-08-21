@@ -49,6 +49,7 @@ application_token_runtime_router = APIRouter(
     tags=["application-tokens"],
     dependencies=[runtime_auth_dependency],
 )
+_MANAGEMENT_DEPENDENCIES = [operator_auth_dependency, admin_path_security_dependency]
 
 
 class ApplicationTokenIssueRequest(BaseModel):
@@ -61,7 +62,7 @@ class ApplicationTokenIssueRequest(BaseModel):
     capability_codes: list[str]
     lifetime_seconds: int = Field(default=3600, ge=1)
     actor_identity_id: str = Field(min_length=1, max_length=128)
-    tenant_deployment_id: str = "default-deployment"
+    tenant_deployment_id: str
 
 
 class ApplicationTokenRecord(BaseModel):
@@ -90,6 +91,7 @@ class ApplicationTokenIssueResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     application_token_id: str
+    tenant_deployment_id: str
     software_unit_id: str
     token_prefix: str
     purpose_code: str
@@ -111,6 +113,7 @@ class ApplicationTokenView(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     application_token_id: str
+    tenant_deployment_id: str
     software_unit_id: str
     token_prefix: str
     purpose_code: str
@@ -131,6 +134,7 @@ class ApplicationTokenVerifyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     presented_token: str = Field(min_length=8, max_length=256)
+    tenant_deployment_id: str
     software_unit_id: str
     requested_capability_codes: list[str] = Field(default_factory=list)
 
@@ -144,6 +148,7 @@ class ApplicationTokenVerifyResponse(BaseModel):
     effect: str
     denial_code: str | None = None
     application_token_id: str | None = None
+    tenant_deployment_id: str | None = None
     software_unit_id: str | None = None
     capability_codes: list[str] = Field(default_factory=list)
     purpose_code: str | None = None
@@ -237,8 +242,20 @@ class ApplicationTokenService:
     ) -> ApplicationTokenIssueResponse:
         """Revoke one active token and issue a replacement in one actor action."""
         _validate_token_id(application_token_id)
+        validate_slug(
+            request.tenant_deployment_id,
+            field_name="tenant_deployment_id",
+        )
         with self._state_lock:
             existing = self._require_record(application_token_id)
+            if existing.software_unit_id != request.software_unit_id:
+                raise AuthorizationPolicyError(
+                    "rotated token must stay bound to the same software unit"
+                )
+            if existing.tenant_deployment_id != request.tenant_deployment_id:
+                raise AuthorizationPolicyError(
+                    "rotated token must stay bound to the same tenant"
+                )
             if (
                 existing.lifecycle_status_code != ACTIVE_LIFECYCLE
                 or existing.expires_at <= self._clock()
@@ -247,18 +264,14 @@ class ApplicationTokenService:
                     "application token is not active",
                     status_code=409,
                 )
-            if existing.software_unit_id != request.software_unit_id:
-                raise AuthorizationPolicyError(
-                    "rotated token must stay bound to the same software unit"
-                )
-            record, plaintext = self._mint(
-                request, replaced_token_id=application_token_id
-            )
             updated = existing.model_copy(
                 update={
                     "lifecycle_status_code": ROTATED_LIFECYCLE,
                     "revoked_at": self._clock(),
                 }
+            )
+            record, plaintext = self._mint(
+                request, replaced_token_id=application_token_id
             )
             try:
                 self._write_record(record)
@@ -279,6 +292,10 @@ class ApplicationTokenService:
     ) -> ApplicationTokenVerifyResponse:
         """Verify a presented token without consulting org-tree grants."""
         validate_slug(request.software_unit_id, field_name="software_unit_id")
+        validate_slug(
+            request.tenant_deployment_id,
+            field_name="tenant_deployment_id",
+        )
         requested = validate_capability_codes(request.requested_capability_codes)
         parsed = _parse_presented_token(request.presented_token)
         if parsed is None:
@@ -296,6 +313,8 @@ class ApplicationTokenService:
         if not matches:
             return _inactive("unknown_token")
         record = matches[0]
+        if record.tenant_deployment_id != request.tenant_deployment_id:
+            return _inactive("tenant_mismatch")
         if record.lifecycle_status_code != ACTIVE_LIFECYCLE:
             return _inactive("revoked_token", record)
         if record.expires_at <= now:
@@ -308,6 +327,7 @@ class ApplicationTokenService:
             active=True,
             effect="allow",
             application_token_id=record.application_token_id,
+            tenant_deployment_id=record.tenant_deployment_id,
             software_unit_id=record.software_unit_id,
             capability_codes=list(record.capability_codes),
             purpose_code=record.purpose_code,
@@ -415,6 +435,7 @@ class ApplicationTokenService:
         """Build the one-time plaintext issue envelope."""
         return ApplicationTokenIssueResponse(
             application_token_id=record.application_token_id,
+            tenant_deployment_id=record.tenant_deployment_id,
             software_unit_id=record.software_unit_id,
             token_prefix=record.token_prefix,
             purpose_code=record.purpose_code,
@@ -427,6 +448,7 @@ class ApplicationTokenService:
         """Build a secret-free operator view."""
         return ApplicationTokenView(
             application_token_id=record.application_token_id,
+            tenant_deployment_id=record.tenant_deployment_id,
             software_unit_id=record.software_unit_id,
             token_prefix=record.token_prefix,
             purpose_code=record.purpose_code,
@@ -452,6 +474,7 @@ class ApplicationTokenService:
             actor=actor_identity_id,
             payload={
                 "application_token_id": record.application_token_id,
+                "tenant_deployment_id": record.tenant_deployment_id,
                 "software_unit_id": record.software_unit_id,
                 "token_prefix": record.token_prefix,
                 "purpose_code": record.purpose_code,
@@ -516,6 +539,9 @@ def _inactive(
         effect="deny",
         denial_code=denial_code,
         application_token_id=None if record is None else record.application_token_id,
+        tenant_deployment_id=(
+            None if record is None else record.tenant_deployment_id
+        ),
         software_unit_id=None if record is None else record.software_unit_id,
         purpose_code=None if record is None else record.purpose_code,
     )
@@ -544,7 +570,11 @@ class ApplicationTokenRevokeRequest(BaseModel):
     actor_identity_id: str = Field(min_length=1, max_length=128)
 
 
-@application_token_router.post("", response_model=ApplicationTokenIssueResponse)
+@application_token_router.post(
+    "",
+    response_model=ApplicationTokenIssueResponse,
+    dependencies=_MANAGEMENT_DEPENDENCIES,
+)
 def issue_application_token(
     body: ApplicationTokenIssueRequest,
     service: ApplicationTokenService = Depends(get_application_token_service),
@@ -556,7 +586,11 @@ def issue_application_token(
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
-@application_token_router.get("", response_model=list[ApplicationTokenView])
+@application_token_router.get(
+    "",
+    response_model=list[ApplicationTokenView],
+    dependencies=_MANAGEMENT_DEPENDENCIES,
+)
 def list_application_tokens(
     service: ApplicationTokenService = Depends(get_application_token_service),
 ) -> list[ApplicationTokenView]:
@@ -570,6 +604,7 @@ def list_application_tokens(
 @application_token_router.get(
     "/{application_token_id}",
     response_model=ApplicationTokenView,
+    dependencies=_MANAGEMENT_DEPENDENCIES,
 )
 def get_application_token(
     application_token_id: str,
@@ -585,6 +620,7 @@ def get_application_token(
 @application_token_router.post(
     "/{application_token_id}:revoke",
     response_model=ApplicationTokenView,
+    dependencies=_MANAGEMENT_DEPENDENCIES,
 )
 def revoke_application_token(
     application_token_id: str,
@@ -603,6 +639,7 @@ def revoke_application_token(
 @application_token_router.post(
     "/{application_token_id}:rotate",
     response_model=ApplicationTokenIssueResponse,
+    dependencies=_MANAGEMENT_DEPENDENCIES,
 )
 def rotate_application_token(
     application_token_id: str,

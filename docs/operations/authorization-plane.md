@@ -16,10 +16,15 @@ shared operator bearer.
 ## Persist grants
 
 1. Confirm the org path is contiguous from `group_company`.
-2. PUT the software-unit grant, then any menu grants.
-3. Decide with a current Orgmetra snapshot. If the effect is unexpected,
+2. Put the explicit `tenant_deployment_id` on the snapshot and every grant.
+3. PUT the software-unit grant, then any menu grants.
+4. Decide with a current Orgmetra snapshot. If the effect is unexpected,
    inspect winning_org_path and whether a more-specific deny exists.
-4. Do not persist Orgmetra organization units into Keyverse.
+5. Do not persist Orgmetra organization units into Keyverse.
+
+When the same combination name exists in more than one tenant, include
+`tenant_deployment_id` as the GET/DELETE query parameter; an ambiguous
+administration operation fails closed.
 
 ## Start-login failures
 
@@ -40,6 +45,8 @@ shared operator bearer.
 4. Confirm the old token verifies as `revoked_token` and the new token verifies
    as active.
 5. Revoke unused tokens instead of extending them as login credentials.
+   Include the same explicit tenant in rotate and verify requests; an expired
+   predecessor is not rotatable.
 
 ## Recovery
 

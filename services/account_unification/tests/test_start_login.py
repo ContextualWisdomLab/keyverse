@@ -245,6 +245,15 @@ def test_start_login_public_issuer_and_redirect_bounds(client) -> None:
             "public_issuer_url": "https://user:pass@idp.example/realms/cwl",
         },
     )
+    untrusted_issuer = client.post(
+        "/federation/identity-providers:start-login",
+        json={
+            "software_unit_id": "naruon-web",
+            "client_id": "naruon-web",
+            "redirect_uri": "https://naruon.example/callback",
+            "public_issuer_url": "https://attacker.example/realms/cwl",
+        },
+    )
     query = client.post(
         "/federation/identity-providers:start-login",
         json={
@@ -282,6 +291,7 @@ def test_start_login_public_issuer_and_redirect_bounds(client) -> None:
         },
     )
     assert credentials.status_code == 400
+    assert untrusted_issuer.status_code == 400
     assert query.status_code == 400
     assert fragment_redirect.status_code == 400
     assert oversized.status_code == 400
@@ -338,6 +348,25 @@ def test_empty_registry_returns_discovery_without_start_url(
     assert response.status_code == 200
     assert response.json()["identity_providers"] == []
     assert response.json()["start_login_url"] is None
+
+
+def test_start_login_runtime_surface_does_not_need_operator_bearer(
+    store: InMemoryKvStore, config: ServiceConfig
+) -> None:
+    """The front-channel helper remains callable by an RP runtime."""
+    app = create_app(wire=False)
+    app.state.start_login_service = StartLoginService(store, config)
+    app.state.runtime_api_token = "test-runtime-token"
+    with TestClient(app, headers={"X-Keyverse-Runtime-Token": "test-runtime-token"}) as client:
+        response = client.post(
+            "/federation/identity-providers:start-login",
+            json={
+                "software_unit_id": "naruon-web",
+                "client_id": "naruon-web",
+                "redirect_uri": "https://naruon.example/callback",
+            },
+        )
+    assert response.status_code == 200
 
 
 def test_corrupt_provider_store_and_missing_service(store: InMemoryKvStore, config) -> None:
