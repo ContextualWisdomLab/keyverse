@@ -20,21 +20,25 @@ protected merge gate.
 
 Current Keyverse Checks are: #83 23 successful/8 skipped; #100 14
 pending/7 skipped; #101 23 successful/8 skipped; #103 24 successful/8
-skipped; #112 20 successful/1 pending/8 skipped; and #113 24
+skipped; #112 21 successful/1 pending/8 skipped; and #113 24
 successful/8 skipped. The #112 code fix for Keycloak's fixed masked
 `clientSecret` read-back is locally verified at 100% production statement and
 branch coverage, but hosted terminal Checks and independent approval remain
 pending. No emergency bypass is justified.
 
 Current control-plane evidence is `.github` #1198 at
-`3a6c170deb15d19521bb10c30aa3839f789eb92f` with 18 successful, 3 neutral, 7
-pending, and 14 skipped Checks; #1203 at
-`5ae2808b4e4397c155073e7094f8799960692c46` with 19 successful, 3 neutral, 8
-pending, 20 skipped, and 3 cancelled predecessor Checks; and #1026 at
-`3710efcd1664504fe0715719574319a66688a22c` with 3 successful, 1 failed, 16
-pending, and 13 skipped Checks. The dependency failure and hosted-gate state
-are source/hosted-gate problems, not demonstrated control-plane deadlocks.
-All predecessor evidence remains non-transferable.
+`3a6c170deb15d19521bb10c30aa3839f789eb92f` with 20 successful, 3 neutral, 6
+pending, and 14 skipped Checks; independent security repair #1208 at
+`de2ea4b9d7c8bcca81a69834d6d1859bfd9425ed` with 3 successful, 17 pending, 17
+skipped, and 2 cancelled predecessor Checks; scheduler repair #1203 at
+`5ae2808b4e4397c155073e7094f8799960692c46` with 22 successful, 3 neutral, 6
+pending, 20 skipped, and 3 cancelled predecessor Checks; CodeQL follow-up
+#1206 stacked on #1198 at `d51638c11c5da1b30dd1867ecd019fd0dd28eb92f` with 5
+successful, 1 pending, and 6 skipped Checks; and #1026 at
+`3710efcd1664504fe0715719574319a66688a22c` with 20 successful, 3 neutral, 1
+failed, 7 pending, and 14 skipped Checks. The dependency failure and
+hosted-gate state are source/hosted-gate problems, not demonstrated
+control-plane deadlocks. All predecessor evidence remains non-transferable.
 
 ## Interpretation
 
