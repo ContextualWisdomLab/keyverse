@@ -66,6 +66,11 @@ exact-head formal approvals on every open Keyverse PR.
 | [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `50276ff22b41eb771dab62327b01551a9ea64350` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 18 success, 7 skipped, 1 in progress, 1 queued | Current local verification is complete; await independent approval and terminal hosted Checks. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Re-establish current-head review; no formal approval exists. |
 
+The #100 row records the source head observed immediately before this
+documentation snapshot. The documentation-only commit carrying this table
+creates a later #100 head, so its predecessor Checks and review evidence are
+deliberately not treated as current merge evidence.
+
 The organization ruleset `CWL Central required workflows` (`18156473`) is
 active and requires two approving reviews, latest-push approval, resolved
 threads, and required workflows. Its live `bypass_actors` list is empty. No
