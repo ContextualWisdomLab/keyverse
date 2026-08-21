@@ -92,7 +92,9 @@ evidence.
 ### Post-snapshot exact-head delta
 
 After the inventory snapshot, PR #115 advanced normally to
-`e7589593a4fca8e818736716525d0dca5e3b237f` to correct review-verified
+`e7ad4524712b18809d8c409371142071270b2ea0` to add the missing RFC 7591 and
+RFC 9068 APA references identified by the latest review, after correcting
+review-verified
 token-audience and RFC 8414 metadata wording, including a valid scope-array
 example. Its current rollup is 2
 successful, 14 queued, and 7 skipped Checks with no formal approval. PR #113
@@ -107,7 +109,7 @@ requires a fresh hosted recheck before any protected-merge claim.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
-| [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `e7589593a4fca8e818736716525d0dca5e3b237f` | review required | The token-audience, metadata-member, and scope-array findings are fixed; obtain independent ADR review and do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
+| [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `e7ad4524712b18809d8c409371142071270b2ea0` | review required | The token-audience, metadata-member, scope-array, and missing-reference findings are fixed; obtain independent ADR review and do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
 | [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` shared operation lock, stacked on #112 lockfile refresh | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `4a501a6ff9cb65a1e894e05513462fe89733d48e` | review required | The valid SCIM PatchOp and deterministic-race fixes plus the minimal doctoring cleanup are complete; wait for fresh exact-head hosted Checks and independent review. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 23 successful, 8 skipped, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 20 successful, 2 queued, 7 skipped, 0 terminal failures on updated head `032f730b0239d062cf9803525ba66c740e0b2d2e` | review required | The normal branch update merged #112's lockfile base into the CodeQL branch; resolve the queued Strix retry and remaining coverage Check, then obtain independent review. |
