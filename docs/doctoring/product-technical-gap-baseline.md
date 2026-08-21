@@ -173,6 +173,17 @@ placeholder credentials must not be committed to close it.
   fail-closed malformed targeted dispatch for `ContextualWisdomLab/TEPP`
   without a PR number; it is not treated as successful scheduler evidence or
   as permission to weaken target validation.
+- Central `.github` PR #1171 is open at exact head
+  `ff65c16063f7b687df09253d31d84dac6517c0ea` to refuse scheduler head
+  mutations when required checks cannot be started. Its current rollup has 5
+  successful, 16 queued, and 13 skipped Checks, with no qualifying formal
+  approval. The exact head passed the full local central suite and scheduler
+  100% statement/branch coverage; hosted queued evidence remains unverified.
+- Central `.github` PR #1188 is open at exact head
+  `7f9f9f0606ac5c88df3857eb5e5367d5bdbad420` to grant the DiskSage and
+  Clearfolio hourly reusable-workflow callers job-scoped OIDC permission. Its
+  current rollup has 4 successful, 16 queued, 15 skipped, and 1 cancelled
+  Check, with no qualifying formal approval or protected merge.
 - The scheduled central `.github` Organization Commercial Readiness Loop run
   `32437647976` failed before coordination because the configured
   `PR_REVIEW_MERGE_TOKEN` was unavailable. This is a fail-closed credential
