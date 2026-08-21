@@ -239,6 +239,14 @@ class ApplicationTokenService:
         _validate_token_id(application_token_id)
         with self._state_lock:
             existing = self._require_record(application_token_id)
+            if (
+                existing.lifecycle_status_code != ACTIVE_LIFECYCLE
+                or existing.expires_at <= self._clock()
+            ):
+                raise AuthorizationPolicyError(
+                    "application token is not active",
+                    status_code=409,
+                )
             if existing.software_unit_id != request.software_unit_id:
                 raise AuthorizationPolicyError(
                     "rotated token must stay bound to the same software unit"

@@ -19,6 +19,7 @@ from app.application_tokens import (
     get_application_token_service,
 )
 from app.audit import AuditLogger, InMemoryAuditSink
+from app.errors import AuthorizationPolicyError
 from app.kv_store import InMemoryKvStore
 from app.main import create_app
 
@@ -296,6 +297,35 @@ def test_rotate_replaces_token_and_rejects_software_unit_change(client) -> None:
         json={**ISSUE_BODY, "software_unit_id": "clearfolio-web"},
     )
     assert mismatch.status_code == 400
+
+
+@pytest.mark.parametrize("retirement", ["revoke", "rotate", "expire"])
+def test_rotate_rejects_a_retired_or_expired_predecessor(
+    token_service: ApplicationTokenService,
+    clock: _Clock,
+    retirement: str,
+) -> None:
+    """Rotation cannot revive a revoked, rotated, or expired credential."""
+    request = ApplicationTokenIssueRequest.model_validate(ISSUE_BODY)
+    issued = token_service.issue(request)
+
+    if retirement == "revoke":
+        token_service.revoke(issued.application_token_id, actor_identity_id="operator-ida")
+    elif retirement == "rotate":
+        token_service.rotate(issued.application_token_id, request)
+    else:
+        clock.now += request.lifetime_seconds
+
+    with pytest.raises(AuthorizationPolicyError, match="not active") as error:
+        token_service.rotate(issued.application_token_id, request)
+
+    assert error.value.status_code == 409
+    predecessor = token_service.get_token(issued.application_token_id)
+    assert predecessor.lifecycle_status_code == {
+        "revoke": "revoked",
+        "rotate": "rotated",
+        "expire": "active",
+    }[retirement]
 
 
 @pytest.mark.parametrize(

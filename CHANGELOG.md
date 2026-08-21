@@ -113,6 +113,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Application-token rotation now rejects revoked, already-rotated, and expired
+  predecessors instead of reviving retired credentials.
+
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
