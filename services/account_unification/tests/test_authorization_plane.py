@@ -211,6 +211,40 @@ def test_authorization_decisions_are_isolated_by_tenant(client) -> None:
     assert other_decision.json()["effect"] == "deny"
 
 
+def test_ambiguous_grant_reads_and_deletes_accept_explicit_tenant(client) -> None:
+    """Operators can manage same-named grants through an explicit tenant scope."""
+    for tenant, effect in (("default-deployment", "allow"), ("other-deployment", "deny")):
+        response = client.put(
+            "/authorization/software-unit-grants/shared-grant",
+            json={
+                **SOFTWARE_GRANT,
+                "grant_key": "shared-grant",
+                "tenant_deployment_id": tenant,
+                "effect_code": effect,
+            },
+        )
+        assert response.status_code == 200
+
+    assert client.get("/authorization/software-unit-grants/shared-grant").status_code == 409
+    scoped = client.get(
+        "/authorization/software-unit-grants/shared-grant"
+        "?tenant_deployment_id=other-deployment"
+    )
+    assert scoped.status_code == 200
+    assert scoped.json()["tenant_deployment_id"] == "other-deployment"
+
+    assert client.delete(
+        "/authorization/software-unit-grants/shared-grant"
+    ).status_code == 409
+    assert client.delete(
+        "/authorization/software-unit-grants/shared-grant"
+        "?tenant_deployment_id=other-deployment"
+    ).status_code == 204
+    remaining = client.get("/authorization/software-unit-grants/shared-grant")
+    assert remaining.status_code == 200
+    assert remaining.json()["tenant_deployment_id"] == "default-deployment"
+
+
 def test_authorization_plane_rejects_mismatches_duplicates_and_unknowns(client) -> None:
     """Path mismatches, duplicate identities, and missing keys fail closed."""
     mismatch = client.put(

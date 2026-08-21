@@ -25,9 +25,10 @@ shared operator bearer.
    menu-path specificity is evaluated before org-path specificity.
 5. Do not persist Orgmetra organization units into Keyverse.
 
-When the same combination name exists in more than one tenant, include
-`tenant_deployment_id` as the GET/DELETE query parameter; an ambiguous
-administration operation fails closed.
+When the same grant key or combination name exists in more than one tenant,
+include `tenant_deployment_id` as the GET/DELETE query parameter; an ambiguous
+administration operation fails closed. The query value is validated before the
+tenant-qualified KV record is selected.
 
 ## Start-login failures
 

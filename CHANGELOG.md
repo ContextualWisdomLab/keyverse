@@ -28,6 +28,9 @@ Keep a Changelog, and releases use semantic versioning.
   tenant boundaries.
 - Authorization decision metadata now marks strict menu-prefix inheritance
   correctly when the org path is an exact match.
+- Ambiguous same-named authorization grants can now be read or deleted through
+  an explicit tenant-scoped GET/DELETE query without weakening fail-closed
+  behavior.
 - Start-login issuer input is bound to configured Keyverse public issuer state.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and

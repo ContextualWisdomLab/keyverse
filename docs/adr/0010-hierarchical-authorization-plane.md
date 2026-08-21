@@ -59,7 +59,8 @@ enforce ABAC/RBAC at its own boundary.
 5. SSO combination scopes are named sets of software units. A combination is
    tenant-scoped and is allowed only when its tenant matches the snapshot and
    every member software unit is allowed for that snapshot. Ambiguous
-   same-name administration reads and deletes require an explicit tenant.
+   same-name administration reads and deletes require an explicit tenant;
+   grant and combination HTTP paths expose that tenant scope explicitly.
    The Keycloak session remains Keycloak-owned; this plane only authorizes
    which RP set may share it.
 6. Menu decisions apply software-unit ACL first, then ABAC constraints

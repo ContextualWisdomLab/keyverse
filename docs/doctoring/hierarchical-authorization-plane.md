@@ -49,6 +49,9 @@ clients in the portable realm.
 6. Menu-path specificity is evaluated before org-path specificity. This is a
    measured policy choice: a narrower menu restriction wins over a narrower
    org grant when both are candidates.
+7. Ambiguous same-name grant and combination administration is fail-closed
+   without a tenant, while GET/DELETE APIs accept an explicit validated
+   `tenant_deployment_id` for the intended record.
 
 ## Measured repository evidence
 
@@ -63,6 +66,9 @@ rejects an unauthenticated direct embedding and accepts only the configured
 operator bearer. The router now owns both the operator-authentication and
 privileged-path dependencies rather than relying only on the application
 factory's include-site wiring.
+The `test_ambiguous_grant_reads_and_deletes_accept_explicit_tenant` regression
+proves that same-named grants remain ambiguous without scope but can be read
+and deleted through the explicit tenant query parameter.
 
 The operator bearer is intentionally coarse operator-admin authority. The
 `actor_identity_id` field is grant and audit metadata selected by that operator;

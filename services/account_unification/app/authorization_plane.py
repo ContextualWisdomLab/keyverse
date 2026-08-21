@@ -96,13 +96,31 @@ class AuthorizationPlaneService:
             namespace=MENU_GRANT_NAMESPACE,
         )
 
-    def get_software_unit_grant(self, grant_key: str) -> AuthorizationGrant:
+    def get_software_unit_grant(
+        self,
+        grant_key: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> AuthorizationGrant:
         """Return one stored software-unit grant."""
-        return self._get_grant(SOFTWARE_UNIT_GRANT_NAMESPACE, grant_key)
+        return self._get_grant(
+            SOFTWARE_UNIT_GRANT_NAMESPACE,
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
 
-    def get_menu_grant(self, grant_key: str) -> AuthorizationGrant:
+    def get_menu_grant(
+        self,
+        grant_key: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> AuthorizationGrant:
         """Return one stored menu grant."""
-        return self._get_grant(MENU_GRANT_NAMESPACE, grant_key)
+        return self._get_grant(
+            MENU_GRANT_NAMESPACE,
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
 
     def list_software_unit_grants(self) -> list[AuthorizationGrant]:
         """Return every stored software-unit grant."""
@@ -112,13 +130,31 @@ class AuthorizationPlaneService:
         """Return every stored menu grant."""
         return self._list_grants(MENU_GRANT_NAMESPACE)
 
-    def delete_software_unit_grant(self, grant_key: str) -> None:
+    def delete_software_unit_grant(
+        self,
+        grant_key: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> None:
         """Remove one software-unit grant."""
-        self._delete_grant(SOFTWARE_UNIT_GRANT_NAMESPACE, grant_key)
+        self._delete_grant(
+            SOFTWARE_UNIT_GRANT_NAMESPACE,
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
 
-    def delete_menu_grant(self, grant_key: str) -> None:
+    def delete_menu_grant(
+        self,
+        grant_key: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> None:
         """Remove one menu grant."""
-        self._delete_grant(MENU_GRANT_NAMESPACE, grant_key)
+        self._delete_grant(
+            MENU_GRANT_NAMESPACE,
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
 
     def put_combination(
         self, combination_name: str, combination: SsoCombinationScope
@@ -302,10 +338,29 @@ class AuthorizationPlaneService:
             )
         return validated
 
-    def _get_grant(self, namespace: str, grant_key: str) -> AuthorizationGrant:
+    def _get_grant(
+        self,
+        namespace: str,
+        grant_key: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> AuthorizationGrant:
         """Return one stored grant or raise a 404 policy error."""
         validate_slug(grant_key, field_name="grant_key")
-        grants = [grant for grant in self._list_grants(namespace) if grant.grant_key == grant_key]
+        if tenant_deployment_id is not None:
+            validate_slug(
+                tenant_deployment_id,
+                field_name="tenant_deployment_id",
+            )
+        grants = [
+            grant
+            for grant in self._list_grants(namespace)
+            if grant.grant_key == grant_key
+            and (
+                tenant_deployment_id is None
+                or grant.tenant_deployment_id == tenant_deployment_id
+            )
+        ]
         if not grants:
             raise AuthorizationPolicyError(
                 "authorization grant is not registered",
@@ -325,10 +380,20 @@ class AuthorizationPlaneService:
         grants = [self._parse_grant(raw_value) for raw_value in raw_values]
         return sorted(grants, key=lambda item: item.grant_key)
 
-    def _delete_grant(self, namespace: str, grant_key: str) -> None:
+    def _delete_grant(
+        self,
+        namespace: str,
+        grant_key: str,
+        *,
+        tenant_deployment_id: str | None = None,
+    ) -> None:
         """Delete one grant after proving it exists."""
         validate_slug(grant_key, field_name="grant_key")
-        grant = self._get_grant(namespace, grant_key)
+        grant = self._get_grant(
+            namespace,
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
         with self._state_lock:
             self._store.delete(
                 namespace,
@@ -414,11 +479,15 @@ def list_software_unit_grants(
 )
 def get_software_unit_grant(
     grant_key: str,
+    tenant_deployment_id: str | None = Query(default=None),
     service: AuthorizationPlaneService = Depends(get_authorization_service),
 ) -> AuthorizationGrant:
     """Return one stored software-unit grant."""
     try:
-        return service.get_software_unit_grant(grant_key)
+        return service.get_software_unit_grant(
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
     except AuthorizationPolicyError as exc:
         _raise_policy_error(exc)
 
@@ -426,11 +495,15 @@ def get_software_unit_grant(
 @authorization_router.delete("/software-unit-grants/{grant_key}", status_code=204)
 def delete_software_unit_grant(
     grant_key: str,
+    tenant_deployment_id: str | None = Query(default=None),
     service: AuthorizationPlaneService = Depends(get_authorization_service),
 ) -> None:
     """Delete one software-unit grant."""
     try:
-        service.delete_software_unit_grant(grant_key)
+        service.delete_software_unit_grant(
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
     except AuthorizationPolicyError as exc:
         _raise_policy_error(exc)
 
@@ -477,11 +550,15 @@ def list_menu_grants(
 @authorization_router.get("/menu-grants/{grant_key}", response_model=AuthorizationGrant)
 def get_menu_grant(
     grant_key: str,
+    tenant_deployment_id: str | None = Query(default=None),
     service: AuthorizationPlaneService = Depends(get_authorization_service),
 ) -> AuthorizationGrant:
     """Return one stored menu grant."""
     try:
-        return service.get_menu_grant(grant_key)
+        return service.get_menu_grant(
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
     except AuthorizationPolicyError as exc:
         _raise_policy_error(exc)
 
@@ -489,11 +566,15 @@ def get_menu_grant(
 @authorization_router.delete("/menu-grants/{grant_key}", status_code=204)
 def delete_menu_grant(
     grant_key: str,
+    tenant_deployment_id: str | None = Query(default=None),
     service: AuthorizationPlaneService = Depends(get_authorization_service),
 ) -> None:
     """Delete one menu grant."""
     try:
-        service.delete_menu_grant(grant_key)
+        service.delete_menu_grant(
+            grant_key,
+            tenant_deployment_id=tenant_deployment_id,
+        )
     except AuthorizationPolicyError as exc:
         _raise_policy_error(exc)
 
