@@ -29,6 +29,17 @@ authorization-code/JWT acceptance.
    payload digest, apply receipt, versions, operator, controlled acceptance
    result, and rollback reference.
 
+## MCP authorization handoff
+
+This RP reconciliation runbook does not claim an MCP runtime implementation or
+protected-resource acceptance. When a downstream MCP client uses the separate
+ADR-0013 profile, its controlled acceptance must record the validated discovery
+issuer before redirect, compare every present callback `iss` with that issuer
+using exact string comparison, reject a required-but-missing or mismatched
+value before token exchange, and validate RFC 9068 `typ`, required claims,
+signature, and algorithm policy at the protected resource. A successful
+Keycloak client receipt or mapper read-back is not evidence of those checks.
+
 ## Naruon mapper contract
 
 The Naruon runtime artifact is a public `naruon-web` client with exactly four

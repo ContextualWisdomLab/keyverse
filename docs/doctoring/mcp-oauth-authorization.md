@@ -26,12 +26,15 @@ exist.
 ### Standards requirements
 
 - MCP clients discover the authorization server through protected-resource
-  metadata and support OAuth authorization-server metadata or OIDC discovery.
+  metadata and support OAuth authorization-server metadata or OIDC discovery
+  under the MCP Authorization 2026-07-28 contract.
 - Public clients use OAuth 2.1 security measures and PKCE.
 - Authorization requests and token requests carry one canonical RFC 8707
   resource indicator.
 - The protected resource publishes RFC 9728 metadata and advertises it through
   a bearer challenge when required.
+- RFC 9207 issuer validation binds a callback response to the authorization
+  server that was discovered for the request; a mismatch must stop the grant.
 
 ### Vendor behavior
 
@@ -110,6 +113,24 @@ has no usable access token. The resource must reject a token whose issuer,
 audience/resource, subject, expiry, scope, tenant, workspace, or revocation
 state does not match its own policy.
 
+For an RFC 9068 JWT access token, the resource must also require `typ` equal to
+`at+jwt` or `application/at+jwt`, required `iss`, `exp`, `aud`, `sub`,
+`client_id`, `iat`, and `jti` claims, a valid signature, and an explicitly
+allowlisted signing algorithm. `alg=none`, unsupported algorithms, invalid
+signatures, invalid `typ`, or missing `iat`/`jti` are rejected with
+`invalid_token` before resource authorization.
+
+## Target authorization-response issuer contract
+
+Before redirecting, the client records the `issuer` from validated discovery in
+the per-request state that also contains the PKCE verifier and `state`. For
+`authorization_response_iss_parameter_supported=true`, a missing `iss` is an
+error. If `iss` is present, including in an error response, the client decodes
+the form value and compares it with the recorded issuer using RFC 3986 simple
+string comparison. It must not normalize case, default ports, trailing slashes,
+or percent encoding. A mismatch rejects the response before token exchange and
+the client must not act on or display the response's error fields.
+
 ## Target authorization sequence
 
 ```text
@@ -171,6 +192,11 @@ and timestamps. No bearer material is logged or persisted.
 - resource metadata and 401 challenge agreement;
 - real browser-assisted passkey authorization-code/PKCE flow;
 - exact redirect, state, verifier, resource, and scope checks;
+- successful and error authorization responses with matching `iss`;
+- issuer mismatch, required-but-missing `iss`, and non-normalized string
+  comparison denial before token exchange;
+- RFC 9068 denial for invalid `typ`, missing `iat`/`jti`, invalid signatures,
+  unsupported algorithms, and `alg=none`;
 - wrong issuer/audience/resource/scope/redirect/PKCE/expiry/revocation denial;
 - cross-tenant and cross-workspace denial at the LineageWeave boundary;
 - disabled-user/session and key-rotation behavior;
@@ -197,15 +223,20 @@ metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0*
 (RFC 8707). https://doi.org/10.17487/RFC8707
 
-Internet Engineering Task Force. (2021). *JSON Web Token (JWT) profile for
-OAuth 2.0 access tokens* (RFC 9068). https://doi.org/10.17487/RFC9068
+Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens*
+(RFC 9068). Internet Engineering Task Force.
+https://doi.org/10.17487/RFC9068
+
+Meyer zu Selhausen, K., & Fett, D. (2022). *OAuth 2.0 authorization server
+issuer identification* (RFC 9207). Internet Engineering Task Force.
+https://doi.org/10.17487/RFC9207
 
 Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
 practice for OAuth 2.0 security* (BCP 240, RFC 9700). Internet Engineering Task
 Force. https://doi.org/10.17487/RFC9700
 
-Model Context Protocol. (2025, November 25). *Authorization*.
-https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
+Model Context Protocol. (2026, July 28). *Authorization*.
+https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
 
 OpenID Foundation. (2014). *OpenID Connect discovery 1.0 incorporating errata
 set 2*. https://openid.net/specs/openid-connect-discovery-1_0.html

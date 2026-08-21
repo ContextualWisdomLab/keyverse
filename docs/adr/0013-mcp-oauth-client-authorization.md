@@ -19,13 +19,15 @@ The account-unification service owns deterministic desired state and operator
 boundaries; it is not a second token issuer. The existing relying-party profile
 is intentionally secret-free, authorization-code based, and PKCE protected.
 
-The MCP authorization specification requires protected-resource metadata,
-authorization-server discovery, OAuth 2.1 security measures for clients, and a
-canonical `resource` parameter. RFC 9700 requires exact redirect handling and
-PKCE for public clients. RFC 8707 binds an authorization request to an
-absolute resource URI. RFC 9728 makes the protected resource the owner of its
-metadata. These protocol roles must remain separate from Keyverse's private
-operator API and from LineageWeave's resource authorization policy.
+The MCP Authorization specification (2026-07-28) requires protected-resource
+metadata, authorization-server discovery, OAuth 2.1 security measures for
+clients, and a canonical `resource` parameter. RFC 9700 requires exact
+redirect handling and PKCE for public clients. RFC 8707 binds an authorization
+request to an absolute resource URI. RFC 9207 defines an issuer parameter for
+authorization responses, including errors, to prevent mix-up attacks. RFC
+9728 makes the protected resource the owner of its metadata. These protocol
+roles must remain separate from Keyverse's private operator API and from
+LineageWeave's resource authorization policy.
 
 ## Decision
 
@@ -99,6 +101,24 @@ and mandatory `S256` PKCE:
   same client profile. A Keycloak audience-mapper client ID must never be
   reused as the MCP resource audience.
 
+Before redirecting the user-agent, the client records the `issuer` from the
+selected authorization server's validated metadata in the same per-request
+state as the PKCE verifier and `state`. When
+`authorization_response_iss_parameter_supported=true`, a missing authorization
+response `iss` is rejected before token exchange. Whenever `iss` is present,
+including in an error response, the client form-decodes it and compares it to
+the recorded issuer with RFC 3986 simple string comparison. It does not apply
+case folding, default-port elision, trailing-slash changes, or
+percent-encoding normalization. A mismatch rejects the response before the
+authorization code or error fields are used.
+
+The protected-resource token contract follows RFC 9068: the JWT `typ` header
+is exactly `at+jwt` or `application/at+jwt`; `iss`, `exp`, `aud`, `sub`,
+`client_id`, `iat`, and `jti` are required; the signature is verified against
+the issuer's keys; only an explicitly allowlisted signing algorithm is
+accepted; unsupported algorithms and `alg=none` are rejected. Any failed
+check produces `invalid_token` and no resource authorization decision.
+
 Keyverse reuses the existing closed secret-free relying-party lifecycle for
 pre-registration. The MCP client representation is a separately named,
 reviewed profile because resource-bound audience semantics are a new trust
@@ -171,7 +191,9 @@ The implementation PR must test and retain evidence for denial of:
 | unregistered redirect or redirect mismatch | deny |
 | missing, duplicated, or unregistered scope | deny |
 | missing/invalid PKCE or state | deny |
+| issuer mismatch, required-but-missing response `iss`, or issuer mismatch in an error response | deny before token exchange or error handling |
 | expired, revoked, disabled-user, or malformed token | deny |
+| invalid JWT `typ`, missing `iat`/`jti`, invalid signature, unsupported `alg`, or `alg=none` | deny with `invalid_token` |
 | token for another tenant/workspace/resource | deny |
 | password/direct-access/device flow before its own ADR | deny |
 | static MCP API key | unsupported and deny |
