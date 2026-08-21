@@ -1,20 +1,20 @@
-# SCIM deactivation lock boundary
+# SCIM deprovisioning lock boundary
 
-**Date:** 2026-08-20
+**Date:** 2026-08-21
 **Status:** Implementation evidence for the active PR; not protected-main or live Keycloak acceptance
 
 ## Scope
 
 This record documents the supported `PATCH /scim/v2/Users/{id}`
-`active=false` path joining the existing `UserOperationLocks` boundary used by
-account merge and SCIM full replacement. The change is deliberately limited to
-the existing mutation path; it adds no database schema, UI, mapper, tenant
-claim, or external provider behavior.
+`active=false` and `DELETE /scim/v2/Users/{id}` paths joining the existing
+`UserOperationLocks` boundary used by account merge and SCIM full replacement.
+The change is deliberately limited to the existing mutation paths; it adds no
+database schema, UI, mapper, tenant claim, or external provider behavior.
 
 ## Interpretation
 
-- **Standards requirement:** RFC 7644 defines SCIM protocol operations and the
-  PATCH operation used for resource updates.
+- **Standards requirement:** RFC 7644 defines SCIM protocol operations,
+  including PATCH and DELETE for User resources.
 - **HTTP behavior:** lock contention is represented as HTTP `503 Service
   Unavailable`, a retryable service-boundary result under the RFC 9110 status
   semantics; the response does not claim that the remote mutation started.
@@ -22,15 +22,15 @@ claim, or external provider behavior.
   `Content-Type: application/scim+json`, `schemas`, `detail`, and string
   `status` fields. The service does not emit `Retry-After`; callers own bounded
   backoff and must re-observe before retrying.
-- **Policy choice:** the request is linearized by the shared lock. If PATCH
-  deactivation acquires the lock first, a concurrent merge observes the
+- **Policy choice:** the request is linearized by the shared lock. If either
+  deprovisioning path acquires the lock first, a concurrent merge observes the
   disabled duplicate and fails rather than creating a contradictory tombstone.
-- **Implementation behavior:** the lock covers the existing read, deactivate,
-  and final read sequence. A lock timeout exits before that sequence and maps to
-  the root-level SCIM error shape. The deterministic regression covers the
-  PATCH-first ordering; the independent timeout test covers the pre-mutation
-  failure boundary. This record does not claim a separate merge-first race
-  schedule or live clustered deployment evidence.
+- **Implementation behavior:** the lock covers each existing read/deactivate
+  sequence. A lock timeout exits before that sequence and maps to the root-level
+  SCIM error shape. The deterministic regression covers the PATCH-first
+  ordering; independent timeout tests cover both deprovisioning paths. This
+  record does not claim a separate merge-first race schedule or live clustered
+  deployment evidence.
 
 ## Evidence
 
@@ -42,6 +42,9 @@ claim, or external provider behavior.
 - **HTTP regression:** `test_scim_patch_lock_timeout_is_root_scim_error`
   verifies the status, SCIM media type, and root-level error fields through
   `TestClient`.
+- **DELETE regression:** `test_scim_delete_translates_lock_timeout` verifies
+  DELETE exits before deactivation and returns the same retryable status at the
+  direct service boundary.
 - **Cross-process backend regression:**
   `test_sqlite_locks_serialize_across_processes` uses the production SQLite
   sidecar from an independent spawned process, proves contention becomes the

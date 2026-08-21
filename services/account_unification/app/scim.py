@@ -284,13 +284,22 @@ def patch_user(
 
 @scim_router.delete("/Users/{user_id}", status_code=204)
 def delete_user(
-    user_id: str, provisioner: AdminApi = Depends(get_provisioner)
+    user_id: str,
+    provisioner: AdminApi = Depends(get_provisioner),
+    user_operation_locks: UserOperationLocks = Depends(get_user_operation_locks),
 ) -> Response:
     """Soft-delete a user by disabling the Keycloak account."""
     try:
-        provisioner.get_user(user_id)
-    except KeyError as exc:
-        raise _scim_error(404, f"user '{user_id}' not found") from exc
-    # Soft-delete: SCIM DELETE deprovisions by disabling the Keycloak user.
-    provisioner.deactivate_user(user_id)
+        with user_operation_locks.hold(user_id):
+            try:
+                provisioner.get_user(user_id)
+            except KeyError as exc:
+                raise _scim_error(404, f"user '{user_id}' not found") from exc
+            # Soft-delete: SCIM DELETE deprovisions by disabling the Keycloak user.
+            provisioner.deactivate_user(user_id)
+    except UserOperationLockTimeout as exc:
+        raise _scim_error(
+            503,
+            f"user '{user_id}' is being modified; retry the request",
+        ) from exc
     return Response(status_code=204)
