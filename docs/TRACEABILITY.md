@@ -28,6 +28,7 @@
 | contextual-orchestrator Keyverse identity and tenant boundary | ADR-0008; deployment-owned OIDC validation plus downstream scope RBAC and org/workspace ABAC | PR #109 `32ba3a9` adds the injected verifier seam; stacked PR #110 `8607eba` requires `VerifiedIdentity`, rejects boolean-only authorization, binds workflow/evaluation/batch resources to secret-free tenant context, and denies cross-tenant or ownerless reads; main remains unchanged until both protected PRs merge | active-PR |
 | sidecar anonymous-access boundary | ADR-0008; private service-boundary and least-privilege policy | newsdom-api protected `develop` `3d0426b` (PR #595) fail-closed token gate, startup credential registry, explicit anonymous opt-in, review-fixed authenticated examples/healthcheck/401 contract, and pypdf Trivy remediation; Keyverse-aware gateway evidence remains required for exposure | implemented-main |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
+| product and technical gap baseline | PRD/TRD/ADR/operability and live exact-head evidence | [`docs/product-technical-gap-baseline.md`](product-technical-gap-baseline.md) plus [`docs/doctoring/product-technical-gap-baseline.md`](doctoring/product-technical-gap-baseline.md) | active-PR |
 
 ## Research, standards, and operations records
 

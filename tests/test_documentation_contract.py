@@ -17,6 +17,8 @@ REQUIRED_DOCUMENTS = (
     "docs/TEST_STRATEGY.md",
     "docs/OPERABILITY.md",
     "docs/TRACEABILITY.md",
+    "docs/product-technical-gap-baseline.md",
+    "docs/doctoring/product-technical-gap-baseline.md",
     "docs/adr/README.md",
     "README.md",
     "AGENTS.md",
