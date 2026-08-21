@@ -65,7 +65,7 @@ merge gate.
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Masked-secret finding fixed and current threads resolved; await independent approval. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `eb496baffd47f0b8703a397a8c8c53ecec78d277` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 queued, 2 pending, 7 skipped | Documentation head is current at observation time; hosted Checks are non-terminal and independent approval is absent. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `2fbe82a0a6b896ee66f8585f42727683c33685be` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 queued, 2 pending, 7 skipped | Documentation head is current at observation time; hosted Checks are non-terminal and independent approval is absent. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 
 The #100 row records the source head observed immediately before this
