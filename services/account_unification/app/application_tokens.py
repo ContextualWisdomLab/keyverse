@@ -224,13 +224,13 @@ class ApplicationTokenService:
             raise AuthorizationPolicyError(
                 "rotated token must stay bound to the same software unit"
             )
+        record, plaintext = self._mint(
+            request, replaced_token_id=application_token_id
+        )
         self.revoke(
             application_token_id,
             actor_identity_id=request.actor_identity_id,
             lifecycle_status_code=ROTATED_LIFECYCLE,
-        )
-        record, plaintext = self._mint(
-            request, replaced_token_id=application_token_id
         )
         self._write_record(record)
         self._audit_event(

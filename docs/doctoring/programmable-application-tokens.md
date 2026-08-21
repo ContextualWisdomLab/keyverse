@@ -28,13 +28,15 @@ both plaintext and hash.
 2. Lifetime bounded to 60 seconds–90 days.
 3. At least one API capability is required.
 4. Verification ignores org-tree grants; tokens never inherit.
-5. Rotation revokes the previous hash and issues a replacement.
+5. Rotation validates the replacement settings before revoking the previous
+   hash, then issues a replacement bound to the same software unit.
 
 ## Measured repository evidence
 
 `services/account_unification/tests/test_application_tokens.py` covers issue,
 verify, revoke, rotate, expiry, capability denial, software-unit mismatch,
-password-purpose rejection, and secret omission.
+password-purpose rejection, secret omission, and preservation of the active
+token after invalid rotation settings.
 
 ## Assumptions and limitations
 

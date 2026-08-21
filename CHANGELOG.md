@@ -136,6 +136,9 @@ Keep a Changelog, and releases use semantic versioning.
   state storage lock is held.
 - Prevented unknown federation configuration keys, credentials, and private
   values from being echoed through list, get, or update responses.
+- Application-token rotation now validates the replacement purpose,
+  capabilities, lifetime, and software-unit binding before revoking the
+  active token, so invalid rotation requests preserve the working credential.
 - Rejected Unicode-confusable federation aliases outside the explicit ASCII
   slug alphabet.
 - Rejected raw C0 controls, DEL, invalid ports, insecure HTTP SSO or metadata

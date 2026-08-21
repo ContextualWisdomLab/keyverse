@@ -224,6 +224,37 @@ def test_rotate_replaces_token_and_rejects_software_unit_change(client) -> None:
     assert mismatch.status_code == 400
 
 
+@pytest.mark.parametrize(
+    "invalid_update",
+    [
+        {"purpose_code": "password"},
+        {"capability_codes": []},
+        {"lifetime_seconds": 30},
+        {"lifetime_seconds": 91 * 24 * 60 * 60},
+    ],
+)
+def test_invalid_rotation_preserves_the_active_token(
+    client, invalid_update: dict[str, object]
+) -> None:
+    """Invalid replacement settings cannot destroy the active credential."""
+    issued = client.post("/application-tokens", json=ISSUE_BODY).json()
+
+    response = client.post(
+        f"/application-tokens/{issued['application_token_id']}:rotate",
+        json={**ISSUE_BODY, **invalid_update},
+    )
+    still_active = client.post(
+        "/application-tokens:verify",
+        json={
+            "presented_token": issued["plaintext_token"],
+            "software_unit_id": "naruon-web",
+        },
+    )
+
+    assert response.status_code == 400
+    assert still_active.json()["active"] is True
+
+
 def test_issue_rejects_password_purposes_and_bounds(client) -> None:
     """PATs cannot be password substitutes and stay purpose-bounded."""
     password = client.post(

@@ -33,9 +33,13 @@ shared operator bearer.
 ## PAT rotation
 
 1. POST `/application-tokens/{id}:rotate` with the same software unit.
-2. Place the new plaintext in the application secret manager.
-3. Confirm the old token verifies as `revoked_token`.
-4. Revoke unused tokens instead of extending them as login credentials.
+2. If validation returns HTTP 400, correct the replacement settings; the old
+   token remains active and must not be discarded.
+3. Place a successful response's new plaintext in the application secret
+   manager before retiring the old credential.
+4. Confirm the old token verifies as `revoked_token` and the new token verifies
+   as active.
+5. Revoke unused tokens instead of extending them as login credentials.
 
 ## Recovery
 

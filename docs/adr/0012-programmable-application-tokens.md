@@ -19,7 +19,9 @@ inherit down the org tree (ADR-0010).
    `operator_export`. Password, WebAuthn, browser-login, and authenticator
    purposes are rejected.
 3. Tokens are software-unit and API-capability scoped, time-bounded (60
-   seconds to 90 days), rotatable, revocable, and auditable.
+   seconds to 90 days), rotatable, revocable, and auditable. Rotation validates
+   the replacement before revoking the active token, so invalid replacement
+   settings do not destroy a working credential.
 4. The plaintext secret is returned only at issue or rotate time. List, get,
    verify, and revoke responses never include the secret or hash.
 5. Verification does not consult org-tree grants. Tokens never inherit.
