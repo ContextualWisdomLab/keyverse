@@ -232,11 +232,12 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
   queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
   and #83 each have 22 successful and 8 skipped Checks with no pending run.
-  #107 has 19 successful, 1 pending, and 8 skipped; #108 has 17 successful,
-  2 pending, and 8 skipped; and #113, #100, #103, #104, #105, #106, #109,
-  #110, and #111 each have 14 pending and 7 skipped Checks. No current open PR
-  has a qualifying formal approval or terminal failure. Pending Checks remain
-  unverified.
+  #107 has 20 successful, 1 pending, and 8 skipped; #108 has 20 successful,
+  1 pending, and 8 skipped. PRs #113 and #100 have 14 pending and 7 skipped;
+  #111 has 18 successful, 2 pending, and 7 skipped; and #103, #104, #105,
+  #106, #109, and #110 each have 19 successful, 1 pending, and 8 skipped
+  Checks. No current open PR has a qualifying formal approval or terminal
+  failure. Pending Checks remain unverified.
   PR #113's current SCIM lock head
   `aaafc2ca2f42bc171c1a0d0b538a99eb2f461233` includes the normal prerequisite
   lockfile history, a realistic SCIM PatchOp race, and the corrected valid
@@ -252,29 +253,33 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   Checks but still requires independent review. PR #111's current head
   `032f730b0239d062cf9803525ba66c740e0b2d2e` now contains #112's lockfile
   through a normal branch update. Its prior `account-unification-tests`
-  failure occurred before that update; the fresh run remains unverified. It
-  remains coupled to #112 and #110. PR #110's current head
+  failure occurred before that update; the fresh run remains unverified. Its
+  first Strix attempt also failed on contradictory model-generated Compose
+  evidence; a normal exact-head attempt 2 is queued. It remains coupled to
+  #112 and #110. PR #110's current head
   `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` remains on the #112 base with
-  14 pending and 7 skipped Checks; its hosted reruns remain unverified.
+  19 successful, 1 pending, and 8 skipped Checks; its hosted reruns remain
+  unverified.
   The historical PR #105 exact head
   `72de5499d6e97ae7f7bd804ab78b3e1644dd5a4f` had a failed
   `account-unification-tests` Check: `uv 0.12.5` reproduced
   `uv sync --locked` refusing the stale `coverage==7.15.2` and
   `setuptools==83.0.0` lock entries while the current `pyproject.toml` required
   `7.15.4` and `84.0.0`; the current #105 head
-  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has 14
-  pending and 7 skipped Checks with no terminal failure. The
+  `77f83dfb2c4611345c0d48f92fceaa6195b4630c` is stacked on #112 and has 19
+  successful, 1 pending, and 8 skipped Checks with no terminal failure. The
   current #106 head `e7fafd4192cc3cc344b8f8e536bc0495afaa739f` likewise has
-  14 pending and 7 skipped Checks. PR #109's head
-  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has 14 pending and 7 skipped
+  19 successful, 1 pending, and 8 skipped Checks. PR #109's head
+  `7b726b16d38ce16d13d00c946b5c8bc0c406191f` has 19 successful, 1 pending,
+  and 8 skipped
   Checks; local
   locked-install, full pytest, Ruff, Interrogate, and compileall verification
   passed before its normal merge commit was pushed.
   PR #107 was rebased cleanly onto #112 at
   `53842560d397aa20309a6b16aceb560540611686`, and PR #108 was rebased cleanly
   onto #112 at `538cead991a7c1bed32f2dcb5413b5fc56f53e93`; the latest rollups
-  are 19 successful, 1 pending, and 8 skipped for #107 and 17 successful,
-  2 pending, and 8 skipped for #108, with no terminal failure. Local
+  are 20 successful, 1 pending, and 8 skipped for #107 and 20 successful,
+  1 pending, and 8 skipped for #108, with no terminal failure. Local
   `uv sync --locked --extra dev` plus the full service pytest suite passed on
   both rebased trees. Their fresh hosted Checks remain unverified and #112
   remains the lock-refresh prerequisite.
@@ -289,11 +294,11 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   still pending or queued, so hosted security and independent approval success
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's
-  pre-refresh documentation head is
-  `6e0c92f7512ab8b1eded34e2e6ae9a0476896aba`, with 14 pending and 7 skipped
+  observed documentation head is
+  `3b35084632052330bf150ebb8d1f0e9625d73584`, with 14 pending and 7 skipped
   Checks; its prior review state is not approval. PR #104's updated
   head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
-  head and has 14 pending and 7 skipped Checks. The resulting #100 head
+  head and has 19 successful, 1 pending, and 8 skipped Checks. The resulting #100 head
   from this documentation refresh must be re-audited after the commit; its
   pre-refresh review state is not approval.
   This record travels in these PRs, so the live PR records remain authoritative
