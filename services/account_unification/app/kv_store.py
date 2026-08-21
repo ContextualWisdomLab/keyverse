@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from collections.abc import Mapping
 from typing import Protocol
 
 
@@ -16,6 +17,10 @@ class KvStore(Protocol):
 
     def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
         """Store one value in one namespace."""
+        ...
+
+    def put_many(self, namespace: str, entries: Mapping[str, str]) -> None:
+        """Store multiple values in one namespace atomically."""
         ...
 
     def get(self, namespace: str, entry_key: str) -> str | None:
@@ -50,6 +55,11 @@ class InMemoryKvStore:
         """Store one value in one namespace."""
         with self._lock:
             self._data.setdefault(namespace, {})[entry_key] = entry_value
+
+    def put_many(self, namespace: str, entries: Mapping[str, str]) -> None:
+        """Store multiple values in one namespace under one lock."""
+        with self._lock:
+            self._data.setdefault(namespace, {}).update(entries)
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one value from one namespace, if present."""
@@ -107,6 +117,18 @@ class SqliteKvStore:
                 "ON CONFLICT(config_namespace, entry_key) "
                 "DO UPDATE SET entry_value = excluded.entry_value",
                 (namespace, entry_key, entry_value),
+            )
+
+    def put_many(self, namespace: str, entries: Mapping[str, str]) -> None:
+        """Upsert multiple config values in one SQLite transaction."""
+        with self._lock, self._connection:
+            self._connection.executemany(
+                "INSERT INTO idp_config_entries "
+                "(config_namespace, entry_key, entry_value) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(config_namespace, entry_key) "
+                "DO UPDATE SET entry_value = excluded.entry_value",
+                ((namespace, entry_key, entry_value) for entry_key, entry_value in entries.items()),
             )
 
     def get(self, namespace: str, entry_key: str) -> str | None:

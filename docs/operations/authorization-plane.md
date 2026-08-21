@@ -47,7 +47,9 @@ tenant-qualified KV record is selected.
 3. Place a successful response's new plaintext in the application secret
    manager before retiring the old credential.
 4. Confirm the old token verifies as `revoked_token` and the new token verifies
-   as active.
+   as active. Rotation persists both records through one KV-store transaction;
+   if audit persistence fails, the service compensates both records and the old
+   token remains active.
 5. Revoke unused tokens instead of extending them as login credentials.
    Include the same explicit tenant in rotate and verify requests; an expired
    predecessor is not rotatable.

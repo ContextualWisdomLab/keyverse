@@ -86,6 +86,9 @@ Keep a Changelog, and releases use semantic versioning.
 - Start-login now uses a configured Keycloak public issuer and is exposed as a
   front-channel runtime helper, while PAT management remains operator-gated
   and PAT verification remains token-gated.
+- Application-token rotation now persists the replacement and rotated
+  predecessor through one atomic KV-store batch before recording the audit
+  event, preserving a consistent pair across SQLite transaction boundaries.
 
 - The hierarchical authorization router now carries its operator-authentication
   and privileged-path dependencies at the module boundary, so direct CWL/Naruon

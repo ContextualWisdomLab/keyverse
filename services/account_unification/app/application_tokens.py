@@ -274,8 +274,13 @@ class ApplicationTokenService:
                 request, replaced_token_id=application_token_id
             )
             try:
-                self._write_record(record)
-                self._write_record(updated)
+                self._store.put_many(
+                    APPLICATION_TOKEN_NAMESPACE,
+                    {
+                        record.application_token_id: record.model_dump_json(),
+                        updated.application_token_id: updated.model_dump_json(),
+                    },
+                )
                 self._audit_event(
                     "application_token_rotated",
                     request.actor_identity_id,

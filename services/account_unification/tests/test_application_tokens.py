@@ -39,6 +39,27 @@ class _FailingStore(InMemoryKvStore):
             raise RuntimeError("injected token storage failure")
         super().put(namespace, entry_key, entry_value)
 
+    def put_many(self, namespace: str, entries: dict[str, str]) -> None:
+        """Raise once at the configured atomic write and otherwise persist normally."""
+        self._put_count += 1
+        if self._put_count == self._fail_on_put:
+            raise RuntimeError("injected token storage failure")
+        super().put_many(namespace, entries)
+
+
+class _AtomicTrackingStore(InMemoryKvStore):
+    """Record whether a multi-record write uses one store operation."""
+
+    def __init__(self) -> None:
+        """Create an empty store with an atomic-write counter."""
+        super().__init__()
+        self.put_many_calls = 0
+
+    def put_many(self, namespace: str, entries: dict[str, str]) -> None:
+        """Count and perform one atomic multi-record write."""
+        self.put_many_calls += 1
+        super().put_many(namespace, entries)
+
 
 class _FailingAuditSink(InMemoryAuditSink):
     """Inject an audit persistence failure."""
@@ -455,6 +476,24 @@ def test_rotate_storage_failure_preserves_the_active_predecessor() -> None:
         )
     )
     assert verified.active is True
+
+
+def test_rotate_uses_one_atomic_store_write_for_both_records() -> None:
+    """Rotation persists the replacement and predecessor in one store operation."""
+    store = _AtomicTrackingStore()
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(InMemoryAuditSink()),
+        clock=_Clock(),
+    )
+    issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+
+    service.rotate(
+        issued.application_token_id,
+        ApplicationTokenIssueRequest.model_validate(ISSUE_BODY),
+    )
+
+    assert store.put_many_calls == 1
 
 
 def test_rotate_audit_failure_restores_the_active_predecessor() -> None:

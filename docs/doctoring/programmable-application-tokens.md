@@ -30,8 +30,10 @@ both plaintext and hash.
 4. Verification ignores org-tree grants; tokens never inherit.
 5. Rotation accepts only an active, unexpired predecessor, validates the
    replacement settings before revoking its hash, and issues a replacement
-   bound to the same software unit. Revoked, rotated, and expired predecessors
-   fail closed with a conflict response.
+   bound to the same software unit. The replacement and rotated predecessor
+   are persisted through one atomic KV-store batch; an audit failure still
+   compensates the batch. Revoked, rotated, and expired predecessors fail
+   closed with a conflict response.
 
 ## Measured repository evidence
 
@@ -39,7 +41,8 @@ both plaintext and hash.
 verify, revoke, rotate, expiry, capability denial, software-unit mismatch,
 password-purpose rejection, secret omission, preservation of the active token
 after invalid rotation settings, and compensation after injected KV or audit
-failure. Management and runtime router authentication are tested separately.
+failure, including one atomic store write for rotation. Management and runtime
+router authentication are tested separately.
 Tenant mismatch, direct router embedding, and retired-predecessor rejection are
 also covered.
 
