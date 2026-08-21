@@ -98,9 +98,10 @@ review-verified
 token-audience and RFC 8414 metadata wording, including a valid scope-array
 example. Its current rollup is 2
 successful, 14 queued, and 7 skipped Checks with no formal approval. PR #113
-advanced normally to `53c314869344509d8d8be4789eab87881af67ff9` to serialize
-SCIM DELETE deactivation under the shared user-operation lock; its current
-rollup is 2 successful, 14 queued, and 7 skipped Checks with no formal
+advanced normally to `9bd33ee0d00ef1874fd5efabac3462f678a256ed` to retain
+direct coverage for the supported SCIM PATCH value-object form after
+serializing SCIM DELETE deactivation under the shared user-operation lock; its
+current rollup is 2 successful, 14 queued, and 7 skipped Checks with no formal
 approval. PR #100 advanced normally to
 `a8cbafee0f5b47b67f3ae861627862e3a1b29d3f` to clarify the fail-closed
 two-artifact validator CLI contract and preserve realm diagnostics when the
@@ -112,7 +113,7 @@ requires a fresh hosted recheck before any protected-merge claim.
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
 | [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `e7ad4524712b18809d8c409371142071270b2ea0` | review required | The token-audience, metadata-member, scope-array, and missing-reference findings are fixed; obtain independent ADR review and do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` and `DELETE` shared operation lock, stacked on #112 lockfile refresh | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `53c314869344509d8d8be4789eab87881af67ff9` | review required | The valid SCIM PatchOp, deterministic-race, DELETE-lock, and documentation fixes are complete; wait for fresh exact-head hosted Checks and independent review. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | SCIM `PATCH active=false` and `DELETE` shared operation lock, stacked on #112 lockfile refresh | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | review required | The valid SCIM PatchOp, deterministic-race, DELETE-lock, value-object coverage, and documentation fixes are complete; wait for fresh exact-head hosted Checks and independent review. |
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | Resync account-unification lockfile | PASS: 23 successful, 8 skipped, 0 queued on `f02acf93367a40dbfb23a73985017dca8d42ff39` | review required | Obtain independent review, then let protected automation re-check and merge. |
 | [#111](https://github.com/ContextualWisdomLab/keyverse/pull/111) | CodeQL init 4.37.7 | PENDING: 20 successful, 2 queued, 7 skipped, 0 terminal failures on updated head `032f730b0239d062cf9803525ba66c740e0b2d2e` | review required | The normal branch update merged #112's lockfile base into the CodeQL branch; resolve the queued Strix retry and remaining coverage Check, then obtain independent review. |
 | [#110](https://github.com/ContextualWisdomLab/keyverse/pull/110) | CodeQL analyze 4.37.7, stacked on #112 lockfile refresh | PENDING: 20 successful, 1 queued, 8 skipped, 0 terminal failures on updated head `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` | review required | The normal branch update includes #112's lock-refresh base; wait for exact-head Checks and independent review. |
