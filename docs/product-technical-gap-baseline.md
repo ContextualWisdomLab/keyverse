@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T02:18:13+09:00
+## Live queue refresh — 2026-08-22T02:27:49+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -62,10 +62,10 @@ merge gate.
 | PR | Exact head | Base | Checks | Safe disposition |
 |---:|---|---|---|---|
 | [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Await independent approval; no merge claim. |
-| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 1 success, 15 pending, 7 skipped | Masked-secret finding fixed and current threads resolved; await terminal Checks and independent approval. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 2 success, 14 pending, 7 skipped | Masked-secret finding fixed and current threads resolved; await terminal Checks and independent approval. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Await independent approval; no merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Await independent approval; no merge claim. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `2fd5a77cf3765f933debd244f457e13241726929` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 21 success, 2 pending, 7 skipped | Local verification is complete at this pre-refresh head; await terminal hosted Checks and independent approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `98c33052dcf941a996e44d75c824cbb635702f01` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 2 success, 14 pending, 7 skipped | Baseline refresh pushed at this head; await terminal hosted Checks and independent approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Await independent approval; no merge claim. |
 
 The #100 row records the source head observed immediately before this
@@ -74,10 +74,10 @@ creates a later #100 head, so its predecessor Checks and review evidence are
 deliberately not treated as current merge evidence.
 
 The current central control-plane queue is also not merge-ready: `.github`
-#1198 is at `838bff80bab6045478efd13487e2d5d49f0cd8a7` with 2 successful, 18
-pending, and 13 skipped Checks; #1203 is at
-`94c09152a843db1a0d3a3463900ef4d30467f085` with 31 successful, 2 failed, and
-20 skipped Checks and a conflicting/dirty merge state; #1026 is at
+#1198 is at `48b331bd9d704ea11fb37d17c0a2cc510a7a5286` with 4 successful, 16
+pending, 15 skipped, and one cancelled predecessor run; #1203 is at
+`aa88ee75b4c382cb60a1473def287a72759a5e93` with 4 successful, 18 pending,
+and 13 skipped Checks; #1026 is at
 `71c0cc890bd06a0ff97aa10267cb075b02c62f9e` with 28 successful, 1 failed, 2
 pending, and 17 skipped Checks and is behind its base. These are normal
 source/hosted-gate or restack problems, not D1–D5 emergency deadlocks.

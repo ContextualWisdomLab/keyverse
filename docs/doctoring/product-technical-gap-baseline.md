@@ -18,21 +18,22 @@ The protected Keyverse `main` head remains
 masked-secret disposition. No PR has a formal approval satisfying the
 protected merge gate.
 
-Current Keyverse Checks are: #83 23 successful/8 skipped; #100 21
-successful/2 pending/7 skipped; #101 23 successful/8 skipped; #103 24
-successful/8 skipped; #112 1 successful/15 pending/7 skipped; and #113 24
+Current Keyverse Checks are: #83 23 successful/8 skipped; #100 2
+successful/14 pending/7 skipped; #101 23 successful/8 skipped; #103 24
+successful/8 skipped; #112 2 successful/14 pending/7 skipped; and #113 24
 successful/8 skipped. The #112 code fix for Keycloak's fixed masked
 `clientSecret` read-back is locally verified at 100% production statement and
 branch coverage, but hosted terminal Checks and independent approval remain
 pending. No emergency bypass is justified.
 
 Current control-plane evidence is `.github` #1198 at
-`838bff80bab6045478efd13487e2d5d49f0cd8a7` with 2 successful, 18 pending, and
-13 skipped Checks; #1203 at `94c09152a843db1a0d3a3463900ef4d30467f085` with 31
-successful, 2 failed, and 20 skipped Checks in a conflicting/dirty state; and
+`48b331bd9d704ea11fb37d17c0a2cc510a7a5286` with 4 successful, 16 pending, 15
+skipped, and one cancelled predecessor run; #1203 at
+`aa88ee75b4c382cb60a1473def287a72759a5e93` with 4 successful, 18 pending, and
+13 skipped Checks; and
 #1026 at `71c0cc890bd06a0ff97aa10267cb075b02c62f9e` with 28 successful, 1
-failed, 2 pending, and 17 skipped Checks while behind. The failures and
-conflict are source/hosted-gate or restack problems, not demonstrated
+failed, 2 pending, and 17 skipped Checks while behind. The dependency failure
+and restack state are source/hosted-gate problems, not demonstrated
 control-plane deadlocks. All predecessor evidence remains non-transferable.
 
 ## Interpretation
