@@ -1,6 +1,6 @@
 # Keyverse product and technical gap baseline
 
-**Evidence snapshot:** 2026-08-21 (Asia/Seoul)
+**Evidence snapshot:** 2026-08-22 (Asia/Seoul)
 **Repository:** `ContextualWisdomLab/keyverse`
 **Protected-main head observed:** `ce207dfd42975db61c82a5963e206fc1db14ac2b`
 **Status:** live inventory and gap register; not a release acceptance record
@@ -47,6 +47,40 @@ tenant, or resource ownership.
 | `active-issue` | A buyer or operational gap is tracked in an open issue and is not implemented evidence. |
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
+
+## Live queue refresh — 2026-08-22
+
+This section supersedes the older queue snapshots below for current-state
+decisions. The protected `main` head is
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. Counts are exact-head GitHub REST
+check-runs; pending, queued, and failed results are never promoted to green.
+The current GraphQL review audit found zero valid unresolved threads and zero
+exact-head formal approvals on every open Keyverse PR.
+
+| PR | Exact head | Base | Checks | Safe disposition |
+|---:|---|---|---|---|
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `31dd486cb97ca215da451151f618a954a07b0ea5` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 18 success, 8 skipped, 1 queued, 1 failure | Re-run after central `.github` #1153; the failure was Caido bootstrap infrastructure with zero reported vulnerabilities. |
+| [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | `fdf62541a0732adbee5faf0da1c4773d2f9bc37f` | `31dd486cb97ca215da451151f618a954a07b0ea5` | 5 success | Stacked on #112; await the root and independent approval. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 21 success, 8 skipped, 1 queued | Await the remaining exact-head Check and independent approval. |
+| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Re-establish current-head review; no formal approval exists. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `ede8075f82bb082b7d992b824992bf44792f744e` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 20 success, 8 skipped, 1 queued | This refresh creates a new head; reacquire all Checks and review evidence. |
+| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Re-establish current-head review; no formal approval exists. |
+
+The organization ruleset `CWL Central required workflows` (`18156473`) is
+active and requires two approving reviews, latest-push approval, resolved
+threads, and required workflows. Its live `bypass_actors` list is empty. No
+Keyverse PR therefore qualifies for an emergency bypass or a protected merge
+until the normal review and hosted gates are satisfied.
+
+The relevant central control-plane PRs are also not merge-ready: `.github`
+#1153 (`ebda81f832261489289447778b0e0e7726f9741e`), #1203
+(`94c09152a843db1a0d3a3463900ef4d30467f085`), #1158
+(`6ea77b1c59265e6f708d71128fa726cf447d427b`), #1198
+(`d2490ad594bd2ab8cccd5ff9e0b6f2a3fa8e23d4`), and #1189
+(`5838e0ae10d5cfbd7d7d6766cb0197fad9ffd641`) have no exact-head formal
+approval and retain queued or pending hosted Checks. Their local verification
+does not substitute for protected hosted evidence.
 
 ## Current capability map
 

@@ -1,7 +1,28 @@
 # Product-technical gap baseline doctoring record
 
-**Date:** 2026-08-21
+**Date:** 2026-08-22
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
+
+## 2026-08-22 live PR and control-plane refresh
+
+The protected Keyverse `main` head remains
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue contains
+#113, #112, #104, #103, #101, #100, and #83. Exact-head review audit found no
+valid unresolved thread and no formal approval on any of them. #112 has one
+terminal Strix failure and one queued Check; its exact run recorded zero
+vulnerabilities before the Strix-owned Caido bootstrap endpoint at
+`127.0.0.1:48080` failed after retries. This is infrastructure evidence, not
+permission to weaken the security gate or merge the lockfile PR.
+
+The current control-plane dependency is `.github` PR #1153 at
+`ebda81f832261489289447778b0e0e7726f9741e`, which adds the bounded
+provider/incomplete-scan classification and remains protected by queued hosted
+Checks and missing formal review. Scheduler PR #1203 is at
+`94c09152a843db1a0d3a3463900ef4d30467f085`; its earlier queue observation has
+shown progress and is not currently a persistent D2 deadlock. OSV #1158,
+security/cadence #1198, and docstring #1189 are likewise waiting on hosted
+Checks and independent review. All observations are current-head evidence;
+predecessor results remain non-transferable.
 
 ## Interpretation
 
