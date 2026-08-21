@@ -9,7 +9,7 @@ The protected Keyverse `main` head remains
 `ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue is #83, #100,
 #101, #103, #112, and #113. Their current exact heads are respectively
 `dd1ab7444a75342b42e3af013ccda6d1dbfb359d`,
-`f4f85e953805146c20455a9934ccec8aa52d8eb4`,
+`19ebd86500d17f3aebcfec6e65965c0a79fab6c0`,
 `50dd9c96cab5c230f775685e8baea939fba390dd`,
 `77b8f4ea9995329f1c55b916d110b460b4bc7649`,
 `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd`, and
@@ -18,8 +18,8 @@ The protected Keyverse `main` head remains
 masked-secret disposition. No PR has a formal approval satisfying the
 protected merge gate.
 
-Current Keyverse Checks are: #83 22 successful/8 skipped; #100 14 queued/2
-pending/7 skipped; #101 22 successful/8 skipped;
+Current Keyverse Checks are: #83 22 successful/8 skipped; #100 22
+successful/8 skipped; #101 22 successful/8 skipped;
 #103 22 successful/8 skipped; #112 22 successful/8 skipped; and #113 22
 successful/8 skipped. The #112 code fix for Keycloak's fixed masked
 `clientSecret` read-back is locally verified at 100% production statement and
@@ -29,22 +29,25 @@ approval remains absent. No emergency bypass is justified.
 Current control-plane evidence is protected `.github` main
 `0156282022134484ea9d7541d5ba0730ba14fd96`. The OSV cross-fork
 result-isolation root #1209 is at
-`225c415179180606f9a935304f61b09dc3e5c084` with 19 successful, 24 skipped,
-5 cancelled, 1 in-progress, and 7 queued Checks. The hourly OIDC caller repair
-#1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 23 successful, 18
-skipped, 1 cancelled, 1 queued, 3 neutral, and 2 pending
-Checks. The combined security and scheduler root #1198 is at
-`dbb3c8a131d708754d2879ec6475d8c45a4ff140` with 5 successful, 19 skipped,
-3 cancelled, 16 queued, and 2 pending Checks; replay-guard repair #1166 is at
-`e6c03f618d54497b98eaf96afa21724b19847bd2` with 17 successful, 26 skipped,
-6 cancelled, 3 neutral, 1 in-progress, and 6 queued Checks; scheduler repair
-#1203 was normally merged into the
-#1198 feature branch at `4d3d24aa404959f5067735fec0558d5924ade590`; review
-repair #1002 was then normally merged into that feature branch at
+`d3a3f4e6211a56d503b783d8784d1d79a262ca68` with 28 successful, 21 skipped,
+1 cancelled, 3 neutral, and 2 queued Checks. The hourly OIDC caller repair
+#1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 28 successful, 18
+skipped, 1 cancelled, 3 neutral, and 1 queued Check. The combined security
+and scheduler root #1198 is at
+`801c2f1bc43e99d89ab3745ea8722779f7081b95` with 3 successful, 15 skipped,
+1 cancelled, 2 in-progress, and 16 queued Checks after its exact
+merge-preview repair; replay-guard repair #1166 is at
+`e6c03f618d54497b98eaf96afa21724b19847bd2` with 26 successful, 29 skipped,
+6 cancelled, 3 neutral, and 1 queued Check. Scheduler repair #1203 was
+normally merged into the #1198 feature branch at
+`4d3d24aa404959f5067735fec0558d5924ade590`; review repair #1002 was then
+normally merged into that same feature branch at
 `3016543f735bb24db760cfaa768e64f95f408473`; OSV repair #1208 is closed
-without merge; and #1026 is at
-`1be76989887ab772e3ce0d2e0c7f22d3ca98dd94` with 21 successful, 19 skipped,
-2 cancelled, 1 in-progress, and 4 queued Checks. The dependency failure and
+without merge; #1172 is normally restacked at
+`edab578feca63c223368aef17c175bb52ce22e5a` with 26 successful, 20 skipped,
+2 cancelled, 3 neutral, and 1 queued Check; and #1026 is at
+`1be76989887ab772e3ce0d2e0c7f22d3ca98dd94` with 28 successful, 22 skipped,
+2 cancelled, 3 neutral, and 1 queued Check. The dependency failure and
 hosted-gate state are source/hosted-gate problems, not demonstrated
 control-plane deadlocks. All predecessor evidence remains non-transferable.
 

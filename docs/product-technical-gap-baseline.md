@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T05:42:27+09:00
+## Live queue refresh — 2026-08-22T06:15:13+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -65,7 +65,7 @@ merge gate.
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Masked-secret finding fixed and current threads resolved; await independent approval. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `f4f85e953805146c20455a9934ccec8aa52d8eb4` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 queued, 2 pending, 7 skipped | Documentation head is current at observation time; hosted Checks are non-terminal and independent approval is absent. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `19ebd86500d17f3aebcfec6e65965c0a79fab6c0` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Documentation head is current at observation time; hosted Checks are terminal-success and independent approval is absent. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 
 The #100 row records the source head observed immediately before this
@@ -76,25 +76,29 @@ deliberately not treated as current merge evidence.
 The current central control-plane queue is also not merge-ready: protected
 `.github` main is `0156282022134484ea9d7541d5ba0730ba14fd96`. The OSV
 cross-fork result-isolation root #1209 is at
-`225c415179180606f9a935304f61b09dc3e5c084` with 19 successful, 24 skipped,
-5 cancelled, 1 in-progress, and 7 queued Checks. The hourly OIDC caller repair
-#1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 23 successful, 18
-skipped, 1 cancelled, 1 queued, 3 neutral, and 2 pending
-Checks. The combined security and scheduler root #1198 is at
-`dbb3c8a131d708754d2879ec6475d8c45a4ff140` with 5 successful, 19 skipped,
-3 cancelled, 16 queued, and 2 pending Checks; replay-guard repair #1166 is at
-`e6c03f618d54497b98eaf96afa21724b19847bd2` with 17 successful, 26 skipped,
-6 cancelled, 3 neutral, 1 in-progress, and 6 queued Checks; scheduler repair
-#1203 was normally merged into the
-#1198 feature branch at `4d3d24aa404959f5067735fec0558d5924ade590` from child
-head `c627d4ae7a26222ed3d2ee1ded19e270930aa1f2`; review repair #1002 was then
-normally merged into that same feature branch at `3016543f735bb24db760cfaa768e64f95f408473`;
-OSV repair #1208 is closed without merge; and #1026 is at
-`1be76989887ab772e3ce0d2e0c7f22d3ca98dd94` with 21 successful, 19 skipped,
-2 cancelled, 1 in-progress, and 4 queued Checks. These are normal
-source/hosted-gate or dependency-order problems, not D1–D5 emergency
-deadlocks. The central heads can move again through normal scheduler restacks;
-all listed evidence is observation-time only.
+`d3a3f4e6211a56d503b783d8784d1d79a262ca68` with 28 successful, 21 skipped,
+1 cancelled, 3 neutral, and 2 queued Checks. The hourly OIDC caller repair
+#1188 is at `2c05f05f5fbb923099e0e228d616ab9974dbd327` with 28 successful, 18
+skipped, 1 cancelled, 3 neutral, and 1 queued Check. The combined security
+and scheduler root #1198 is at
+`801c2f1bc43e99d89ab3745ea8722779f7081b95` with 3 successful, 15 skipped,
+1 cancelled, 2 in-progress, and 16 queued Checks after its exact merge-preview
+repair; replay-guard repair #1166 is at
+`e6c03f618d54497b98eaf96afa21724b19847bd2` with 26 successful, 29 skipped,
+6 cancelled, 3 neutral, and 1 queued Check. Scheduler repair #1203 was
+normally merged into the #1198 feature branch at
+`4d3d24aa404959f5067735fec0558d5924ade590` from child head
+`c627d4ae7a26222ed3d2ee1ded19e270930aa1f2`; review repair #1002 was then
+normally merged into that same feature branch at
+`3016543f735bb24db760cfaa768e64f95f408473`; OSV repair #1208 is closed
+without merge; #1172 is normally restacked at
+`edab578feca63c223368aef17c175bb52ce22e5a` with 26 successful, 20 skipped,
+2 cancelled, 3 neutral, and 1 queued Check; and #1026 is at
+`1be76989887ab772e3ce0d2e0c7f22d3ca98dd94` with 28 successful, 22 skipped,
+2 cancelled, 3 neutral, and 1 queued Check. These are normal source/hosted-
+gate or dependency-order problems, not D1–D5 emergency deadlocks. The
+central heads can move again through normal scheduler restacks; all listed
+evidence is observation-time only.
 
 All queue statements below this section are historical snapshots. They do not
 override the exact-head evidence above.
