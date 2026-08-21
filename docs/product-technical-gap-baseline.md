@@ -158,6 +158,33 @@ independent protected review remain required.
 This baseline commit creates a later documentation-only #100 head, so hosted
 evidence must be refreshed against that later exact head.
 
+### Live queue refresh — 2026-08-21T10:54:08Z
+
+Immediately before this documentation refresh, the exact Keyverse queue was
+rechecked from the GitHub REST API. Every current open PR had zero terminal
+failed check-runs:
+
+- #100 `40923074b1d7a395aa3d83c854a07fe3060af682`: 14 pending, 0 failed;
+  CodeRabbit successful, Devin pending, no formal approval.
+- #103 `77b8f4ea9995329f1c55b916d110b460b4bc7649`: 14 pending, 0 failed.
+- #115 `e7ad4524712b18809d8c409371142071270b2ea0` and #113
+  `9bd33ee0d00ef1874fd5efabac3462f678a256ed`: 2 pending each, 0 failed.
+- #112, #108, #107, #101, and #83: 22 successful, 0 pending, 0 failed.
+- #111, #110, #109, #106, #105, and #104: 21 successful, 1 pending,
+  0 failed each.
+
+The central lifecycle owner PR `.github#1026` is currently at exact head
+`84b84aededaf25d88441121fd8c171a94e13eac9`, against
+`731af58e954901c4f1cc853231c592abb1eaf617`; its live checks show 4 successes,
+14 non-terminal results, and 12 skipped results, with no exact-head approval.
+The oldest queued Keyverse workflow observed was created at 09:54 UTC. This
+does not satisfy the six-hour/two-observation D2 threshold, and no D1, D3, D4,
+or D5 evidence exists. No bypass, direct protected push, force push, fake
+status, or self-approval was used.
+
+This refresh itself is documentation-only and creates a later #100 head;
+fresh hosted Checks and independent review must bind to that later SHA.
+
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
 | [#115](https://github.com/ContextualWisdomLab/keyverse/pull/115) | Proposed ADR/doctoring for MCP-compatible OAuth client authorization | PENDING: 2 successful, 14 pending, 7 skipped on `e7ad4524712b18809d8c409371142071270b2ea0` | review required | The token-audience, metadata-member, scope-array, and missing-reference findings are fixed; obtain independent ADR review and do not treat the design PR as runtime MCP evidence or begin implementation before the trust boundary is accepted. |
