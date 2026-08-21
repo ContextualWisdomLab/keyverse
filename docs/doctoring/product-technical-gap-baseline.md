@@ -164,6 +164,14 @@ placeholder credentials must not be committed to close it.
   100% statement/branch coverage, and 100% interrogate verification; hosted
   Checks are newly pending and no qualifying formal approval or protected
   merge exists.
+- Central `.github` PR #1155 is open at exact head
+  `4b9a933d77a1d68459bf2c51abfbdba9e2d03d8b` for stable deduplication of
+  unscoped scheduler dispatches and bounded stale-review input. Its current
+  rollup has 26 successful, 3 neutral, 1 queued, and 15 skipped Checks, with
+  no qualifying formal approval. Historical run `32434533013` remains a
+  fail-closed malformed targeted dispatch for `ContextualWisdomLab/TEPP`
+  without a PR number; it is not treated as successful scheduler evidence or
+  as permission to weaken target validation.
 - The scheduled central `.github` Organization Commercial Readiness Loop run
   `32437647976` failed before coordination because the configured
   `PR_REVIEW_MERGE_TOKEN` was unavailable. This is a fail-closed credential
