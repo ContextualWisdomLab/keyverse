@@ -304,11 +304,11 @@ class FederationService:
         """Build a redacted status, tolerating temporary Keycloak outages."""
         if applied is None:
             try:
-                applied = (
+                applied = _identity_provider_matches(
+                    registration,
                     self._api.get_identity_provider(
                         registration.provider_alias
-                    )
-                    is not None
+                    ),
                 )
             except Exception:
                 logger.warning(

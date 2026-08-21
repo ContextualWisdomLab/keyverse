@@ -156,6 +156,27 @@ def test_put_accepts_keycloak_default_config_fields(
     assert status.applied_to_keycloak is True
 
 
+def test_get_and_list_report_observable_drift(
+    federation, api, monkeypatch
+) -> None:
+    """Read paths use the same exact live-state contract as apply."""
+    registration = _employer_adfs_registration()
+    federation.put_registration("employer-adfs", registration)
+    original_get = api.get_identity_provider
+
+    def observe_drift(provider_alias: str) -> dict | None:
+        """Return a present provider whose enabled field drifted."""
+        observed = original_get(provider_alias)
+        if observed is not None:
+            observed["enabled"] = False
+        return observed
+
+    monkeypatch.setattr(api, "get_identity_provider", observe_drift)
+
+    assert federation.get_registration("employer-adfs").applied_to_keycloak is False
+    assert federation.list_registrations()[0].applied_to_keycloak is False
+
+
 def test_put_retains_desired_state_when_keycloak_is_unavailable(
     federation, store, api, monkeypatch
 ) -> None:
