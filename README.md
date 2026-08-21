@@ -161,6 +161,7 @@ use two-word-or-longer snake_case names (`idp_config_entries`,
 | [`docs/adr/`](docs/adr/README.md) | Accepted architecture decisions (0001–0008 on this branch) |
 | [`docs/REFERENCES.md`](docs/REFERENCES.md) | APA 7th bibliography for ADR 0001–0007 |
 | [`docs/doctoring/`](docs/doctoring/) | Feature-specific standards interpretation |
+| [`docs/product-technical-gap-baseline.md`](docs/product-technical-gap-baseline.md) | Current buyer-visible product and technical gap register |
 | [`docs/papers/`](docs/papers/README.md) | Offline copies of selected primary sources |
 | [`docs/operations/`](docs/operations/) | Operator runbooks, including hourly product development |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Runtime topology and trust boundaries |
