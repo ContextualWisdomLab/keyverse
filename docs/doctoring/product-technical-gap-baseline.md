@@ -202,11 +202,14 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   hosted Checks remain unverified and #112 remains the lock-refresh
   prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
-  emitted a MEDIUM IDOR report with contradictory model text. Current head
-  `157b76893b32cda66fc586aa67ae72a30ac6b0d6` adds direct-mount operator-auth
-  regression evidence and currently has 18 successful Checks, one in-progress
-  Strix Check, and one queued coverage Check with no terminal failure. The
-  operator-admin trust boundary still requires independent validation. PR
+  emitted a MEDIUM IDOR report with contradictory model text. Its next exact
+  head `d540515be66a6ca0aa538c61f977a57bf7a69fb8` adds a RED-to-GREEN
+  regression for percent-encoded discovery markers and normalizes
+  `public_issuer_url` before the no-fetch policy check. Local focused/full
+  tests, Ruff, Interrogate, and 100% statement/branch coverage pass; its 16
+  hosted Checks remain pending, so hosted security and review success are not
+  claimed. The operator-admin trust boundary and the new URL-normalization
+  fix still require independent exact-head validation. PR
   #100's pre-doctoring-refresh head was
   `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
