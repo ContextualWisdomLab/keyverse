@@ -67,7 +67,7 @@ tenant, or resource ownership.
 The following is the current open-PR inventory. `Checks` means the exact head
 rollup observed on 2026-08-21; it is not inherited from a predecessor commit.
 This record was refreshed from a live exact-head audit while PR #100 stood at
-`bcd4b15220852cf85feaff4922ce6b2557d7688d`; the documentation commit that
+`6e0c92f7512ab8b1eded34e2e6ae9a0476896aba`; the documentation commit that
 updates this snapshot is intentionally not recursively named. The audit also
 includes normal branch updates from the #112 lock-refresh base for the
 dependency/documentation stack. The live PR record is authoritative for the
@@ -97,7 +97,7 @@ evidence. Queued Checks remain unverified rather than green.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 14 pending, 7 skipped, 0 terminal failures on updated head `7da9d43087d5647fefb946eb154ee1e5c10c576d` | review required | Base remains `fix/account-unification-lock-20260819`; obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 14 pending, 7 skipped, 0 terminal failures on `9274d3184443fba6c6294e08dff20734f3ae6fb4` | current findings addressed; approval absent | Exact-tree regressions and local 100% verification pass; wait for hosted security Checks and independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 22 successful, 8 skipped, 0 pending on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 pending, 7 skipped, 0 terminal failures on the pre-refresh snapshot head `bcd4b15220852cf85feaff4922ce6b2557d7688d` | current findings addressed; approval absent | The current-tree review findings are addressed; re-audit this documentation successor after its normal push without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 14 pending, 7 skipped, 0 terminal failures on the pre-refresh snapshot head `6e0c92f7512ab8b1eded34e2e6ae9a0476896aba` | current findings addressed; approval absent | The current-tree review findings are addressed; re-audit this documentation successor after its normal push without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 22 successful, 8 skipped, 0 pending on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed

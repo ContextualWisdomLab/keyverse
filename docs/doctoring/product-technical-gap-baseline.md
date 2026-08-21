@@ -121,9 +121,10 @@ placeholder credentials must not be committed to close it.
   dispatch boundary. Central PR #1183 is also closed without merge.
 - Central `.github` PR #1170 is open at exact head
   `1f2b93ead7205b33712de1865d84c004d93be7ed` for routing OpenCode reviews
-  through the contextual gateway. Its current hosted rollup has 4 successful,
-  17 pending, and 13 skipped Checks; no terminal source failure or qualifying
-  formal approval is recorded. The current head removes inherited GitHub
+  through the contextual gateway. Its current hosted rollup has 5 successful,
+  16 pending, and 13 skipped Checks; no terminal source failure or qualifying
+  formal approval is recorded. Its current-head review threads are resolved.
+  The current head removes inherited GitHub
   credentials and workflow-file channels from the child gateway process and
   has passed the focused contract test plus full local central verification.
 - Central `.github` PR #1178 is the canonical contextual-orchestrator hourly
@@ -234,7 +235,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's
   pre-refresh documentation head is
-  `bcd4b15220852cf85feaff4922ce6b2557d7688d`, with 14 pending and 7 skipped
+  `6e0c92f7512ab8b1eded34e2e6ae9a0476896aba`, with 14 pending and 7 skipped
   Checks; its prior review state is not approval. PR #104's updated
   head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
   head and has 14 pending and 7 skipped Checks. The resulting #100 head
