@@ -20,7 +20,7 @@ provider/incomplete-scan classification and remains protected by queued hosted
 Checks and missing formal review. Scheduler PR #1203 is at
 `94c09152a843db1a0d3a3463900ef4d30467f085`; its earlier queue observation has
 shown progress and is not currently a persistent D2 deadlock. OSV #1158,
-security/cadence #1198, and docstring #1189 are likewise waiting on hosted
+security/cadence #1198, docstring #1189, and fleet lifecycle #1026 are likewise waiting on hosted
 Checks and independent review. All observations are current-head evidence;
 predecessor results remain non-transferable.
 

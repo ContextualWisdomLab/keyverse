@@ -82,6 +82,12 @@ The relevant central control-plane PRs are also not merge-ready: `.github`
 approval and retain queued or pending hosted Checks. Their local verification
 does not substitute for protected hosted evidence.
 
+Fleet-lifecycle PR #1026 is now normally synchronized at
+`ef77ced213278396123f435f7e1db4646b3a631f`. Its earlier exact-head Python
+Security failure was `PYSEC-2026-3721` in `pip==26.1.2`, which is owned by the
+central security root #1198; this is not evidence against the orphan-inventory
+source. The PR remains pending until #1198 and all current hosted gates settle.
+
 ## Current capability map
 
 | Capability | Current state | Evidence boundary |
