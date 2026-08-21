@@ -48,7 +48,6 @@ class _BlockingDeactivateApi(MockProductKeycloakAdminApi):
         super().__init__()
         self.deactivate_started = threading.Event()
         self.allow_deactivate = threading.Event()
-        self.merge_deactivate_started = threading.Event()
         self._block_next_deactivation = True
 
     def deactivate_user(self, user_id: str) -> None:
@@ -58,8 +57,6 @@ class _BlockingDeactivateApi(MockProductKeycloakAdminApi):
             self.deactivate_started.set()
             if not self.allow_deactivate.wait(timeout=5):
                 raise AssertionError("test did not release the SCIM deactivation")
-        else:
-            self.merge_deactivate_started.set()
         super().deactivate_user(user_id)
 
 
@@ -271,6 +268,7 @@ def test_scim_patch_is_serialized_with_merge(
     api = _BlockingDeactivateApi()
     locks = InMemoryUserOperationLocks()
     merge_lock_attempted = threading.Event()
+    merge_lock_acquired = threading.Event()
     original_hold = locks.hold
 
     @contextmanager
@@ -279,6 +277,8 @@ def test_scim_patch_is_serialized_with_merge(
         if set(user_ids) == {"survivor", "dup"}:
             merge_lock_attempted.set()
         with original_hold(*user_ids):
+            if set(user_ids) == {"survivor", "dup"}:
+                merge_lock_acquired.set()
             yield
 
     locks.hold = observed_hold
@@ -329,14 +329,14 @@ def test_scim_patch_is_serialized_with_merge(
         assert api.deactivate_started.wait(timeout=2)
         merge_future = executor.submit(run_merge)
         assert merge_lock_attempted.wait(timeout=2)
-        merge_reached_deactivation = api.merge_deactivate_started.wait(timeout=0.25)
+        assert not merge_lock_acquired.is_set()
 
         api.allow_deactivate.set()
         response = patch_future.result(timeout=5)
         with pytest.raises(InactiveAccountError):
             merge_future.result(timeout=5)
 
-    assert not merge_reached_deactivation
+    assert merge_lock_acquired.is_set()
     assert response.status_code == 200
     assert response.json()["active"] is False
     assert api.get_user("dup").state == "disabled"
