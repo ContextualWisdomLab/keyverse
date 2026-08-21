@@ -12,6 +12,7 @@
 | [0006](0006-user-operation-lock.md) | Merge and SCIM full replacement share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
+| [0009](0009-lineageweave-account-derived-rp-claims.md) | Bind LineageWeave claims to explicit, administrator-managed Keyverse account attributes | Accepted |
 
 ## ADR triggers
 

@@ -28,7 +28,7 @@ make ready            # poll readiness (deploy/scripts/healthz.sh)
 make install          # install the admin service development environment
 make test             # run account-unification unit tests
 make lint             # run Ruff + interrogate docstring coverage
-make validate-realm   # validate deploy/keycloak/realm-cwl.json
+make validate-realm   # validate deploy/keycloak/cwl-realm.json
 make seed-bootstrap   # create a local SQLite KV bootstrap store
 ```
 
@@ -110,10 +110,11 @@ is required by the normal suite.
   `kcadm-bootstrap.sh`. The realm contains no employer-specific federation.
 - `deploy/templates/` — explicit private deployment contracts. SAML/OIDC use
   Keyverse desired-state endpoints. `oidc-rp-naruon.json` is the reviewed public
-  Naruon runtime RP profile with one audience mapper and bounded routing claims.
-  LDAP is preflighted through Keyverse and then applied through private Keycloak
-  Admin REST in this release. All `{{placeholders}}` are resolved from KV before
-  use.
+  Naruon runtime profile; `oidc-rp-lineageweave.json` is the ADR-0009
+  confidential profile that projects an account's same-client role and exact
+  `org`/`workspace` attributes. LDAP is preflighted through Keyverse and then
+  applied through private Keycloak Admin REST in this release. All
+  `{{placeholders}}` are resolved from KV before use.
 - `deploy/bootstrap/` — the bootstrap pointer locating the KV/DB config store.
 - `helm/cwl-idp/` — the same three components; Keycloak and Postgres may be
   disabled in favor of externally managed services. Secrets come from
@@ -142,9 +143,10 @@ is required by the normal suite.
 - **OIDC relying-party metadata is secret-free desired state.** Validate with
   `POST /clients/relying-parties:validate`, persist with `PUT`, and require exact
   post-mutation observation before accepting a receipt. The optional mapper
-  profile permits exactly one audience mapper plus only canonical `role`, `org`,
-  and `workspace` hardcoded claims. Never expand mapper classes, claim names,
-  resource audiences, or token destinations by configuration alone.
+  profile permits static canonical claims, plus the separately reviewed
+  ADR-0009 `lineageweave-web` account-derived profile. Never expand mapper
+  classes, claim names, resource audiences, or token destinations by
+  configuration alone.
 - **Treat mapper normalization narrowly.** Ignore only a valid generated mapper
   `id` and canonicalize known mapper order. Unknown, malformed, duplicate, or
   semantically changed live mapper state is drift. Mapper configuration does not

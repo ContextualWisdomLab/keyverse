@@ -12,8 +12,11 @@ broken realm export is caught in CI before it ever reaches Keycloak:
 * Keycloak 26 import compatibility excludes ``$`` annotation keys;
 * the ``basic`` scope provides ``sub`` and is a realm default;
 * ``naruon-web`` is a bounded-token public PKCE client with required claims.
+* the post-import product authorization profile is explicit and admin-only.
 
-Usage: python scripts/validate_realm.py [path-to-realm.json]
+Usage: python scripts/validate_realm.py [path-to-realm.json] [path-to-user-profile.json]
+The profile path defaults to a sibling ``lineageweave-user-profile.json``;
+validation fails closed when that artifact is absent or invalid.
 Exit 0 = valid, 1 = invalid (prints the failing checks).
 """
 from __future__ import annotations
@@ -31,6 +34,8 @@ DISALLOWED_CREDENTIAL_AUTHENTICATORS = {
 PASSKEY_AUTHENTICATOR = f"webauthn-authenticator-{_CREDENTIAL_FACTOR}less"
 SECRET_PLACEHOLDER = "__set_from_kv__"
 MAX_PUBLIC_TOKEN_LIFESPAN = 900
+USER_PROFILE_FILENAME = "lineageweave-user-profile.json"
+BUILTIN_USER_PROFILE_ATTRIBUTES = {"username", "email", "firstName", "lastName"}
 
 
 def _executions(realm: dict, alias: str) -> list[dict]:
@@ -220,6 +225,48 @@ def validate(realm: dict) -> list[str]:
     return errors
 
 
+def validate_user_profile(profile: dict) -> list[str]:
+    """Return violations for closed, administrator-managed product attributes."""
+    errors: list[str] = []
+    # Keycloak 26.3.2 has no DISABLED enum member: a missing/null policy is its
+    # fail-closed representation. Sending the documented string makes the API
+    # reject the complete profile payload.
+    if profile.get("unmanagedAttributePolicy") is not None:
+        errors.append(
+            "user profile must omit unmanagedAttributePolicy so Keycloak 26 "
+            "disables unmanaged attributes"
+        )
+    attributes = {
+        item.get("name"): item
+        for item in profile.get("attributes", [])
+        if isinstance(item, dict)
+    }
+    if not BUILTIN_USER_PROFILE_ATTRIBUTES <= attributes.keys():
+        errors.append(
+            "user profile must retain Keycloak built-in account attributes when "
+            "the Admin API replaces the complete profile"
+        )
+    for name in ("org", "workspace"):
+        attribute = attributes.get(name)
+        if not isinstance(attribute, dict):
+            errors.append(f"user profile must define '{name}'")
+            continue
+        if attribute.get("multivalued") is not False:
+            errors.append(f"user profile '{name}' must be scalar")
+        if attribute.get("permissions") != {"view": ["admin"], "edit": ["admin"]}:
+            errors.append(f"user profile '{name}' must be admin-managed")
+        if "required" in attribute:
+            errors.append(
+                f"user profile '{name}' must remain optional during account creation"
+            )
+        validations = attribute.get("validations")
+        length = validations.get("length") if isinstance(validations, dict) else None
+        maximum = length.get("max") if isinstance(length, dict) else None
+        if not (maximum == "64" or (type(maximum) is int and maximum == 64)):
+            errors.append(f"user profile '{name}' must have a maximum length of 64")
+    return errors
+
+
 def _dollar_keys(node: object, prefix: str = "") -> list[str]:
     """Collect every ``$``-prefixed object key with its JSON path."""
     found: list[str] = []
@@ -236,11 +283,17 @@ def _dollar_keys(node: object, prefix: str = "") -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    """Run realm validation as a command-line check."""
+    """Run realm validation with an optional explicit user-profile artifact."""
+    if len(argv) > 3:
+        print(
+            "USAGE: validate_realm.py [realm_path] [user_profile_path]",
+            file=sys.stderr,
+        )
+        return 1
     path = (
         Path(argv[1])
         if len(argv) > 1
-        else Path("deploy/keycloak/realm-cwl.json")
+        else Path("deploy/keycloak/cwl-realm.json")
     )
     try:
         realm = json.loads(path.read_text(encoding="utf-8"))
@@ -249,6 +302,19 @@ def main(argv: list[str]) -> int:
         return 1
 
     errors = validate(realm)
+    profile_path = (
+        Path(argv[2]) if len(argv) > 2 else path.with_name(USER_PROFILE_FILENAME)
+    )
+    try:
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        if errors:
+            print(f"INVALID: {path}", file=sys.stderr)
+            for error in errors:
+                print(f"  - {error}", file=sys.stderr)
+        print(f"INVALID: cannot parse {profile_path}: {exc}", file=sys.stderr)
+        return 1
+    errors.extend(validate_user_profile(profile))
     if errors:
         print(f"INVALID: {path}", file=sys.stderr)
         for error in errors:

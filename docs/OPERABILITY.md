@@ -100,6 +100,26 @@ Back up Keycloak PostgreSQL and Keyverse-owned configuration/audit/intent/receip
 
 PR #74 demonstrates that a workflow can appear successful while doing no useful work if a GitHub API gate fails open. Scheduled governance must classify transport failure separately from a valid empty/unhealthy result, fit its time budget, keep provider secrets in the broker phase only, and require exact `success` for protected evidence. With PR #74 integrated, operational closure requires a real protected-main scheduled/manual run.
 
+## Workflow registry lifecycle
+
+The GitHub Actions registry is control-plane state separate from YAML in the
+repository tree. For an inventory, bind the observation to a freshly resolved
+protected default-branch SHA, paginate the complete workflow registry, and
+compare each repository-path identity with the exact tree at that SHA. Classify
+GitHub-owned dynamic identities separately; do not treat a name, one-shot
+convention, or missing historical file alone as proof that a workflow is safe
+to disable.
+
+The centrally owned read-only inventory in `ContextualWisdomLab/.github#1026`
+is the implementation authority. It must fail closed on incomplete pagination,
+permission loss, ambiguous 404/5xx responses, malformed paths, workflow-ID
+reuse, and branch movement. Any operator mutation is a separately reviewed
+step: re-fetch the branch and registry immediately, exclude supported
+identities, mutate by numeric workflow ID only, then reconcile the registry
+and protected tree again. Record workflow IDs, paths, states, exact SHA,
+observation time, pagination receipts, and the resulting classification; never
+record credentials or private payloads.
+
 ## Release gate
 
 Release only after protected-head CI/security/review, 100% coverage/docstrings, realm/package/deployment validation, migrations/rollback/backup, passkey/federation/SCIM/RP controlled acceptance, secret scan, SBOM/provenance/image digest, runbooks/support, and CHANGELOG/version artifacts are coherent. A merged PR is not a release by itself.

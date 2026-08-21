@@ -464,9 +464,15 @@ _OBSERVED_CLAIM_RANKS: Final = {"role": 1, "org": 2, "workspace": 3}
 def _observed_mapper_rank(mapper: dict) -> int | None:
     """Return the canonical rank for one structurally valid live mapper."""
     mapper_type = mapper.get("protocolMapper")
+    if not isinstance(mapper_type, str):
+        return None
     if mapper_type == "oidc-audience-mapper":
         return 0
-    if mapper_type != "oidc-hardcoded-claim-mapper":
+    if mapper_type not in {
+        "oidc-hardcoded-claim-mapper",
+        "oidc-usermodel-client-role-mapper",
+        "oidc-usermodel-attribute-mapper",
+    }:
         return None
     config = mapper["config"]
     claim_name = config.get("claim.name")
@@ -509,6 +515,12 @@ def _normalized_observed_mappers(
         rank = _observed_mapper_rank(mapper)
         if rank is None or rank in seen_ranks:
             return None
+        if (
+            mapper["protocolMapper"] == "oidc-usermodel-client-role-mapper"
+            and mapper["config"].get("claim.name") == "role"
+            and "usermodel.clientRoleMapping.rolePrefix" not in mapper["config"]
+        ):
+            mapper["config"]["usermodel.clientRoleMapping.rolePrefix"] = ""
         seen_ranks.add(rank)
         ranked_mappers.append((rank, mapper))
 

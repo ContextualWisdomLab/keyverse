@@ -7,6 +7,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- The hourly product-development prompt now reads the exact-head gap baseline and
+  open PR/issue inventory before selecting an independent buyer-visible slice.
+- A dated product and technical gap baseline that records the live PR/Issue
+  queue, exact-head Check evidence, buyer-visible authorization and runtime
+  acceptance gaps, and the protected hourly loop.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
@@ -14,6 +19,17 @@ Keep a Changelog, and releases use semantic versioning.
   access-token audience, bounded `role`, `org`, and `workspace` hardcoded claims,
   canonical mapper ordering, Keycloak-generated-ID/order normalization, and a
   secret-free `naruon-web` runtime desired-state template.
+- ADR-0009's confidential `lineageweave-web` account-derived mapper profile:
+  same-client roles plus exact scalar `org` and `workspace` account attributes,
+  with no static/dynamic mixing, a secret-free deployment template, and
+  reconciliation regression coverage.
+- The reserved `lineageweave-web` client now rejects hardcoded authorization
+  claims, while Compose keeps the account service fail-closed until its
+  post-import account-profile bootstrap succeeds.
+- A normative LineageWeave tenant mapping: `org` is the opaque external tenant
+  key, `workspace` is its child namespace, ambiguous or multi-membership
+  resolution fails closed, and lifecycle changes require a new token or
+  session renewal; no generic `tenant` mapper was introduced.
 - Durable, secret-free OIDC relying-party desired-state CRUD and reconciliation
   with exact `clientId` matching, duplicate fail-closed behavior, post-mutation
   re-observation, canonical apply receipts, realm-rebuild recovery, per-client
@@ -55,6 +71,25 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Refreshed the product and technical gap baseline with the current exact-head
+  PR inventory, including the lockfile repair review gate and the requeued
+  `lineageweave-web` Checks; predecessor evidence remains non-transferable.
+- Added the active PR #113 SCIM deactivation-lock state and the current PR #103
+  Strix/IDOR evidence to the gap baseline; neither is represented as protected
+  main until exact-head review and merge evidence exists.
+- Refreshed the PR #103 Strix evidence with its exact failed run/job and kept
+  the contradictory operator-admin IDOR interpretation fail-closed pending
+  independent security validation.
+- The Helm realm-import operator runbook now migrates the legacy
+  `realm-cwl.json` ConfigMap key to `cwl-realm.json` before rollout, preserving
+  a rollback copy and requiring post-rollout realm discovery verification.
+- Account-derived OIDC claim mappers are now limited to the ADR-0009
+  `lineageweave-web` profile, and a non-string observed mapper type is treated
+  as reconciliation drift rather than causing an exception. Operator guides now
+  consistently name issued `org` (company) and `workspace` (PU) claims.
+- The post-import LineageWeave profile bootstrap now reports which required
+  `org` or `workspace` account attribute is missing from the read-back profile
+  before it stops the dependent service.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
@@ -89,6 +124,20 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Prevented Keycloak's omitted empty account-role `rolePrefix` read-back from
+  causing perpetual relying-party drift, while retaining fail-closed handling
+  for all other missing or changed mapper configuration.
+- Allowed passwordless registration to create an identity-only account before
+  administrator assignment of `org` and `workspace`; routing remains blocked
+  until both claims are assigned and downstream validation accepts them.
+- Disabled 37 orphaned active GitHub Actions registry identities whose
+  repository paths were absent from protected `main`, while preserving the
+  four supported workflow identities and two GitHub-owned dynamic Dependabot
+  identities; recorded exact before/after reconciliation and operational smoke
+  evidence for issue #99.
+- Packaged the portable Keycloak realm under the required `cwl-realm.json`
+  directory-import name in Compose and mapped it in Helm, with a deployment
+  contract that prevents a healthy-but-empty identity realm.
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented

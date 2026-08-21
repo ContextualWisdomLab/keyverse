@@ -32,6 +32,7 @@ GOVERNING_ADRS = (
     "0006-user-operation-lock.md",
     "0007-automation-authority.md",
     "0008-keyverse-rp-authorization-boundary.md",
+    "0009-lineageweave-account-derived-rp-claims.md",
 )
 
 
@@ -98,3 +99,27 @@ def test_adr_index_contains_governing_identity_decisions() -> None:
         adr_path = ROOT / "docs" / "adr" / adr
         assert adr_path.is_file(), f"ADR file is missing: {adr}"
         assert f"]({adr})" in index, f"ADR index does not link {adr}"
+
+
+def test_lineageweave_tenant_contract_is_explicit() -> None:
+    """Keep the account-derived tenant mapping deterministic for consumers."""
+
+    adr = _read("docs/adr/0009-lineageweave-account-derived-rp-claims.md")
+    operations = _read("docs/operations/oidc-rp-reconciliation.md")
+    adr_contract = " ".join(adr.lower().split())
+    operations_contract = " ".join(operations.lower().split())
+    required_markers = (
+        "`org` is the opaque external tenant key",
+        "`workspace` is a child namespace under `org`",
+        "multiple memberships are not represented by comma-separated values",
+        "membership resolution is ambiguous",
+        "new token or session renewal",
+    )
+    for marker in required_markers:
+        assert marker in adr_contract, (
+            f"ADR-0009 is missing tenant contract marker: {marker}"
+        )
+        assert marker in operations_contract, (
+            "OIDC reconciliation operations are missing tenant contract marker: "
+            f"{marker}"
+        )

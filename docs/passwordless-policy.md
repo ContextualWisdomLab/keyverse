@@ -9,7 +9,7 @@ password to phish, reuse, reset, or leak.
 
 ## How it is enforced as code
 
-`deploy/keycloak/realm-cwl.json` fixes the following invariants:
+`deploy/keycloak/cwl-realm.json` fixes the following invariants:
 
 | Setting | Value | Effect |
 | --- | --- | --- |

@@ -141,7 +141,7 @@ Interrogate, Keycloak Admin REST API, Docker Compose, Helm.
 ### Task 7: Enforce Keycloak realm policy
 
 **Files:**
-- Modify: `deploy/keycloak/realm-cwl.json`
+- Modify: `deploy/keycloak/cwl-realm.json`
 - Modify: `scripts/validate_realm.py`
 - Test: `services/account_unification/tests/test_realm_policy.py`
 

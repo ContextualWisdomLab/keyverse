@@ -355,7 +355,7 @@ uv run coverage run --branch --source=app -m pytest -q
 uv run coverage report --show-missing --fail-under=100
 uv build --out-dir dist
 cd ../..
-python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+python scripts/validate_realm.py deploy/keycloak/cwl-realm.json
 docker compose -f docker-compose.yml config
 python - <<'PY'
 import json
