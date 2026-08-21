@@ -203,15 +203,15 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Its current exact
-  head `1f8c8ac29e6860d289d4b54e9bd6e418bf731638` adds RED-to-GREEN regressions
-  for percent-encoded discovery markers, invalid token rotation settings,
-  KV/audit lifecycle failures, direct router embedding, tenant isolation,
-  software-unit ABAC, runtime authentication, and untrusted public issuers.
-  Local focused/full tests, Ruff, Interrogate, and 100% application
-  statement/branch coverage pass; 16 hosted Checks are pending, so hosted
-  security and independent approval success are not claimed. The operator-admin
-  trust boundary and the fresh security changes still require independent
-  exact-head validation. PR
+  head `5514a24c1a3c56cc0a2a5c458ec4f8cb900c571a` adds RED-to-GREEN regressions
+  for percent-encoded discovery markers, inactive and expired token rotation,
+  invalid token rotation settings, KV/audit lifecycle failures, direct router
+  embedding, tenant isolation, software-unit ABAC, runtime authentication, and
+  untrusted public issuers. Local focused/full tests, Ruff, Interrogate, and
+  100% application statement/branch coverage pass; required hosted Checks are
+  still pending or queued, so hosted security and independent approval success
+  are not claimed. The operator-admin trust boundary and the fresh security
+  changes still require independent exact-head validation. PR
   #100's pre-doctoring-refresh head was
   `c483bd53ea74aad5fcea7d3cec2f402e4d8f27c2`; successor head
   `3777f54a824d3b2d3458b94f88e5627a7761a2c0` adds a regression test that invokes
