@@ -114,6 +114,10 @@ private rendered payload
 
 Validation never fetches metadata or discovery documents. Deployment egress
 policy and Keycloak perform remote interaction only after explicit apply.
+Reconciliation compares desired observable fields exactly; the fixed Keycloak
+mask for the known non-observable `clientSecret` field is the sole exception and
+does not prove secret equality. Missing, changed, or unknown fields remain
+drift.
 
 ### LDAP and Active Directory
 

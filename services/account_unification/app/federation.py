@@ -32,6 +32,8 @@ _MAX_PROVIDER_CONFIG_ENTRIES = 64
 _MAX_PROVIDER_CONFIG_KEY_LENGTH = 128
 _MAX_PROVIDER_CONFIG_VALUE_LENGTH = 16_384
 _REDACTED_VALUE = "<redacted>"
+_KEYCLOAK_MASKED_VALUE = "**********"
+_NON_OBSERVABLE_PROVIDER_CONFIG_KEYS = frozenset({"clientSecret"})
 _ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
 _HTTP_SCHEMES = frozenset({"http", "https"})
@@ -671,10 +673,22 @@ def _identity_provider_matches(
             if key != "config"
         )
         and isinstance(observed_config, dict)
-        and all(
-            observed_config.get(key) == value
-            for key, value in desired["config"].items()
+        and _provider_config_matches(desired["config"], observed_config)
+    )
+
+
+def _provider_config_matches(
+    desired_config: dict[str, str],
+    observed_config: dict,
+) -> bool:
+    """Compare config while preserving Keycloak's known secret mask boundary."""
+    return all(
+        observed_config.get(key) == value
+        or (
+            key in _NON_OBSERVABLE_PROVIDER_CONFIG_KEYS
+            and observed_config.get(key) == _KEYCLOAK_MASKED_VALUE
         )
+        for key, value in desired_config.items()
     )
 
 
