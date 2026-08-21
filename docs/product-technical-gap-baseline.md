@@ -102,11 +102,12 @@ advanced normally to `53c314869344509d8d8be4789eab87881af67ff9` to serialize
 SCIM DELETE deactivation under the shared user-operation lock; its current
 rollup is 2 successful, 14 queued, and 7 skipped Checks with no formal
 approval. PR #100 advanced normally to
-`ea74477a8c886c5058f30a5e7a93639e488cfa3d` to clarify the fail-closed
-two-artifact validator CLI contract; its latest observed rollup is 2
-successful, 14 queued, and 7 skipped Checks with a changes-requested review
-state. This documentation update itself will create a later head, so the
-resulting head requires a fresh hosted recheck before any protected-merge claim.
+`a8cbafee0f5b47b67f3ae861627862e3a1b29d3f` to clarify the fail-closed
+two-artifact validator CLI contract and preserve realm diagnostics when the
+profile artifact is invalid; its latest observed rollup is 2 successful, 14
+queued, and 7 skipped Checks with a changes-requested review state. This
+documentation update itself will create a later head, so the resulting head
+requires a fresh hosted recheck before any protected-merge claim.
 
 | PR | Scope | Exact-head Checks | Review state | Next safe action |
 |---:|---|---|---|---|
@@ -123,7 +124,7 @@ resulting head requires a fresh hosted recheck before any protected-merge claim.
 | [#104](https://github.com/ContextualWisdomLab/keyverse/pull/104) | ADR and buyer README expansion, stacked on #112 | PENDING: 21 successful, 1 queued, 8 skipped, 0 terminal failures on updated head `7da9d43087d5647fefb946eb154ee1e5c10c576d` | review required | Base remains `fix/account-unification-lock-20260819`; obtain independent review and terminal stacked-head Checks. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | Hierarchical authorization, login helper, PATs | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on `e765f4860177af47b80b05ee3a918a4dc2cb4450` | changes requested | Exact-tree regressions and local 100% verification pass; wait for hosted security Checks and current-head independent review before any merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | Atomic coupled Python dependency updates | PASS: 23 successful, 8 skipped, 0 queued on `50dd9c96cab5c230f775685e8baea939fba390dd` | changes requested | Obtain fresh independent review; this is the policy companion to the lockfile gap. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on observed head `ea74477a8c886c5058f30a5e7a93639e488cfa3d` | changes requested | The current-tree review findings are addressed; this docs refresh creates a later head, then fresh exact-head Checks and independent review are required without self-approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `lineageweave-web` account-derived claims plus default validator-path coverage | PENDING: 2 successful, 14 queued, 7 skipped, 0 terminal failures on observed head `a8cbafee0f5b47b67f3ae861627862e3a1b29d3f` | changes requested | The current-tree review findings are addressed; this docs refresh creates a later head, then fresh exact-head Checks and independent review are required without self-approval. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | Remove runtime application RPs from portable realm | PASS: 23 successful, 8 skipped, 0 queued on `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | changes requested | Reconfirm current-head approval and latest-pusher rule before protected merge. |
 
 ### Historical check failure root causes observed
