@@ -130,6 +130,12 @@ placeholder credentials must not be committed to close it.
   failure; the cancelled scheduler run remains historical and the queued
   checks are unverified. Neither #1170 nor #1178 has qualifying formal approval
   or protected merge evidence.
+- Central `.github` PR #1187 is open at exact head
+  `91c16ebf5187daad749ae57ec01d16cb7afec7b3` for scoped Rust coverage
+  evidence. Its current rollup has 8 successful, 16 pending, 15 skipped, and
+  1 cancelled Check, with no terminal source failure; the cancelled
+  `scan-pr-queue` job has a newer queued retry. It has no qualifying formal
+  approval or protected merge evidence.
 - Keyverse's existing `Hourly product development` workflow remains active at
   `41 * * * *`; its latest observed scheduled runs succeeded. No duplicate
   scheduler was added. Activation of the central caller remains conditional on
