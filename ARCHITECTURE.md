@@ -164,8 +164,10 @@ destinations, claim values, and ordering are bounded; scripts, other user
 attributes, groups, regex, arbitrary claims, unknown fields, and credential
 material are rejected. `deploy/templates/oidc-rp-naruon.json` is the reviewed
 public-client instance of the static profile; `deploy/templates/oidc-rp-lineageweave.json`
-is the confidential account-derived contract. Neither template contains a
-credential or proves a live account login.
+is the confidential account-derived contract. The reserved `lineageweave-web`
+client cannot use the static hardcoded profile; the validator rejects that
+client-specific downgrade. Neither template contains a credential or proves a
+live account login.
 
 Stateful reconciliation keys intent by validated `clientId`, classifies zero,
 one, or multiple exact Keycloak clients, and never mutates duplicates. Create or

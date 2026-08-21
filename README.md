@@ -66,6 +66,12 @@ docker compose up -d          # or: podman compose up -d
 - Keycloak console: `http://localhost:8080`
 - Admin service health: `http://localhost:8099/healthz`
 
+The Compose account service waits for the post-import LineageWeave account
+profile bootstrap. If Keycloak admin credentials or profile reconciliation fail,
+the account service stays stopped rather than serving with an incomplete issuer
+authorization contract; inspect `docker compose ps` and the one-shot bootstrap
+logs before retrying.
+
 The stack imports the **passwordless-first** realm at first start
 (`deploy/keycloak/cwl-realm.json`): a `browser-passwordless` flow with a
 WebAuthn passwordless authenticator and **no password authenticator**, plus

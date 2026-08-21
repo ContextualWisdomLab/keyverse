@@ -370,6 +370,21 @@ def test_account_claim_profile_rejects_static_claim_mixing() -> None:
     _assert_policy_error(payload, "protocolMappers")
 
 
+def test_lineageweave_profile_rejects_static_claims() -> None:
+    """The reserved LineageWeave client must use account-derived claims."""
+    payload = _lineageweave_registration_with_account_claims()
+    mappers = payload["protocolMappers"]
+    assert isinstance(mappers, list)
+    payload["protocolMappers"] = [
+        mappers[0],
+        _claim_mapper("role", "member"),
+        _claim_mapper("org", "org-cwl"),
+        _claim_mapper("workspace", "workspace-org-cwl"),
+    ]
+
+    _assert_policy_error(payload, "protocolMappers")
+
+
 def test_account_claim_profile_rejects_other_client() -> None:
     """Only the reviewed LineageWeave client may use account-derived claims."""
     payload = _lineageweave_registration_with_account_claims()

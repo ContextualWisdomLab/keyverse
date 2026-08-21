@@ -94,7 +94,8 @@ The product policy is intentionally narrower than the vendor representation:
 8. Desired state remains secret-free and write receipts are produced only after
    post-mutation re-observation.
 9. The account-derived exception requires all three dynamic claims, forbids
-   static/dynamic mixing, and retains the same four-mapper maximum.
+   static/dynamic mixing, reserves `lineageweave-web` for that dynamic profile,
+   and retains the same four-mapper maximum.
 
 The hardcoded claims are not, by themselves, proof of user entitlement. A
 consumer that uses them for authorization must still apply its independently
@@ -109,6 +110,7 @@ The implementation is covered by production-shaped tests that exercise:
 - wrong/duplicate audience and claim mappers;
 - unsupported mapper classes and claim names;
 - canonical mapper ordering and bounded claim values;
+- rejection of hardcoded claims for the reserved `lineageweave-web` client;
 - Keycloak-generated mapper IDs and vendor reordering;
 - semantic drift for unknown, malformed, duplicate, or changed mappers;
 - the committed `deploy/templates/oidc-rp-naruon.json` artifact after

@@ -21,6 +21,9 @@ Keep a Changelog, and releases use semantic versioning.
   same-client roles plus exact scalar `org` and `workspace` account attributes,
   with no static/dynamic mixing, a secret-free deployment template, and
   reconciliation regression coverage.
+- The reserved `lineageweave-web` client now rejects hardcoded authorization
+  claims, while Compose keeps the account service fail-closed until its
+  post-import account-profile bootstrap succeeds.
 - A normative LineageWeave tenant mapping: `org` is the opaque external tenant
   key, `workspace` is its child namespace, ambiguous or multi-membership
   resolution fails closed, and lifecycle changes require a new token or

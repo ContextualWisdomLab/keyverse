@@ -628,6 +628,11 @@ def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
             "protocolMappers",
             "must not mix hardcoded and account-derived claims",
         )
+    if hardcoded_claim_names and registration.client_id == "lineageweave-web":
+        _client_error(
+            "protocolMappers",
+            "lineageweave-web must use account-derived claims",
+        )
     if account_claim_names and registration.client_id != "lineageweave-web":
         _client_error(
             "protocolMappers",

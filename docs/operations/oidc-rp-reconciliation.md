@@ -67,6 +67,14 @@ acceptance must prove issuer/signature/expiry/audience validation, tenant and
 resource ABAC denial, role downgrade, logout, and rollback. A compose-only IdP
 or preflight receipt does not satisfy that evidence.
 
+The reserved client ID is rejected if it is submitted with the generic static
+claim profile. This prevents an operator from silently replacing account-derived
+authorization attributes with visible constants while retaining the same
+LineageWeave audience. In the standalone Compose path, the post-import profile
+bootstrap is a required one-shot prerequisite for the account service; a failed
+bootstrap intentionally leaves that service stopped until the issuer profile is
+repaired.
+
 ### Normative tenant mapping for LineageWeave
 
 For the `lineageweave-web` profile, `org` is the opaque external tenant key
