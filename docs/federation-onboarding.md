@@ -120,8 +120,14 @@ curl --config "$AUTH_CONFIG" \
 ```
 
 A successful `PUT` persists desired state even when Keycloak is temporarily
-unavailable and returns `applied_to_keycloak: false`. This makes the outage
-visible without losing the intended configuration.
+unavailable and returns `applied_to_keycloak: false`. When it returns
+`applied_to_keycloak: true`, Keyverse has freshly re-observed the live
+Keycloak identity-provider representation and matched every desired observable
+field. Keycloak masks the known non-observable `clientSecret` value on
+read-back; its fixed mask is accepted for that field only and does not prove
+secret equality. Missing, changed, or unknown fields remain drift. This makes
+mutation or observation drift visible without losing the intended
+configuration.
 
 ## Convergence and recovery
 

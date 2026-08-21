@@ -358,13 +358,13 @@ typing-extensions==4.16.0 \
     #   pydantic-core
     #   starlette
     #   typing-inspection
-typing-inspection==0.4.2 \
-    --hash=sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7 \
-    --hash=sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464
+typing-inspection==0.4.4 \
+    --hash=sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47 \
+    --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
     # via
     #   fastapi
     #   pydantic
-uvicorn==0.52.1 \
-    --hash=sha256:112ec661814189acbccd3f7b86460147cc065fc92c0821afa78918780e4354dd \
-    --hash=sha256:e4403f9d93188cf9d1088e9f40e3acd12630e2df8675316704379a7fc20fff6a
+uvicorn==0.52.3 \
+    --hash=sha256:116af2710dbf47c80f463cd20ee4884b6662f4c9f227d797ddc7279d2fcc2c7c \
+    --hash=sha256:18857b9e6579300be55c91c0a1cfd37d9a2cf0cabea33b88275f199eb73b8b58
     # via cwl-idp-account-unification
