@@ -287,8 +287,11 @@ class ApplicationTokenService:
                     record,
                 )
             except Exception:
-                self._write_record(existing)
-                self._delete_record(record)
+                self._store.replace_many(
+                    APPLICATION_TOKEN_NAMESPACE,
+                    {existing.application_token_id: existing.model_dump_json()},
+                    {record.application_token_id},
+                )
                 raise
         return self._issue_response(record, plaintext)
 

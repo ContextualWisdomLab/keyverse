@@ -207,7 +207,7 @@ helper (ADR-0011) and may present software-unit-scoped programmable tokens
 (ADR-0012) that are hashed at rest, never inherit org-tree grants, and cannot be
 rotated after revocation, prior rotation, or expiry. Rotation writes the
 replacement and predecessor through one KV-store transaction, then compensates
-the batch if audit persistence fails.
+the pair through one atomic upsert/delete operation if audit persistence fails.
 
 ## Account and provisioning invariants
 

@@ -53,12 +53,35 @@ class _AtomicTrackingStore(InMemoryKvStore):
     def __init__(self) -> None:
         """Create an empty store with an atomic-write counter."""
         super().__init__()
+        self.put_calls = 0
         self.put_many_calls = 0
+        self.replace_many_calls = 0
+        self.delete_calls = 0
+
+    def put(self, namespace: str, entry_key: str, entry_value: str) -> None:
+        """Count single-record writes before delegating to the store."""
+        self.put_calls += 1
+        super().put(namespace, entry_key, entry_value)
 
     def put_many(self, namespace: str, entries: dict[str, str]) -> None:
         """Count and perform one atomic multi-record write."""
         self.put_many_calls += 1
         super().put_many(namespace, entries)
+
+    def replace_many(
+        self,
+        namespace: str,
+        entries: dict[str, str],
+        delete_keys: set[str],
+    ) -> None:
+        """Count atomic compensation operations before delegating."""
+        self.replace_many_calls += 1
+        super().replace_many(namespace, entries, delete_keys)
+
+    def delete(self, namespace: str, entry_key: str) -> None:
+        """Count single-record deletes before delegating to the store."""
+        self.delete_calls += 1
+        super().delete(namespace, entry_key)
 
 
 class _FailingAuditSink(InMemoryAuditSink):
@@ -520,6 +543,30 @@ def test_rotate_audit_failure_restores_the_active_predecessor() -> None:
     )
     assert verified.active is True
     assert len(store.get_all(APPLICATION_TOKEN_NAMESPACE)) == 1
+
+
+def test_rotate_audit_failure_uses_one_atomic_compensation() -> None:
+    """Audit failure restores and removes rotation records in one operation."""
+    store = _AtomicTrackingStore()
+    service = ApplicationTokenService(
+        store,
+        AuditLogger(InMemoryAuditSink()),
+        clock=_Clock(),
+    )
+    issued = service.issue(ApplicationTokenIssueRequest.model_validate(ISSUE_BODY))
+    initial_put_calls = store.put_calls
+    initial_delete_calls = store.delete_calls
+    service._audit = AuditLogger(_FailingAuditSink())
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        service.rotate(
+            issued.application_token_id,
+            ApplicationTokenIssueRequest.model_validate(ISSUE_BODY),
+        )
+
+    assert store.replace_many_calls == 1
+    assert store.put_calls == initial_put_calls
+    assert store.delete_calls == initial_delete_calls
 
 
 def test_issue_rejects_password_purposes_and_bounds(client) -> None:

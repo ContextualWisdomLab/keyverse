@@ -88,7 +88,8 @@ Keep a Changelog, and releases use semantic versioning.
   and PAT verification remains token-gated.
 - Application-token rotation now persists the replacement and rotated
   predecessor through one atomic KV-store batch before recording the audit
-  event, preserving a consistent pair across SQLite transaction boundaries.
+  event, and restores that pair with one atomic upsert/delete compensation if
+  audit persistence fails.
 
 - The hierarchical authorization router now carries its operator-authentication
   and privileged-path dependencies at the module boundary, so direct CWL/Naruon

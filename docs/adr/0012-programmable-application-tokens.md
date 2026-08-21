@@ -23,9 +23,9 @@ inherit down the org tree (ADR-0010).
 3. Tokens are software-unit and API-capability scoped, time-bounded (60
    seconds to 90 days), rotatable, revocable, and auditable. Rotation accepts
    only an active, unexpired predecessor, validates the replacement before
-   revoking it, and compensates storage or audit failures, so invalid,
-   incomplete, or retired-token replacement actions do not destroy or revive a
-   credential.
+   revoking it, and uses atomic storage compensation for storage or audit
+   failures, so invalid, incomplete, or retired-token replacement actions do
+   not destroy or revive a credential.
 4. The plaintext secret is returned only at issue or rotate time. List, get,
    verify, and revoke responses never include the secret or hash.
 5. Verification does not consult org-tree grants. Tokens never inherit.
@@ -33,7 +33,9 @@ inherit down the org tree (ADR-0010).
    only for its stored tenant. Management routes require the operator bearer,
    while `:verify` is a runtime route authenticated by the presented token.
 7. Issue, revoke, and rotate mutations roll back token state when audit
-   persistence fails. Expired or retired predecessors cannot be rotated.
+   persistence fails; rotation restores the predecessor and deletes its
+   replacement in one KV-store operation. Expired or retired predecessors
+   cannot be rotated.
 8. A token is not an authenticator. Browser passwordless policy (ADR-0002)
    remains unchanged.
 

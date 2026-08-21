@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from typing import Protocol
 
 
@@ -21,6 +21,15 @@ class KvStore(Protocol):
 
     def put_many(self, namespace: str, entries: Mapping[str, str]) -> None:
         """Store multiple values in one namespace atomically."""
+        ...
+
+    def replace_many(
+        self,
+        namespace: str,
+        entries: Mapping[str, str],
+        delete_keys: Collection[str],
+    ) -> None:
+        """Upsert values and delete keys in one atomic operation."""
         ...
 
     def get(self, namespace: str, entry_key: str) -> str | None:
@@ -60,6 +69,19 @@ class InMemoryKvStore:
         """Store multiple values in one namespace under one lock."""
         with self._lock:
             self._data.setdefault(namespace, {}).update(entries)
+
+    def replace_many(
+        self,
+        namespace: str,
+        entries: Mapping[str, str],
+        delete_keys: Collection[str],
+    ) -> None:
+        """Upsert and delete values under one lock."""
+        with self._lock:
+            values = self._data.setdefault(namespace, {})
+            values.update(entries)
+            for entry_key in delete_keys:
+                values.pop(entry_key, None)
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one value from one namespace, if present."""
@@ -130,6 +152,29 @@ class SqliteKvStore:
                 "DO UPDATE SET entry_value = excluded.entry_value",
                 ((namespace, entry_key, entry_value) for entry_key, entry_value in entries.items()),
             )
+
+    def replace_many(
+        self,
+        namespace: str,
+        entries: Mapping[str, str],
+        delete_keys: Collection[str],
+    ) -> None:
+        """Upsert and delete config values in one SQLite transaction."""
+        with self._lock, self._connection:
+            self._connection.executemany(
+                "INSERT INTO idp_config_entries "
+                "(config_namespace, entry_key, entry_value) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(config_namespace, entry_key) "
+                "DO UPDATE SET entry_value = excluded.entry_value",
+                ((namespace, entry_key, entry_value) for entry_key, entry_value in entries.items()),
+            )
+            for entry_key in delete_keys:
+                self._connection.execute(
+                    "DELETE FROM idp_config_entries "
+                    "WHERE config_namespace = ? AND entry_key = ?",
+                    (namespace, entry_key),
+                )
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one config value, if present."""
