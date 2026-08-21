@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T02:46:50+09:00
+## Live queue refresh — 2026-08-22T02:47:41+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -65,7 +65,7 @@ merge gate.
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 17 success, 3 pending, 7 skipped | Masked-secret finding fixed and current threads resolved; await terminal Checks and independent approval. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Await independent approval; no merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Await independent approval; no merge claim. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `607b1206ce809b582ad477aebf85362627f2b20b` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 pending, 7 skipped | Baseline refresh is being recorded at this source head; await terminal hosted Checks and independent approval on the later documentation head. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `a2875bcd9ff94fa6207e33737f7272d9e7fc175c` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 14 pending, 7 skipped | Baseline refresh is being recorded at this source head; await terminal hosted Checks and independent approval on the later documentation head. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Await independent approval; no merge claim. |
 
 The #100 row records the source head observed immediately before this
