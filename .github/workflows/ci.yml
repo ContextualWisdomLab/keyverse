@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          # v9 changed this default to false; retain bounded cache usage.
+          # Keep cache pruning enabled to bound runner disk usage.
           prune-cache: true
       - name: Install locked dependencies
         run: uv sync --locked --extra dev
