@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T04:14:59+09:00
+## Live queue refresh — 2026-08-22T04:36:09+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -65,7 +65,7 @@ merge gate.
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Masked-secret finding fixed and current threads resolved; await independent approval. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `245329684fc663840f12465dc439da6da1e50c7f` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 21 success, 1 in progress, 7 skipped | Documentation head is current at observation time; await terminal hosted Checks and independent approval on the later documentation head. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `9c759421575354740d0b46096c23a06c206a8858` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 18 success, 1 in progress, 1 queued, 7 skipped | Documentation head is current at observation time; await terminal hosted Checks and independent approval on the later documentation head. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
 
 The #100 row records the source head observed immediately before this
@@ -75,14 +75,12 @@ deliberately not treated as current merge evidence.
 
 The current central control-plane queue is also not merge-ready: protected
 `.github` main is `fce028b4c3bf8e2e5e4819c1c5622e90cfa6ab39`; #1198 is at
-`4d3d24aa404959f5067735fec0558d5924ade590` with 22 successful, 3 neutral,
-16 skipped, 1 cancelled, 1 in progress, and 6 queued Checks; scheduler repair
-#1203 was normally merged into the #1198 feature branch at
-`4d3d24aa404959f5067735fec0558d5924ade590` from child head
-`c627d4ae7a26222ed3d2ee1ded19e270930aa1f2`; OSV repair #1208 is closed without
-merge; review repair #1002 is at
-`b0967573949cfbb971cd812cf71aeaa4c361061c` with 4 successful, 13 skipped,
-1 in progress, and 14 queued Checks; and #1026 is at
+`3016543f735bb24db760cfaa768e64f95f408473` with 6 successful, 13 skipped,
+and 16 queued Checks; scheduler repair #1203 was normally merged into the
+#1198 feature branch at `4d3d24aa404959f5067735fec0558d5924ade590` from child
+head `c627d4ae7a26222ed3d2ee1ded19e270930aa1f2`; review repair #1002 was then
+normally merged into that same feature branch at `3016543f735bb24db760cfaa768e64f95f408473`;
+OSV repair #1208 is closed without merge; and #1026 is at
 `d70388abad872336a7a3fa6e9607e18fc3e86b25` with 27 successful, 3 neutral,
 2 failed, 1 cancelled, and 15 skipped Checks. These are normal
 source/hosted-gate or dependency-order problems, not D1–D5 emergency
