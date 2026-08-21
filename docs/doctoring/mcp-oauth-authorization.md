@@ -82,7 +82,7 @@ token endpoint, and JWKS URI. Each authorization-server metadata document must
 publish these as separate RFC 8414 members: `response_types_supported: ["code"]`,
 `grant_types_supported: ["authorization_code"]`,
 `code_challenge_methods_supported: ["S256"]`, and
-`scopes_supported: [<explicitly registered scope set>]`.
+`scopes_supported: ["<explicitly registered scope>"]`.
 The documents must not expose client secrets, registration tokens, private
 Keycloak URLs, tenant inventories, or user data.
 
