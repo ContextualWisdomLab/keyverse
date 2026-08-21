@@ -255,7 +255,8 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   through a normal branch update. Its prior `account-unification-tests`
   failure occurred before that update; the fresh run remains unverified. Its
   first Strix attempt also failed on contradictory model-generated Compose
-  evidence; a normal exact-head attempt 2 is queued. It remains coupled to
+  evidence; the neighboring #110 check used its neutral backend fallback and
+  #112 passed. A normal exact-head attempt 2 is queued. It remains coupled to
   #112 and #110. PR #110's current head
   `c3e307fc3d4f6d98ec5a0514f35aa8038b2737b7` remains on the #112 base with
   19 successful, 1 pending, and 8 skipped Checks; its hosted reruns remain

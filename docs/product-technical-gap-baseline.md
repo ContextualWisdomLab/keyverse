@@ -132,8 +132,8 @@ evidence.
 
 - PR #111's first Strix attempt on the unchanged CodeQL-only diff failed after
   the Nemotron provider emitted one critical Compose configuration finding.
-  The same Compose content passed the neighboring #110 and #112 scans, and the
-  report contradicted the checked configuration by describing an unset
+  The neighboring #110 check completed through its neutral backend fallback
+  and #112 passed; the report contradicted the checked configuration by describing an unset
   password variable as a default credential. The failure is retained as
   historical model evidence rather than silently converted to green; a normal
   exact-head Strix retry is queued as run attempt 2.
