@@ -34,8 +34,11 @@ kcadm update "realms/${REALM}/users/profile" \
   -f /opt/keycloak/lineageweave-user-profile.json
 profile="$(kcadm get "realms/${REALM}/users/profile")"
 for attribute in org workspace; do
-  printf '%s' "${profile}" \
-    | grep -Eq '"name"[[:space:]]*:[[:space:]]*"'"${attribute}"'"'
+  if ! printf '%s' "${profile}" \
+    | grep -Eq '"name"[[:space:]]*:[[:space:]]*"'"${attribute}"'"'; then
+    echo "profile bootstrap failed: account attribute ${attribute} is missing" >&2
+    exit 1
+  fi
 done
 # Keycloak 26.3.2 represents the closed unmanaged-attribute policy as null,
 # which is omitted from the Admin API JSON; DISABLED is not an accepted enum.
