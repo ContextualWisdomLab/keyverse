@@ -322,7 +322,7 @@ def test_scim_patch_is_serialized_with_merge(
                     "urn:ietf:params:scim:api:messages:2.0:PatchOp"
                 ],
                 "Operations": [
-                    {"op": "replace", "value": {"active": False}}
+                    {"op": "replace", "path": "active", "value": False}
                 ]
             },
         )
@@ -354,7 +354,7 @@ def test_scim_patch_lock_timeout_is_root_scim_error(client) -> None:
                 "urn:ietf:params:scim:api:messages:2.0:PatchOp"
             ],
             "Operations": [
-                {"op": "replace", "value": {"active": False}}
+                {"op": "replace", "path": "active", "value": False}
             ],
         },
     )
@@ -378,7 +378,7 @@ def test_scim_patch_deactivates_user(client, api) -> None:
                 "urn:ietf:params:scim:api:messages:2.0:PatchOp"
             ],
             "Operations": [
-                {"op": "replace", "value": {"active": False}}
+                {"op": "replace", "path": "active", "value": False}
             ],
         },
     )
