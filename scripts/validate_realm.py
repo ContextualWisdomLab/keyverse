@@ -14,7 +14,9 @@ broken realm export is caught in CI before it ever reaches Keycloak:
 * ``naruon-web`` is a bounded-token public PKCE client with required claims.
 * the post-import product authorization profile is explicit and admin-only.
 
-Usage: python scripts/validate_realm.py [path-to-realm.json]
+Usage: python scripts/validate_realm.py [path-to-realm.json] [path-to-user-profile.json]
+The profile path defaults to a sibling ``lineageweave-user-profile.json``;
+validation fails closed when that artifact is absent or invalid.
 Exit 0 = valid, 1 = invalid (prints the failing checks).
 """
 from __future__ import annotations
