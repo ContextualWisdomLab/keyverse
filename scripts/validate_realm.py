@@ -306,6 +306,10 @@ def main(argv: list[str]) -> int:
     try:
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
+        if errors:
+            print(f"INVALID: {path}", file=sys.stderr)
+            for error in errors:
+                print(f"  - {error}", file=sys.stderr)
         print(f"INVALID: cannot parse {profile_path}: {exc}", file=sys.stderr)
         return 1
     errors.extend(validate_user_profile(profile))

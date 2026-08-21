@@ -351,6 +351,22 @@ def test_main_reports_realm_parse_and_profile_policy_errors(
     assert "user profile must define 'org'" in stderr
 
 
+def test_main_reports_realm_policy_errors_when_profile_parse_also_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A missing profile does not hide independently detected realm errors."""
+    validator = _load_validate_realm()
+    realm_path = tmp_path / "invalid-realm.json"
+    profile_path = tmp_path / "missing-profile.json"
+    realm_path.write_text(json.dumps({"realm": "wrong"}), encoding="utf-8")
+
+    assert validator.main(["validate_realm.py", str(realm_path), str(profile_path)]) == 1
+
+    stderr = capsys.readouterr().err
+    assert "realm name must be 'cwl'" in stderr
+    assert f"cannot parse {profile_path}" in stderr
+
+
 def test_script_entrypoint_honors_the_explicit_profile_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
