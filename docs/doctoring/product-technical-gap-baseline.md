@@ -203,7 +203,7 @@ https://www.rfc-editor.org/rfc/rfc8725.html
   prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Its current exact
-  head `5514a24c1a3c56cc0a2a5c458ec4f8cb900c571a` adds RED-to-GREEN regressions
+  head `9274d3184443fba6c6294e08dff20734f3ae6fb4` adds RED-to-GREEN regressions
   for percent-encoded discovery markers, inactive and expired token rotation,
   invalid token rotation settings, KV/audit lifecycle failures, direct router
   embedding, tenant isolation, software-unit ABAC, runtime authentication, and
