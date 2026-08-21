@@ -98,6 +98,19 @@ evidence.
 
 ### Post-snapshot exact-head delta
 
+The live queue changed again after the snapshot recorded below. PR #115 is now
+normally stacked on #112's exact branch head
+`fix/account-unification-lock-20260819@f02acf93367a40dbfb23a73985017dca8d42ff39`.
+Its earlier `account-unification-tests` failure was the inherited stale-lock
+failure at `main@ce207dfd42975db61c82a5963e206fc1db14ac2b`, not a documentation
+test failure; the failed job was rerun after the base transition and remains
+unverified while queued. PR #112 remains a normal protected-merge candidate
+with all terminal Checks successful, auto-merge armed, and no qualifying
+approval. PRs #83 and #101 also have successful exact-head coverage evidence;
+fresh current-head reviews were requested because their old OpenCode
+`CHANGES_REQUESTED` verdicts were bound to predecessor heads. No approval or
+merge is claimed for any of these states.
+
 The current exact-head audit confirms PR #115 at
 `e7ad4524712b18809d8c409371142071270b2ea0`, #113 at
 `9bd33ee0d00ef1874fd5efabac3462f678a256ed`, #103 at
