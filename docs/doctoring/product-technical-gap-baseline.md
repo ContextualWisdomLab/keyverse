@@ -44,6 +44,23 @@ evidence gaps.
   mechanism that projects roles and user/session data into tokens. That vendor
   behavior does not establish that a receiving application enforces ABAC/RBAC.
 
+## 2026-08-21 MCP OAuth design evidence
+
+- Issue #114 remains an active buyer gap. Keyverse must use Keycloak as the
+  authorization server, not add a static MCP API key or a second user/token
+  authority.
+- Keyverse PR #115 is open at exact head
+  `7281c3d961f40bf47383b8cddeae750af1298ad5`. It adds proposed ADR-0013 and
+  `docs/doctoring/mcp-oauth-authorization.md`, covering OIDC/RFC 8414
+  discovery, public-client authorization code plus `S256` PKCE, exact
+  redirects, RFC 8707 resource binding, RFC 9728 LineageWeave metadata,
+  centralized revocation/audit, and negative evidence.
+- PR #115 is documentation-only. Its current rollup has 2 pending, 14 queued,
+  and 7 skipped Checks with review required; no MCP browser flow, resource
+  metadata endpoint, resource-bound token, revocation check, or LineageWeave
+  end-to-end result is claimed. RFC 8628 remains deferred until a real
+  callback-less client requires it.
+
 ## 2026-08-21 local runtime probe
 
 This is partial protocol-readiness evidence, not login or release acceptance.
@@ -211,6 +228,18 @@ Sheffer, Y., Hardt, D., & Jones, M. (2020). *JSON Web Token best current
 practices* (RFC 8725). Internet Engineering Task Force.
 https://www.rfc-editor.org/rfc/rfc8725.html
 
+Internet Engineering Task Force. (2018). *OAuth 2.0 authorization server
+metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
+
+Internet Engineering Task Force. (2024). *Resource indicators for OAuth 2.0*
+(RFC 8707). https://doi.org/10.17487/RFC8707
+
+Internet Engineering Task Force. (2024). *OAuth 2.0 protected resource
+metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
+
+Model Context Protocol. (2025, November 25). *Authorization*.
+https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
+
 GitHub. (2026). *REST API endpoints for workflows*.
 https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
 
@@ -218,28 +247,30 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
 
 - `docs/PRD.md`, `docs/TRD.md`, `ARCHITECTURE.md`, `docs/OPERABILITY.md`,
   `docs/THREAT_MODEL.md`, `docs/TEST_STRATEGY.md`, and `docs/TRACEABILITY.md`.
-- ADR-0008 and ADR-0009 plus their related specification, plan, operations,
-  and doctoring records.
+- ADR-0008, ADR-0009, and proposed ADR-0013 plus their related specification,
+  plan, operations, and doctoring records.
 - The live open-Issue query performed on 2026-08-21 found five open issues;
   newly tracked Issue #114 defines the buyer gap for MCP-compatible OAuth client
-  authorization for headless agents. Its standards list is issue scope, not
-  yet an adopted Keyverse runtime contract; implementation remains deferred
-  until the PR and Issue queue is exhausted.
+  authorization for headless agents. PR #115 proposes its design contract;
+  implementation remains deferred until that contract is independently
+  reviewed and the PR/Issue queue permits a bounded runtime change.
 - LineageWeave PRs #333 and #334 are both currently closed without merge;
   their managed/static MCP API-key direction is superseded by Issue #114's
   centralized Keyverse OAuth boundary and must not be revived as a second
   identity, issuance, revocation, or audit system.
 - Exact-head GitHub PR, review, issue, check-run, ruleset, and scheduled-run
-  queries performed on 2026-08-21. Fourteen Keyverse PRs are open: #112, #101,
-  and #83 each have 22 successful and 8 skipped Checks with no pending run.
-  #107 has 20 successful, 1 pending, and 8 skipped; #108 has 20 successful,
-  1 pending, and 8 skipped. PRs #113 and #100 have 14 pending and 7 skipped;
-  #111 has 18 successful, 2 pending, and 7 skipped; and #103, #104, #105,
-  #106, #109, and #110 each have 19 successful, 1 pending, and 8 skipped
-  Checks. No current open PR has a qualifying formal approval or terminal
-  failure. Pending Checks remain unverified.
+  queries performed on 2026-08-21. Fifteen Keyverse PRs are open: #112, #101,
+  and #83 each have 23 successful and 8 skipped Checks with no pending run;
+  #108 and #107 each have 21 successful, 1 queued, and 8 skipped; #110 and
+  #109 each have 20 successful, 1 queued, and 8 skipped; #111 has 19
+  successful, 2 queued, and 7 skipped; #106 and #105 each have 20 successful,
+  1 queued, and 8 skipped; #104 has 21 successful, 1 queued, and 8 skipped;
+  #103 and #100 each have 2 successful, 14 queued, and 7 skipped; #113 has 2
+  successful, 14 queued, and 7 skipped; and #115 has 2 pending, 14 queued,
+  and 7 skipped Checks. No current open PR has a qualifying formal approval or
+  terminal failure. Pending and queued Checks remain unverified.
   PR #113's current SCIM lock head
-  `aaafc2ca2f42bc171c1a0d0b538a99eb2f461233` includes the normal prerequisite
+  `49136c24fb07e3a8ed01171785e6946c559ea2a5` includes the normal prerequisite
   lockfile history, a realistic SCIM PatchOp race, and the corrected valid
   root-level deactivation payload. Its hosted Checks remain pending with no
   terminal failure. Local focused/full verification and 100% statement/branch
@@ -286,7 +317,7 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   remains the lock-refresh prerequisite.
   PR #103's historical terminal Strix run 32092025335 / job 95576032571
   emitted a MEDIUM IDOR report with contradictory model text. Its current exact
-  head `9274d3184443fba6c6294e08dff20734f3ae6fb4` adds RED-to-GREEN regressions
+  head `e765f4860177af47b80b05ee3a918a4dc2cb4450` adds RED-to-GREEN regressions
   for percent-encoded discovery markers, inactive and expired token rotation,
   invalid token rotation settings, KV/audit lifecycle failures, direct router
   embedding, tenant isolation, software-unit ABAC, runtime authentication, and
@@ -295,13 +326,11 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   still pending or queued, so hosted security and independent approval success
   are not claimed. The operator-admin trust boundary and the fresh security
   changes still require independent exact-head validation. PR #100's
-  observed documentation head is
-  `3b35084632052330bf150ebb8d1f0e9625d73584`, with 14 pending and 7 skipped
-  Checks; its prior review state is not approval. PR #104's updated
+  current documentation head is
+  `f331938a4f3cd6808101b8888b76c0f87b1eb841`, with 2 successful, 14 queued,
+  and 7 skipped Checks; its changes-requested review state is not approval. PR #104's updated
   head `7da9d43087d5647fefb946eb154ee1e5c10c576d` is based on #112's lockfile
-  head and has 19 successful, 1 pending, and 8 skipped Checks. The resulting #100 head
-  from this documentation refresh must be re-audited after the commit; its
-  pre-refresh review state is not approval.
+  head and has 21 successful, 1 queued, and 8 skipped Checks.
   This record travels in these PRs, so the live PR records remain authoritative
   for their changing exact hashes.
   The active ruleset requires two approving reviews, resolved threads, and
