@@ -3,6 +3,17 @@
 **Date:** 2026-08-23
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
 
+## 2026-08-23 exact-head `84e0c75` refresh
+
+Live Keyverse PR #100 is `84e0c759f9d757452f109b9c5c96253d54b85853` against
+protected `main` `ce207dfd42975db61c82a5963e206fc1db14ac2b`. Exact-head review
+threads on that SHA are zero unresolved. Hosted Checks on that SHA are 22
+successful, 7 skipped, and 2 pending (`strix` in-progress and Devin Review
+pending). Pending and skipped results remain unverified. Predecessor
+`25cf0e63760cf22cf73a1322eb1953b0dd2aada7` results are not current merge
+evidence. Independent approval remains absent. No competing Keyverse product
+PR was opened.
+
 ## 2026-08-23 exact-head `25cf0e6` refresh
 
 The live Keyverse queue is unchanged in membership. PR #100 now stands at

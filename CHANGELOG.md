@@ -71,6 +71,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Rebound the product and technical gap baseline to live Keyverse PR #100 exact
+  head `84e0c759f9d757452f109b9c5c96253d54b85853`, recording zero unresolved
+  threads and treating pending Strix and Devin Review as unverified rather than
+  inheriting predecessor `25cf0e6` Checks.
 - Bound the product and technical gap baseline to Keyverse PR #100 exact head
   `25cf0e63760cf22cf73a1322eb1953b0dd2aada7` with zero unresolved threads and
   an in-progress Strix Check recorded as unverified, and re-listed #113, #112,
