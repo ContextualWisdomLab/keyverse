@@ -1,7 +1,41 @@
 # Product-technical gap baseline doctoring record
 
-**Date:** 2026-08-22
+**Date:** 2026-08-23
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
+
+## 2026-08-23 live PR and control-plane refresh
+
+The protected Keyverse `main` head remains
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. The live open queue is #83, #100,
+#101, #103, #112, and #113. Their current exact heads are respectively
+`dd1ab7444a75342b42e3af013ccda6d1dbfb359d`,
+`f809c912108f59508ee1c0e29fb61a9f1ee66307`,
+`50dd9c96cab5c230f775685e8baea939fba390dd`,
+`77b8f4ea9995329f1c55b916d110b460b4bc7649`,
+`ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd`, and
+`9bd33ee0d00ef1874fd5efabac3462f678a256ed`. All report `REVIEW_REQUIRED` with
+zero unresolved review threads and zero formal approvals. Independent review
+absence is a recorded blocker, not a merge license. This documentation refresh
+creates a later #100 head, so predecessor Checks are not transferable merge
+evidence.
+
+Current Keyverse Checks are 22 successful and 8 skipped on every open PR.
+Skipped, queued, and pending results remain unverified rather than green. No
+source-fault Check failure required a RED-to-GREEN repair on this observation.
+Because the queue is non-empty, this run must not open a competing product PR.
+The next buyer-visible gap after G0 (protected queue convergence) is G4 (PR
+#113 SCIM deactivation lock).
+
+The earlier CodeQL pair #110/#111 is closed and is not a current open-PR
+blocker. PR #115 squash-merged ADR-0013 into the #112 stack and is no longer
+an open Keyverse PR; MCP runtime authorization remains `gap-not-claimed`.
+
+Current control-plane evidence is protected `.github` main
+`885f2cd251999f21cf562cab3e2d9cc3cc3ec737`. Representative open items include
+#1252 at `f7b0fd3253747efeef590859df150fd759aaf306` and #1233 at
+`dfb8e261c81705841111dd4ad1712a9fb6c767d1`. These are sibling observations,
+not Keyverse merge evidence. All predecessor evidence remains
+non-transferable.
 
 ## 2026-08-22 live PR and control-plane refresh
 

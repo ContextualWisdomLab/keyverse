@@ -14,6 +14,7 @@ Keyverse already has strong feature-specific specifications, doctoring, federati
 | Test strategy | [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md) |
 | Operability/recovery/release | [`docs/OPERABILITY.md`](docs/OPERABILITY.md) |
 | Requirements/evidence traceability | [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md) |
+| Product/technical gap baseline | [`docs/product-technical-gap-baseline.md`](docs/product-technical-gap-baseline.md) |
 | Architecture decisions | [`docs/adr/README.md`](docs/adr/README.md) |
 | Federation onboarding | [`docs/federation-onboarding.md`](docs/federation-onboarding.md) |
 | RP onboarding | [`docs/rp-onboarding.md`](docs/rp-onboarding.md) |

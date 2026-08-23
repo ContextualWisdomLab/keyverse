@@ -71,6 +71,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Refreshed the product and technical gap baseline to the 2026-08-23 exact-head
+  queue (#113, #112, #103, #101, #100, #83), recorded independent approval as
+  the remaining merge blocker, closed #110/#111 and stacked #115 as historical
+  rather than open-PR work, and named G0 then G4 as the next buyer-visible
+  order while the queue stays non-empty.
 - Refreshed the product and technical gap baseline with the current exact-head
   PR inventory, including the lockfile repair review gate and the requeued
   `lineageweave-web` Checks; predecessor evidence remains non-transferable.

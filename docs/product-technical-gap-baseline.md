@@ -1,6 +1,6 @@
 # Keyverse product and technical gap baseline
 
-**Evidence snapshot:** 2026-08-22 (Asia/Seoul)
+**Evidence snapshot:** 2026-08-23 (Asia/Seoul)
 **Repository:** `ContextualWisdomLab/keyverse`
 **Protected-main head observed:** `ce207dfd42975db61c82a5963e206fc1db14ac2b`
 **Status:** live inventory and gap register; not a release acceptance record
@@ -48,10 +48,58 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-22T06:15:13+09:00
+## Live queue refresh — 2026-08-23T21:19:13+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. Counts are exact-head GitHub REST
+check-runs; pending, queued, skipped, and failed results are never promoted to
+green. The current exact-head review audit reports `REVIEW_REQUIRED` for every
+open Keyverse PR. Every open PR has zero unresolved review threads. No open PR
+has a formal approval that satisfies the protected merge gate. Independent
+review absence is a recorded blocker, not a merge license.
+
+| PR | Exact head | Base | Checks | Safe disposition |
+|---:|---|---|---|---|
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Source-clean; await independent approval; no merge claim. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Masked-secret finding fixed and current threads resolved; await independent approval. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
+| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `f809c912108f59508ee1c0e29fb61a9f1ee66307` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Documentation head is current at observation time; hosted Checks are terminal-success and independent approval is absent. |
+| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
+
+The #100 row records the source head observed immediately before this
+documentation snapshot. The documentation-only commit carrying this table
+creates a later #100 head, so its predecessor Checks and review evidence are
+deliberately not treated as current merge evidence.
+
+The current central control-plane queue is also not merge-ready: protected
+`.github` main is `885f2cd251999f21cf562cab3e2d9cc3cc3ec737`. More than one
+hundred `.github` PRs remain open; representative current items include docs
+refresh [#1252](https://github.com/ContextualWisdomLab/.github/pull/1252) at
+`f7b0fd3253747efeef590859df150fd759aaf306` and fleet coordination
+[#1233](https://github.com/ContextualWisdomLab/.github/pull/1233) at
+`dfb8e261c81705841111dd4ad1712a9fb6c767d1` (`CHANGES_REQUESTED`). These are
+sibling-control-plane observations, not Keyverse merge evidence. This run does
+not claim or perform a `.github` merge.
+
+All queue statements below this section are historical snapshots. They do not
+override the exact-head evidence above.
+
+The organization ruleset `CWL Central required workflows` (`18156473`) is
+active and requires two approving reviews, latest-push approval, resolved
+threads, and required workflows. Its live `bypass_actors` list is empty. No
+Keyverse PR therefore qualifies for an emergency bypass or a protected merge
+until the normal review and hosted gates are satisfied.
+
+Because the Keyverse open-PR queue is non-empty, this run must not open a
+competing product PR. The next buyer-visible gap after queue convergence (G0)
+is G4 (PR #113 SCIM deactivation lock).
+
+## Live queue refresh — 2026-08-22T06:15:13+09:00
+
+Historical snapshot recorded 2026-08-22. The 2026-08-23 refresh above is
+authoritative for current-state decisions. The protected `main` head is
 `ce207dfd42975db61c82a5963e206fc1db14ac2b`. Counts are exact-head GitHub REST
 check-runs; pending, queued, and failed results are never promoted to green.
 The current exact-head review audit reports `REVIEW_REQUIRED` for every open
@@ -460,17 +508,17 @@ verify the exact head; require independent approval; let the protected steward
 arm normal auto-merge; verify merge SHA; then re-list. Never self-approve,
 force-push, admin-merge, or treat queued/retrievable-missing Checks as green.
 
-### G1 — Coupled dependency and workflow updates
+### G1 — Coupled dependency and lockfile updates
 
 **State:** `active-PR`
-**Root cause:** the current queue contains a lockfile consistency fix and two
-CodeQL action updates that are safe only as a coupled set.
+**Root cause:** the current queue contains a lockfile consistency fix (#112)
+and its policy companion for atomic coupled Python dependency updates (#101).
+The earlier CodeQL action pair (#110/#111) is closed and is not a current
+open-PR blocker.
 
-**Acceptance:** #112 passes the full current Checks and receives independent
-approval; #101/#110/#111 are then re-evaluated on current bases; `uv sync
---locked` succeeds; both CodeQL actions resolve the same compatible version;
-Strix and security checks are completed; no stale predecessor evidence is
-counted.
+**Acceptance:** #112 passes current hosted Checks and receives independent
+approval; #101 is then re-evaluated on the current base; `uv sync --locked`
+succeeds; no stale predecessor evidence is counted.
 
 ### G2 — Stable downstream tenant semantics
 
@@ -506,18 +554,19 @@ be converted into a synthetic success.
 
 ### G8 — MCP-compatible OAuth resource authorization
 
-**State:** `active-PR` design; runtime remains `gap-not-claimed`
+**State:** `accepted-contract` design; runtime remains `gap-not-claimed`
 **Buyer impact:** An MCP client currently has no protected-main evidence for a
 passwordless authorization-code path that is bound to one LineageWeave resource
 and centrally revocable.
 
-**Current action:** PR #115 merged ADR-0013 and its doctoring record into the
-#112 stack. The design keeps Keycloak as the authorization server, assigns RFC 9728 protected-
-resource metadata to LineageWeave, requires exact public-client redirects and
-`S256` PKCE, binds one canonical RFC 8707 resource URI to the token audience and
-least-privilege scope set, and defers RFC 8628 until a real callback-less client
-requires it. The PR is documentation-only; its pending/queued Checks and
-review-required state are not runtime evidence.
+**Current action:** PR #115 squash-merged ADR-0013 and its doctoring record into
+the #112 stack and is no longer an open Keyverse PR. The design keeps Keycloak
+as the authorization server, assigns RFC 9728 protected-resource metadata to
+LineageWeave, requires exact public-client redirects and `S256` PKCE, binds one
+canonical RFC 8707 resource URI to the token audience and least-privilege scope
+set, and defers RFC 8628 until a real callback-less client requires it. The
+merged design is documentation-only; runtime MCP authorization remains
+unclaimed.
 
 **Acceptance:** after ADR review, run a real browser/client flow and record
 discovery agreement, exact redirect/PKCE/resource/scope checks, wrong
@@ -594,6 +643,11 @@ The repository currently schedules:
 - **Hourly product development:** UTC minute `41`, after the steward's evidence
   settles; create at most one bounded draft product-gap PR only when the open
   PR queue is empty and protected-main evidence is healthy.
+- **Grok hourly product loop:** interval `1h`, inventory, steward, and baseline
+  refresh even while Keyverse PRs remain open. It must not open a competing
+  product PR while the queue is non-empty, must not self-approve or bypass
+  protected gates, and must not use `COPILOT_GITHUB_TOKEN`. Existing GitHub
+  hourly workflows and review-agent credentials stay separate.
 
 The current live run inventory showed a successful product-development run at
 the protected-main head and a queued PR-steward run. Queued or delayed runs are

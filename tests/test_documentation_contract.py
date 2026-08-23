@@ -22,6 +22,7 @@ REQUIRED_DOCUMENTS = (
     "AGENTS.md",
     "CLAUDE.md",
     "CHANGELOG.md",
+    "docs/product-technical-gap-baseline.md",
 )
 GOVERNING_ADRS = (
     "0001-keycloak-hub.md",
@@ -123,3 +124,45 @@ def test_lineageweave_tenant_contract_is_explicit() -> None:
             "OIDC reconciliation operations are missing tenant contract marker: "
             f"{marker}"
         )
+
+
+def test_gap_baseline_documents_product_evidence_and_hourly_loop() -> None:
+    """Keep the buyer-facing gap baseline current and evidence-classified."""
+
+    baseline = _read("docs/product-technical-gap-baseline.md")
+    for heading in (
+        "## Product contract",
+        "## Evidence classification",
+        "## Live PR inventory",
+        "## Open Issue inventory",
+        "## Gap register and buyer-visible order",
+        "## Hourly loop contract",
+    ):
+        assert heading in baseline, f"missing baseline heading: {heading}"
+    for classification in (
+        "implemented-main",
+        "active-PR",
+        "active-issue",
+        "accepted-contract",
+        "gap-not-claimed",
+    ):
+        assert f"`{classification}`" in baseline, (
+            f"baseline is missing evidence class {classification}"
+        )
+    lowered = baseline.lower()
+    assert "never promoted" in lowered
+    assert "queued" in lowered
+    assert "pending" in lowered
+    assert "skipped" in lowered
+    assert "review_required" in lowered
+    assert "## Live queue refresh — 2026-08-23" in baseline
+
+
+def test_traceability_links_gap_baseline_and_doctoring() -> None:
+    """Keep the gap baseline and its doctoring companion discoverable."""
+
+    traceability = _read("docs/TRACEABILITY.md")
+    assert "](product-technical-gap-baseline.md)" in traceability
+    assert "](doctoring/product-technical-gap-baseline.md)" in traceability
+    row = _row_with(traceability, "product and technical gap baseline")
+    assert "active-PR" in row
