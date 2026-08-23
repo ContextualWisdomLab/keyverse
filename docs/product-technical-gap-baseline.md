@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-23T21:19:13+09:00
+## Live queue refresh — 2026-08-23T21:43:36+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -61,27 +61,30 @@ review absence is a recorded blocker, not a merge license.
 
 | PR | Exact head | Base | Checks | Safe disposition |
 |---:|---|---|---|---|
-| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Source-clean; await independent approval; no merge claim. |
-| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Masked-secret finding fixed and current threads resolved; await independent approval. |
-| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
-| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `f809c912108f59508ee1c0e29fb61a9f1ee66307` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Documentation head is current at observation time; hosted Checks are terminal-success and independent approval is absent. |
-| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 8 skipped | Await independent approval; no merge claim. |
+| [#113](https://github.com/ContextualWisdomLab/keyverse/pull/113) | `9bd33ee0d00ef1874fd5efabac3462f678a256ed` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval; no merge claim. |
+| [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
+| [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
+| [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `25cf0e63760cf22cf73a1322eb1953b0dd2aada7` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 7 skipped, 1 in-progress (`strix`) | Devin Compose local-image note dispositioned with no source change; 0 unresolved threads. `strix` remains in-progress and unverified. Independent approval is absent. |
+| [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
 
-The #100 row records the source head observed immediately before this
-documentation snapshot. The documentation-only commit carrying this table
-creates a later #100 head, so its predecessor Checks and review evidence are
-deliberately not treated as current merge evidence.
+The #100 row records exact head `25cf0e63760cf22cf73a1322eb1953b0dd2aada7`
+observed immediately before this documentation snapshot. The documentation-only
+commit carrying this table creates a later #100 head, so predecessor Checks and
+review evidence are deliberately not treated as current merge evidence. No
+source-fault Check failure was present on the re-listed Keyverse heads.
 
 The current central control-plane queue is also not merge-ready: protected
-`.github` main is `885f2cd251999f21cf562cab3e2d9cc3cc3ec737`. More than one
-hundred `.github` PRs remain open; representative current items include docs
-refresh [#1252](https://github.com/ContextualWisdomLab/.github/pull/1252) at
-`f7b0fd3253747efeef590859df150fd759aaf306` and fleet coordination
-[#1233](https://github.com/ContextualWisdomLab/.github/pull/1233) at
-`dfb8e261c81705841111dd4ad1712a9fb6c767d1` (`CHANGES_REQUESTED`). These are
-sibling-control-plane observations, not Keyverse merge evidence. This run does
-not claim or perform a `.github` merge.
+`.github` main is `885f2cd251999f21cf562cab3e2d9cc3cc3ec737`. Docs refresh
+[#1252](https://github.com/ContextualWisdomLab/.github/pull/1252) remains
+merge-`CLEAN` at `f7b0fd3253747efeef590859df150fd759aaf306` with 26 successful,
+18 skipped, and 3 neutral Checks, zero unresolved threads, and zero formal
+approvals. Fleet coordination
+[#1233](https://github.com/ContextualWisdomLab/.github/pull/1233) remains
+`CHANGES_REQUESTED` at `dfb8e261c81705841111dd4ad1712a9fb6c767d1` with 36
+successful, 21 skipped, 3 neutral, and 1 in-progress (`strix`) Check; that
+`strix` rerun is unverified provider-infrastructure evidence, not a product
+source line. This run does not claim or perform a `.github` merge.
 
 All queue statements below this section are historical snapshots. They do not
 override the exact-head evidence above.

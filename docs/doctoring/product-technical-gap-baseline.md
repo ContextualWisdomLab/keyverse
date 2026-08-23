@@ -3,6 +3,25 @@
 **Date:** 2026-08-23
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
 
+## 2026-08-23 exact-head `25cf0e6` refresh
+
+The live Keyverse queue is unchanged in membership. PR #100 now stands at
+exact head `25cf0e63760cf22cf73a1322eb1953b0dd2aada7` against protected `main`
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. That head has zero unresolved
+review threads after the Devin Compose `cwl-idp/keycloak:local` analysis was
+dispositioned as the documented standalone import-realm contract (no source
+change). Hosted Checks on that head are 23 successful, 7 skipped, and 1
+in-progress (`strix`). The in-progress Strix run is unverified and is not
+treated as success or as a source-fault failure. Independent approval remains
+absent.
+
+Re-listed sibling heads #113, #112, #103, #101, and #83 still have zero
+unresolved threads and no terminal failed Checks. `.github` #1252 remains
+merge-`CLEAN` without formal approval. `.github` #1233 remains
+`CHANGES_REQUESTED` with an in-progress Strix rerun after a provider
+fail-closed job; both `jq` parses are already guarded on that head. No
+competing Keyverse product PR was opened.
+
 ## 2026-08-23 live PR and control-plane refresh
 
 The protected Keyverse `main` head remains

@@ -10,7 +10,7 @@ _OBSERVED_HEADS = {
     112: "ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd",
     103: "77b8f4ea9995329f1c55b916d110b460b4bc7649",
     101: "50dd9c96cab5c230f775685e8baea939fba390dd",
-    100: "f809c912108f59508ee1c0e29fb61a9f1ee66307",
+    100: "25cf0e63760cf22cf73a1322eb1953b0dd2aada7",
     83: "dd1ab7444a75342b42e3af013ccda6d1dbfb359d",
 }
 _OPEN_ISSUES = (114, 102, 99, 71, 2)
@@ -105,6 +105,9 @@ def test_live_queue_records_exact_heads_without_promoting_pending_checks() -> No
     assert "creates a later #100 head" in refresh
     assert "competing product PR" in refresh
     assert "G4" in refresh
+    assert "zero unresolved" in lowered
+    assert "strix" in lowered
+    assert "unverified" in lowered
 
 
 def test_open_issue_inventory_and_gap_order_match_the_live_queue() -> None:

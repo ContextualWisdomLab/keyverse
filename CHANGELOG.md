@@ -71,6 +71,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Bound the product and technical gap baseline to Keyverse PR #100 exact head
+  `25cf0e63760cf22cf73a1322eb1953b0dd2aada7` with zero unresolved threads and
+  an in-progress Strix Check recorded as unverified, and re-listed #113, #112,
+  #103, #101, #83 plus `.github` #1233/#1252 with no source-fault Check
+  failures.
 - Refreshed the product and technical gap baseline to the 2026-08-23 exact-head
   queue (#113, #112, #103, #101, #100, #83), recorded independent approval as
   the remaining merge blocker, closed #110/#111 and stacked #115 as historical
