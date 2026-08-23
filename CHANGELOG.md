@@ -71,6 +71,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Separated PR #100 observation SHA `a1a65b26c1ebcd3ce964e56b1f0976e132d33cb9`
+  from the later inventory commit SHA in the gap baseline so docs-only binds
+  are not recursively re-named; pending Strix and Devin Review stay unverified.
 - Rebound the product and technical gap baseline to live Keyverse PR #100 exact
   head `655aaad57678e2503ac83a74fa8e19d6efc5f598`, recording zero unresolved
   threads and treating pending Strix and Devin Review as unverified rather than

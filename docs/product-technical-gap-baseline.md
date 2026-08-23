@@ -48,7 +48,7 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-23T21:52:55+09:00
+## Live queue refresh — 2026-08-23T21:56:27+09:00
 
 This section supersedes the older queue snapshots below for current-state
 decisions. The protected `main` head is
@@ -65,18 +65,17 @@ review absence is a recorded blocker, not a merge license.
 | [#112](https://github.com/ContextualWisdomLab/keyverse/pull/112) | `ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
 | [#103](https://github.com/ContextualWisdomLab/keyverse/pull/103) | `77b8f4ea9995329f1c55b916d110b460b4bc7649` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 24 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
 | [#101](https://github.com/ContextualWisdomLab/keyverse/pull/101) | `50dd9c96cab5c230f775685e8baea939fba390dd` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
-| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `655aaad57678e2503ac83a74fa8e19d6efc5f598` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 7 skipped, 2 pending (`strix` in-progress, Devin Review pending) | Zero unresolved threads on this live head. Pending `strix` and Devin Review are unverified and are not predecessor `84e0c75` evidence. Independent approval is absent. |
+| [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100) | `a1a65b26c1ebcd3ce964e56b1f0976e132d33cb9` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 22 success, 7 skipped, 2 pending (`strix` in-progress, Devin Review pending) | Observation SHA for this snapshot. Zero unresolved threads. Pending `strix` and Devin Review are unverified. Independent approval is absent. |
 | [#83](https://github.com/ContextualWisdomLab/keyverse/pull/83) | `dd1ab7444a75342b42e3af013ccda6d1dbfb359d` | `ce207dfd42975db61c82a5963e206fc1db14ac2b` | 23 success, 8 skipped | Source-clean; 0 unresolved threads; await independent approval. |
 
-The #100 row records live exact head `655aaad57678e2503ac83a74fa8e19d6efc5f598`
-observed immediately before this documentation snapshot. Predecessor heads
-`84e0c759f9d757452f109b9c5c96253d54b85853` and
-`25cf0e63760cf22cf73a1322eb1953b0dd2aada7` Checks and reviews are not current
-and must not be copied forward. The documentation-only commit carrying this
-table creates a later #100 head; this run then stops further docs-only pushes
-unless a source-fault Check fails. No source-fault Check failure was present
-on the re-listed Keyverse heads. Pending `strix` and Devin Review remain
-unverified.
+The #100 row records observation SHA
+`a1a65b26c1ebcd3ce964e56b1f0976e132d33cb9` (the live GitHub head at inventory
+time). The inventory commit SHA that records this table is later than the
+observation SHA, is not recursively named, and creates a later #100 head.
+Predecessor `655aaad57678e2503ac83a74fa8e19d6efc5f598` Checks are not current.
+Pending `strix` and Devin Review remain unverified. No source-fault Check
+failure was present on the re-listed Keyverse heads. After this observation
+bind, docs-only SHA rebinds stop unless a source-fault Check fails.
 
 The current central control-plane queue is also not merge-ready: protected
 `.github` main is `885f2cd251999f21cf562cab3e2d9cc3cc3ec737`. Docs refresh

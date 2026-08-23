@@ -3,6 +3,17 @@
 **Date:** 2026-08-23
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
 
+## 2026-08-23 observation SHA `a1a65b2` versus inventory commit SHA
+
+Live Keyverse PR #100 observation SHA is
+`a1a65b26c1ebcd3ce964e56b1f0976e132d33cb9` against protected `main`
+`ce207dfd42975db61c82a5963e206fc1db14ac2b`. Threads on that SHA: 44, unresolved
+0. Hosted Checks: 22 successful, 7 skipped, 2 pending (`strix` in-progress,
+Devin Review pending). Pending results are unverified. The inventory commit
+SHA that writes this paragraph is later than the observation SHA and is not
+recursively named. Docs-only SHA rebinds stop here unless a source-fault Check
+fails.
+
 ## 2026-08-23 exact-head `655aaad` refresh
 
 Live Keyverse PR #100 is `655aaad57678e2503ac83a74fa8e19d6efc5f598` against

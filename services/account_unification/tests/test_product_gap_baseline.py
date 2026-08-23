@@ -5,12 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 
-_OBSERVED_HEADS = {
+_OBSERVATION_HEADS = {
     113: "9bd33ee0d00ef1874fd5efabac3462f678a256ed",
     112: "ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd",
     103: "77b8f4ea9995329f1c55b916d110b460b4bc7649",
     101: "50dd9c96cab5c230f775685e8baea939fba390dd",
-    100: "655aaad57678e2503ac83a74fa8e19d6efc5f598",
+    100: "a1a65b26c1ebcd3ce964e56b1f0976e132d33cb9",
     83: "dd1ab7444a75342b42e3af013ccda6d1dbfb359d",
 }
 _OPEN_ISSUES = (114, 102, 99, 71, 2)
@@ -87,7 +87,7 @@ def test_live_queue_records_exact_heads_without_promoting_pending_checks() -> No
     """Current open PRs keep 40-character heads; skipped Checks stay unverified."""
 
     baseline = _read("docs/product-technical-gap-baseline.md")
-    refresh = _current_refresh(baseline)
+    refresh = " ".join(_current_refresh(baseline).split())
     assert _PROTECTED_MAIN in refresh
     assert "REVIEW_REQUIRED" in refresh
     lowered = refresh.lower()
@@ -98,10 +98,13 @@ def test_live_queue_records_exact_heads_without_promoting_pending_checks() -> No
     assert "independent" in lowered
     assert "blocker" in lowered
     assert "not a merge license" in lowered
-    for number, sha in _OBSERVED_HEADS.items():
+    for number, sha in _OBSERVATION_HEADS.items():
         assert f"[#{number}](" in refresh, f"missing live PR #{number}"
-        assert sha in refresh, f"PR #{number} is missing observed head {sha}"
+        assert sha in refresh, f"PR #{number} is missing observation SHA {sha}"
         assert len(sha) == 40
+    assert "observation SHA" in refresh
+    assert "inventory commit SHA" in refresh
+    assert "not recursively named" in lowered
     assert "creates a later #100 head" in refresh
     assert "competing product PR" in refresh
     assert "G4" in refresh
@@ -110,6 +113,7 @@ def test_live_queue_records_exact_heads_without_promoting_pending_checks() -> No
     assert "unverified" in lowered
     assert "devin" in lowered
     assert "source-fault" in lowered
+    assert "later than the observation SHA" in refresh
 
 
 def test_open_issue_inventory_and_gap_order_match_the_live_queue() -> None:
