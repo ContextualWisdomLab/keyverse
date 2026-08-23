@@ -10,7 +10,7 @@ _OBSERVED_HEADS = {
     112: "ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd",
     103: "77b8f4ea9995329f1c55b916d110b460b4bc7649",
     101: "50dd9c96cab5c230f775685e8baea939fba390dd",
-    100: "84e0c759f9d757452f109b9c5c96253d54b85853",
+    100: "655aaad57678e2503ac83a74fa8e19d6efc5f598",
     83: "dd1ab7444a75342b42e3af013ccda6d1dbfb359d",
 }
 _OPEN_ISSUES = (114, 102, 99, 71, 2)
@@ -108,6 +108,8 @@ def test_live_queue_records_exact_heads_without_promoting_pending_checks() -> No
     assert "zero unresolved" in lowered
     assert "strix" in lowered
     assert "unverified" in lowered
+    assert "devin" in lowered
+    assert "source-fault" in lowered
 
 
 def test_open_issue_inventory_and_gap_order_match_the_live_queue() -> None:

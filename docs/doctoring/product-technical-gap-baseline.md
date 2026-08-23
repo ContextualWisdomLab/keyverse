@@ -3,6 +3,17 @@
 **Date:** 2026-08-23
 **Scope:** Keyverse product, trust-boundary, PR queue, and release evidence
 
+## 2026-08-23 exact-head `655aaad` refresh
+
+Live Keyverse PR #100 is `655aaad57678e2503ac83a74fa8e19d6efc5f598` against
+protected `main` `ce207dfd42975db61c82a5963e206fc1db14ac2b`. Exact-head review
+threads on that SHA are zero unresolved. Hosted Checks on that SHA are 22
+successful, 7 skipped, and 2 pending (`strix` in-progress and Devin Review
+pending). Pending and skipped results remain unverified. Predecessor
+`84e0c759f9d757452f109b9c5c96253d54b85853` results are not current merge
+evidence. Independent approval remains absent. After this inventory bind, no
+further docs-only push is made unless a source-fault Check fails.
+
 ## 2026-08-23 exact-head `84e0c75` refresh
 
 Live Keyverse PR #100 is `84e0c759f9d757452f109b9c5c96253d54b85853` against
