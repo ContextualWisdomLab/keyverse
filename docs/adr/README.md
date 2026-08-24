@@ -18,3 +18,11 @@
 Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, or autonomous/release authority.
 
 Each implementation PR should reconcile PRD/TRD/Architecture/UML/ERD/Threat/Test/Operability/Traceability and the relevant `docs/doctoring/`, `docs/papers/`, or `docs/operations/` research/standards/runbook record when those contracts move.
+
+Each accepted ADR now includes Context, Decision, Consequences, and an APA 7th
+References list. Citations use a DOI or official catalog URL opened from the
+IETF RFC Editor, OpenID Foundation, OASIS, NIST CSRC/nvlpubs, W3C, Keycloak
+documentation, or SLSA specification on 2026-08-24. The 2017 NIST SP 800-63B
+and SP 800-63C volumes named in `docs/papers/` are superseded by the July 2025
+SP 800-63B-4 and SP 800-63C-4 finals cited in these ADRs. Citations are
+standards evidence, not conformance claims.

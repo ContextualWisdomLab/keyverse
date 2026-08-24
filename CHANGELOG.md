@@ -55,6 +55,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Expanded architecture decision records 0001–0008 with Context, Decision,
+  Consequences, and APA 7th references whose DOI or official catalog URL was
+  opened from the IETF RFC Editor, OpenID Foundation, OASIS, NIST CSRC/nvlpubs,
+  W3C, Keycloak documentation, or SLSA specification. Decision intent is
+  unchanged.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
