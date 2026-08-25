@@ -18,10 +18,12 @@ KEY_KEYCLOAK_SERVER_URL = "keycloak_server_url"
 KEY_KEYCLOAK_REALM = "keycloak_realm"
 KEY_KEYCLOAK_CLIENT_ID = "keycloak_client_id"
 KEY_KEYCLOAK_CLIENT_SECRET = "keycloak_client_secret"
+KEY_PUBLIC_ISSUER_URL = "public_issuer_url"
 KEY_MERGE_CONFLICT_POLICY = "merge_conflict_policy"
 KEY_ALLOW_UNVERIFIED_LINK = "allow_unverified_email_link"
 KEY_REQUEST_TIMEOUT_SECONDS = "request_timeout_seconds"
 KEY_OPERATOR_API_TOKEN = "operator_api_token"
+KEY_RUNTIME_API_TOKEN = "runtime_api_token"
 KEY_REGISTRATION_API_TOKEN = "registration_api_token"
 KEY_REGISTRATION_CLIENT_ID = "registration_client_id"
 KEY_REGISTRATION_REDIRECT_URI = "registration_redirect_uri"
@@ -46,6 +48,8 @@ class ServiceConfig:
     # Privileged and product registration surfaces deliberately use different
     # bearer credentials so relying products never acquire operator authority.
     operator_api_token: str
+    public_issuer_url: str | None = None
+    runtime_api_token: str | None = None
     registration_api_token: str | None = None
     registration_client_id: str | None = None
     registration_redirect_uri: str | None = None
@@ -189,6 +193,14 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
             "config 'registration_api_token' must differ from "
             "'operator_api_token'"
         )
+    runtime_api_token = store.get(namespace, KEY_RUNTIME_API_TOKEN) or None
+    if runtime_api_token is not None and runtime_api_token in {
+        operator_api_token,
+        registration_api_token,
+    }:
+        raise RuntimeError(
+            "config 'runtime_api_token' must differ from operator and registration tokens"
+        )
     (
         registration_client_id,
         registration_redirect_uri,
@@ -224,7 +236,16 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
         keycloak_client_secret=_require(
             store, namespace, KEY_KEYCLOAK_CLIENT_SECRET
         ),
+        public_issuer_url=(
+            _validated_https_uri(
+                public_issuer_url,
+                entry_key=KEY_PUBLIC_ISSUER_URL,
+            )
+            if (public_issuer_url := store.get(namespace, KEY_PUBLIC_ISSUER_URL))
+            else None
+        ),
         operator_api_token=operator_api_token,
+        runtime_api_token=runtime_api_token,
         registration_api_token=registration_api_token,
         registration_client_id=registration_client_id,
         registration_redirect_uri=registration_redirect_uri,

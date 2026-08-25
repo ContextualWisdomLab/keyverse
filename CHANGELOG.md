@@ -7,6 +7,31 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- Hierarchical authorization plane (ADR-0010): software-unit ACL, menu
+  ABAC/RBAC decisions, SSO combination scopes, and most-specific org-path
+  inheritance consumed from Orgmetra assignment snapshots. ADR-0008 stays
+  the PEP boundary. Hierarchical attributes use `group_company`,
+  `legal_entity`, `business_unit`, `team`, `person`, and `org_path` so they
+  do not collide with the unmerged LineageWeave `role`/`org`/`workspace`
+  profile reserved as ADR-0009 on PR #100.
+- App start-login helper (ADR-0011) that discovers enabled brokered IdPs from
+  the local registry and returns a Keycloak `kc_idp_hint` authorization URL
+  without metadata or discovery fetch; encoded discovery markers are rejected
+  after URL normalization at the same boundary.
+- Programmable application tokens (ADR-0012) hashed at rest, purpose-bound,
+  software-unit and API scoped, rotatable, auditable, and never a password
+  substitute or inherited secret; failed issue/rotation audit and storage
+  writes are compensated, and runtime verification uses a separate service
+  credential.
+- Authorization decisions now require a tenant-qualified assignment snapshot;
+  grant matching, ABAC constraints, duplicate identity, and KV keys preserve
+  tenant boundaries.
+- Authorization decision metadata now marks strict menu-prefix inheritance
+  correctly when the org path is an exact match.
+- Ambiguous same-named authorization grants can now be read or deleted through
+  an explicit tenant-scoped GET/DELETE query without weakening fail-closed
+  behavior.
+- Start-login issuer input is bound to configured Keyverse public issuer state.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
@@ -55,6 +80,21 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Authorization decisions now require explicit tenant-bound assignment
+  snapshots, grants, SSO combinations, and application-token verification;
+  software-unit grants reject menu-only ABAC constraints.
+- Start-login now uses a configured Keycloak public issuer and is exposed as a
+  front-channel runtime helper, while PAT management remains operator-gated
+  and PAT verification remains token-gated.
+- Application-token rotation now persists the replacement and rotated
+  predecessor through one atomic KV-store batch before recording the audit
+  event, and restores that pair with one atomic upsert/delete compensation if
+  audit persistence fails.
+
+- The hierarchical authorization router now carries its operator-authentication
+  and privileged-path dependencies at the module boundary, so direct CWL/Naruon
+  embedding cannot accidentally mount grant administration without the existing
+  operator gate.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
@@ -93,6 +133,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Application-token rotation now rejects revoked, already-rotated, and expired
+  predecessors instead of reviving retired credentials.
+- Prevented cross-tenant authorization selection, SSO-name collisions, PAT
+  tenant confusion, expired-token revival, and audit-failure state leakage;
+  start-login can no longer reflect an attacker-selected issuer.
+
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
@@ -122,6 +168,9 @@ Keep a Changelog, and releases use semantic versioning.
   state storage lock is held.
 - Prevented unknown federation configuration keys, credentials, and private
   values from being echoed through list, get, or update responses.
+- Application-token rotation now validates the replacement purpose,
+  capabilities, lifetime, and software-unit binding before revoking the
+  active token, so invalid rotation requests preserve the working credential.
 - Rejected Unicode-confusable federation aliases outside the explicit ASCII
   slug alphabet.
 - Rejected raw C0 controls, DEL, invalid ports, insecure HTTP SSO or metadata

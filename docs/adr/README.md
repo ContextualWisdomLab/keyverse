@@ -12,9 +12,13 @@
 | [0006](0006-user-operation-lock.md) | Merge/link, SCIM full replacement, and supported `PATCH active=false` share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
+| 0009 | Reserved for the unmerged LineageWeave `role`/`org`/`workspace` profile on PR #100 | Reserved |
+| [0010](0010-hierarchical-authorization-plane.md) | Hierarchical software-unit, menu, inheritance, and SSO-combination PDP; Orgmetra remains employment SoR; ADR-0008 PEP boundary unchanged | Accepted |
+| [0011](0011-app-start-login-helper.md) | App start-login / IdP discovery helper owned by Keyverse; no metadata fetch | Accepted |
+| [0012](0012-programmable-application-tokens.md) | Hashed, purpose-bound, software-unit and API scoped programmable application tokens | Accepted |
 
 ## ADR triggers
 
-Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, or autonomous/release authority.
+Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, hierarchical authorization attributes, programmable application tokens, start-login ownership, or autonomous/release authority.
 
 Each implementation PR should reconcile PRD/TRD/Architecture/UML/ERD/Threat/Test/Operability/Traceability and the relevant `docs/doctoring/`, `docs/papers/`, or `docs/operations/` research/standards/runbook record when those contracts move.

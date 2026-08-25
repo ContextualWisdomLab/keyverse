@@ -1,7 +1,7 @@
 # Keyverse Requirements and Evidence Traceability
 
 **Status:** Accepted cross-cutting baseline  
-**Last reviewed:** 2026-08-12
+**Last reviewed:** 2026-08-18
 
 | Requirement / decision | Standards / authoritative basis | Source/evidence boundary | Maturity |
 |---|---|---|---|
@@ -20,6 +20,10 @@
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
 | work-conserving fail-closed hourly API gate | automation safety decision | PR #74 protected-main workflow tests/exact-head evidence; scheduled/manual run remains required | implemented-main |
 | non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
+| hierarchical software-unit and menu PDP | ADR-0010; NIST SP 800-162 ABAC; Orgmetra assignment snapshot; issue #102 | account-unification authorization-plane tests; Orgmetra remains SoR | active-PR |
+| SSO combination scopes | ADR-0010; OIDC session remains Keycloak-owned | combination decide tests require every member software unit | active-PR |
+| app start-login helper | ADR-0011; OpenID Connect Core; Keycloak `kc_idp_hint`; no metadata fetch | start-login tests; local registry only | active-PR |
+| programmable application tokens | ADR-0012; RFC 6750 bearer usage; hashed at rest | issue/verify/revoke/rotate tests; never a password substitute | active-PR |
 | naruon Keyverse OIDC acceptance boundary | ADR-0008; exact issuer/audience/JWKS validation and required OIDC NumericDate claims | naruon PR #1321 `ca6ccba` names the Keyverse issuer and `naruon-web` audience, requires verified `iat`, tests explicit org/workspace/role acceptance plus missing-`iat` denial, strips orphaned HTML comment terminators, and resolves the `develop` CHANGELOG conflict; protected-branch Checks/review remain required | active-PR |
 | semantic-data-portal Keyverse claim boundary | ADR-0008; bounded claim mapping and fail-closed tenant/role/JWT-header validation | semantic-data-portal PR #58 `47e2215` aliases `org`/`role`, validates every present tenant alias, rejects malformed/conflicting aliases before `ActorContext`, explicitly rejects unsupported JWT `crit` headers, and keeps the cryptography floor; protected-branch approval remains required | active-PR |
 | pg-erd-cloud Keyverse organization boundary | ADR-0008; verified tenant binding before project authorization | pg-erd-cloud PR #855 `e4b4771` exact `org`/audience/`iat` checks, single-tenant profile, API-key bypass denial; shared multi-tenant persistence remains unimplemented | active-PR |
@@ -29,7 +33,7 @@
 
 ## Research, standards, and operations records
 
-`docs/doctoring/`, `docs/papers/`, and `docs/operations/` are the authoritative research/standards/runbook record for OIDC/OAuth/JWT, SCIM, SAML, LDAP, WebAuthn/passkeys, Keycloak behavior, relying-party lifecycle, and automation changes. This matrix does not duplicate full bibliographic entries.
+`docs/doctoring/`, `docs/papers/`, and `docs/operations/` are the authoritative research/standards/runbook record for OIDC/OAuth/JWT, SCIM, SAML, LDAP, WebAuthn/passkeys, Keycloak behavior, relying-party lifecycle, hierarchical authorization, programmable application tokens, start-login, and automation changes. This matrix does not duplicate full bibliographic entries.
 
 ## Maturity rules
 

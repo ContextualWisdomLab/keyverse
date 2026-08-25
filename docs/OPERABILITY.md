@@ -1,7 +1,7 @@
 # Keyverse Operability, Recovery, and Release Guide
 
 **Status:** Accepted cross-cutting operating baseline  
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 Feature-specific procedures under `docs/operations/`, federation/RP onboarding, and deployment READMEs remain authoritative for their slices. This guide defines the shared operating model and evidence needed before declaring the identity platform healthy or release-ready.
 
@@ -65,6 +65,28 @@ The integrated PR #72 mapper profile requires the same acceptance: operators
 must test the **Naruon** product login/token/authorization journey using the
 `naruon-web` RP client ID and verify the expected audience and bounded claims.
 Mapper unit tests alone do not prove Naruon product authorization readiness.
+
+## Authorization-plane and token runbook
+
+1. Obtain an Orgmetra assignment snapshot for the subject, including its
+   validated `tenant_deployment_id`; do not copy the Orgmetra tree into
+   Keyverse.
+2. PUT software-unit and menu grants at the intended org-path node.
+3. PUT an SSO combination when several RPs should share one session.
+4. Call the matching `:decide` endpoint and keep the RP as PEP.
+5. For app login, the application backend calls
+   `POST /federation/identity-providers:start-login` with the separately
+   provisioned `X-Keyverse-Runtime-Token`, then adds PKCE locally and
+   redirects. Do not fetch IdP metadata from the app.
+6. An operator calls `POST /application-tokens` with the operator bearer,
+   stores the one-time plaintext response in the relying application's secret
+   manager, and discards the response. The application presents that PAT to
+   `POST /application-tokens:verify` with the runtime service token. Rotate an
+   active, unexpired token or revoke it; retired and expired tokens cannot be
+   revived. Never share a password.
+
+See `docs/authorization-onboarding.md` and
+`docs/operations/authorization-plane.md`.
 
 ## Account merge recovery
 

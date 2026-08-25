@@ -1,9 +1,9 @@
 # Keyverse Logical and Persistence ERD
 
 **Status:** Accepted cross-cutting data model. Exact Keycloak internal schema remains Keycloak-owned.  
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-18
 
-Keyverse persists its own configuration, desired-state, receipts, merge audit, and user-operation locks while Keycloak/PostgreSQL owns canonical IdP users/sessions/clients/federation runtime state. This ERD models Keyverse-owned durable records and their relation to external Keycloak identities without pretending to own Keycloak's internal tables.
+Keyverse persists its own configuration, desired-state, receipts, merge audit, user-operation locks, authorization grants, SSO combination scopes, and hashed application tokens while Keycloak/PostgreSQL owns canonical IdP users/sessions/clients/federation runtime state. Orgmetra remains the employment-tree system of record; Keyverse stores grants against org-path nodes and does not persist Orgmetra `organization_unit` rows as source of record. This ERD models Keyverse-owned durable records and their relation to external Keycloak identities without pretending to own Keycloak's internal tables.
 
 ```mermaid
 erDiagram
@@ -11,6 +11,10 @@ erDiagram
     FEDERATION_SOURCE }o--|| TENANT_DEPLOYMENT : scoped_to
     DIRECTORY_FEDERATION_SOURCE }o--|| TENANT_DEPLOYMENT : scoped_to
     RELYING_PARTY_SOURCE }o--|| TENANT_DEPLOYMENT : scoped_to
+    AUTHORIZATION_SOFTWARE_UNIT_GRANT }o--|| TENANT_DEPLOYMENT : scoped_to
+    AUTHORIZATION_MENU_GRANT }o--|| TENANT_DEPLOYMENT : scoped_to
+    SSO_COMBINATION_SCOPE }o--|| TENANT_DEPLOYMENT : scoped_to
+    APPLICATION_ACCESS_TOKEN }o--|| TENANT_DEPLOYMENT : scoped_to
 
     FEDERATION_SOURCE ||--o{ FEDERATION_APPLY_RECEIPT : produces
     DIRECTORY_FEDERATION_SOURCE ||--o{ DIRECTORY_FEDERATION_APPLY_RECEIPT : produces
@@ -136,11 +140,60 @@ erDiagram
       timestamptz acquired_at
       timestamptz lease_expires_at
     }
+
+    AUTHORIZATION_SOFTWARE_UNIT_GRANT {
+      text grant_key PK
+      text tenant_deployment_id FK
+      text org_path
+      text software_unit_id
+      text effect_code
+      jsonb capability_codes
+      jsonb attribute_constraints
+      text actor_identity_id
+    }
+
+    AUTHORIZATION_MENU_GRANT {
+      text grant_key PK
+      text tenant_deployment_id FK
+      text org_path
+      text software_unit_id
+      text menu_path
+      text effect_code
+      jsonb capability_codes
+      jsonb attribute_constraints
+      text actor_identity_id
+    }
+
+    SSO_COMBINATION_SCOPE {
+      text combination_name
+      text tenant_deployment_id FK
+      jsonb software_unit_ids
+      text actor_identity_id
+    }
+
+    APPLICATION_ACCESS_TOKEN {
+      text application_token_id
+      text tenant_deployment_id FK
+      text software_unit_id
+      text token_prefix
+      text token_hash
+      text purpose_code
+      jsonb capability_codes
+      text lifecycle_status_code
+      timestamptz expires_at
+      timestamptz created_at
+      timestamptz revoked_at
+      text actor_identity_id
+      text replaced_token_id
+    }
 ```
 
 ## Logical uniqueness constraints
 
-UUID primary identifiers are globally unique. Human/provider identifiers are scoped to the owning tenant or federation source and MUST NOT be interpreted as global keys.
+UUID primary identifiers are globally unique. The authorization-plane identifiers
+are tenant-qualified text keys; `tenant_deployment_id` is a validated lowercase
+slug, not a UUID. Human/provider identifiers are scoped to the owning tenant or
+federation source and MUST NOT be interpreted as global keys.
 
 | Entity | Required logical uniqueness |
 |---|---|
@@ -148,6 +201,10 @@ UUID primary identifiers are globally unique. Human/provider identifiers are sco
 | `FEDERATION_SOURCE` | `(tenant_deployment_id, federation_alias)` |
 | `DIRECTORY_FEDERATION_SOURCE` | `(tenant_deployment_id, directory_alias)` |
 | `RELYING_PARTY_SOURCE` | `(tenant_deployment_id, client_id)` |
+| `AUTHORIZATION_SOFTWARE_UNIT_GRANT` | `(tenant_deployment_id, org_path, software_unit_id)` |
+| `AUTHORIZATION_MENU_GRANT` | `(tenant_deployment_id, org_path, software_unit_id, menu_path)` |
+| `SSO_COMBINATION_SCOPE` | `(tenant_deployment_id, combination_name)` |
+| `APPLICATION_ACCESS_TOKEN` | `(tenant_deployment_id, application_token_id)` and unique `token_hash` |
 | `KEYCLOAK_USER_REFERENCE` | `(tenant_deployment_id, keycloak_user_uuid)` |
 | `EXTERNAL_IDENTITY_LINK` | `(federation_source_id, external_subject_hash)` |
 
@@ -177,7 +234,15 @@ or documentation labels are bypassed.
 - Keycloak UUIDs, federation aliases, RP client IDs, email values, and external subjects are data identifiers, not authorization by themselves.
 - Exact external identity key is `(identity_provider, subject)`; verified email may support matching under policy but unverified email never authorizes linking.
 - `tenant_deployment_id` is explicit in Keyverse-owned records; deployment/customer separation must not be inferred from realm/resource names.
+- The non-persisted `AssignmentSnapshot` decision input also requires an
+  explicit `tenant_deployment_id`. Software-unit `attribute_constraints` are
+  intentionally absent: ABAC belongs to `AUTHORIZATION_MENU_GRANT`; a
+  software-unit payload carrying those constraints is rejected.
 - Secrets are referenced through protected values/handles where possible; secret-free desired-state tables must never gain client/bind credentials accidentally.
+- Application access tokens store the hashed secret and lifecycle metadata only;
+  plaintext tokens and org-tree secrets never appear on grant or combination
+  rows. KV storage keys for grants and combinations are tenant-qualified.
+- Hierarchical grant paths use `group_company` / `legal_entity` / `business_unit` / `team` / `person`. They do not persist Orgmetra trees and do not reuse LineageWeave `role` / `org` / `workspace` claim names.
 
 ## Desired-state and receipt invariant
 
