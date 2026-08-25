@@ -82,14 +82,18 @@ inside the **same user-operation lock** used by the complete merge transaction.
 A merge cannot create `merged_into_user_id` between those two Admin API calls,
 and SCIM PUT cannot wipe a newly-created tombstone or reactivate the duplicate.
 
-Protected `main` does **not** currently extend that shared-lock guarantee to
-`PATCH /scim/v2/Users/{id}`. The implemented PATCH surface only supports the
-`active=false` deprovisioning shape and executes its read/deactivate/read path
-without `user_operation_locks.hold(user_id)`. Operators and documentation must
-therefore not treat PATCH and merge as transactionally serialized. If PATCH is
-expanded or needs the same tombstone/survivor concurrency guarantee, the source
-path must join the shared lock and add a merge/PATCH race regression before the
-stronger contract is promoted.
+The active PR implementation for the supported
+`PATCH /scim/v2/Users/{id}` `active=false` deprovisioning shape executes its
+read/deactivate/read path inside `user_operation_locks.hold(user_id)`, so PATCH
+and merge are serialized at the service boundary. Lock contention returns a
+root-level SCIM error with `503`, `Content-Type: application/scim+json`, and
+`schemas`, `detail`, and string `status` fields before mutation. The current
+implementation does not emit `Retry-After`; a client must use bounded backoff
+and re-observe the user before retrying. `test_scim_patch_is_serialized_with_merge`
+covers the PATCH-first race, while
+`test_scim_patch_translates_lock_timeout` covers the pre-mutation timeout
+conversion. Future PATCH shapes still require a source change and a
+merge/PATCH race regression before joining this guarantee.
 
 Standalone deployments use a dedicated SQLite sidecar lock database and hold a
 `BEGIN IMMEDIATE` transaction for the complete critical section. This provides a
