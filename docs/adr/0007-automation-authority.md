@@ -1,60 +1,61 @@
 # ADR-0007: Separate autonomous development from review, merge, and release authority
 
 **Status:** Accepted  
-**Date:** 2026-08-09  
-**Updated:** 2026-08-24
+**Date:** 2026-08-09
+**Last expanded:** 2026-08-18
 
 ## Context
 
-Keyverse allows scheduled or agent-assisted development to inspect exact
-repository state and propose a bounded patch. NIST SP 800-218, Secure Software
-Development Framework version 1.1, is the current final SSDF publication. It
-requires organizations to protect the development environment, review changes,
-and keep release authority separate from untrusted production of code
-(Souppaya et al., 2022). NIST later published SP 800-218 Revision 1 as an
-Initial Public Draft; this ADR does not treat that draft as a final standard.
-SLSA version 1.2 is an approved specification for describing supply-chain
-provenance and incremental integrity, not a license to skip review (Supply-chain
-Levels for Software Artifacts, 2025).
+Keyverse may use scheduled automation to inspect exact repository state
+and propose bounded product work. Generated model output is untrusted.
+If the same credential that writes a patch can also approve, merge, tag,
+or publish a release, a single compromised or hallucinated run becomes a
+release path.
 
-Generated model output is untrusted. It may be digest-sealed and independently
-verified, then published only through an ordinary draft pull request. Model-
-provider credentials must stay separate from reviewer, publication, and release
-credentials so a development loop cannot approve or merge its own work.
+NIST SP 800-218 (SSDF 1.1) recommends defining roles and separating
+duties across the software life cycle, reviewing changes before release,
+and protecting the build and publication environment (Souppaya et al.,
+2022). Those practices are used here as secure-development evidence, not
+as a claim that Keyverse is a federal information system.
 
-This ADR is an authority boundary. It does not claim NIST SSDF or SLSA
-conformance. PR #74 refined the hourly implementation while preserving this
-boundary.
+This decision is about **authority**. Operator procedures for the hourly
+OpenCode loop live in
+[`docs/operations/hourly-product-development.md`](../operations/hourly-product-development.md)
+and are not restated in the buyer README.
 
 ## Decision
 
-Autonomous development may inspect exact repository state, produce a bounded
-patch, and submit ordinary reviewable work after independent verification. It
-cannot create its own qualifying approval, bypass branch protection, merge
-protected main, tag, or publish a release. Model-provider credentials remain
-separate from reviewer, publication, and release credentials. PR #74 refines
-the hourly implementation while preserving this authority boundary.
+Autonomous development may inspect exact repository state, produce a
+bounded patch, and submit ordinary reviewable work after independent
+verification. It cannot create its own qualifying approval, bypass branch
+protection, merge protected main, tag, or publish a release.
+Model-provider credentials remain separate from reviewer, publication,
+and release credentials. PR #74 refines the hourly implementation while
+preserving this authority boundary.
+
+Existing review-agent workflows and their credentials stay on their
+current system. They must not be repurposed, renamed, or broadened as a
+side effect of product-development automation.
 
 ## Consequences
 
-- Automation may open at most a normal draft pull request after independent
-  verification. Draft is not Ready for review, not an approval, and not a
-  merge instruction.
-- Existing review agents keep their own credential system. Development
-  automation must not repurpose, rename, or broaden those credentials.
-- Branch protection, required checks, unresolved-thread gates, and human
-  release criteria remain authoritative.
-- A merged pull request is still not a release. Release requires exact-main
-  regression, immutable image digest, SBOM/provenance, rollback evidence, and
-  the documented release criteria.
-- Agents do not self-approve, force merge, tag, or publish.
+- A draft PR from automation is ordinary reviewable work, not a merge
+  grant.
+- Independent verification (fresh checkout, complete quality gates) is
+  required before publication of a generated patch.
+- Release tagging, image digest, SBOM, and rollback evidence remain a
+  human-owned release process after exact-main regression.
+- Buyer-facing README does not describe the bot loop; operators follow
+  the operations guide.
+- This ADR does not authorize stacking documentation or product work onto
+  unrelated open feature PRs.
 
 ## References
 
-Souppaya, M., Scarfone, K., & Dodson, D. (2022). *Secure software development
-framework (SSDF) version 1.1: Recommendations for mitigating the risk of
-software vulnerabilities* (NIST SP 800-218). National Institute of Standards
-and Technology. https://doi.org/10.6028/NIST.SP.800-218
+See [`docs/REFERENCES.md`](../REFERENCES.md) for the full APA 7th entries
+and official URLs/DOIs opened for this expansion.
 
-Supply-chain Levels for Software Artifacts. (2025). *SLSA specification,
-version 1.2*. https://slsa.dev/spec/v1.2/
+Souppaya, M., Scarfone, K., & Dodson, D. (2022). *Secure Software
+Development Framework (SSDF) version 1.1: Recommendations for mitigating
+the risk of software vulnerabilities* (NIST SP 800-218).
+https://doi.org/10.6028/NIST.SP.800-218
