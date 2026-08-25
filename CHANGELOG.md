@@ -55,6 +55,24 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Federation PUT and apply now report `applied_to_keycloak: true` only after a
+  fresh live Keycloak identity-provider observation matches the desired
+  observable representation. Keycloak's fixed mask for the known
+  non-observable `clientSecret` field is accepted without claiming secret
+  equality; mutation or any other observation drift retains desired state for
+  retry.
+- Buyer README and accepted ADRs 0001–0007 now describe Keyverse as a
+  standalone identity leaf/hub, point operators at published OIDC/OAuth
+  2.0, SAML, LDAP, and SCIM contracts, and cite independently opened
+  official records in `docs/REFERENCES.md`. OAuth 2.1 is labeled an IETF
+  Internet-Draft, not a final RFC.
+- Updated the design-only MCP authorization contract to MCP Authorization
+  2026-07-28, RFC 9207 callback-issuer validation, and RFC 9068 JWT
+  access-token header, claim, signature, and algorithm rejection evidence;
+  runtime acceptance remains unimplemented.
+- Added the product/technical gap baseline and its APA 7th doctoring record,
+  including the current exact-head PR/Issue inventory and explicit
+  `gap-not-claimed` runtime and release boundaries.
 - Exact-coupled `pydantic`/`pydantic-core` and `httpx2`/`httpcore2` updates are
   grouped into atomic Dependabot pull requests, while CI independently installs
   and checks both `uv.lock` and the exported hash-locked requirements graph.
@@ -83,6 +101,10 @@ Keep a Changelog, and releases use semantic versioning.
   process-wide counter.
 - Account merge and SCIM replacement now share the same user-operation lock
   boundary.
+- SCIM `PATCH active=false` and `DELETE` deprovisioning now share that lock
+  boundary with merge and replacement, return a root-level
+  `application/scim+json` error with retryable `503` on lock contention, and
+  have deterministic pre-mutation concurrency regressions.
 - SQLite configuration and audit stores support safe multi-threaded access with
   WAL mode and bounded busy timeouts.
 - Application shutdown closes Keycloak, audit, and configuration resources and

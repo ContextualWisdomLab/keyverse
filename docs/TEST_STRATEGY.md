@@ -25,7 +25,7 @@ Skipped, cancelled, absent, stale, predecessor-head, synthetic-only, rate-limite
 - explicit link behavior;
 - survivor/duplicate tombstone semantics;
 - merge idempotency and rollback;
-- merge/SCIM shared lock concurrency.
+- merge/SCIM PUT/PATCH shared lock concurrency and lock-timeout errors.
 
 ## SCIM tests
 
@@ -80,7 +80,7 @@ repository supplies its own exact token-validation and ABAC/RBAC evidence.
 
 - PostgreSQL/KV migrations and rollback for Keyverse-owned records;
 - configuration bootstrap and runtime store behavior;
-- user-operation locks across processes;
+- user-operation locks across processes, including merge/SCIM PATCH linearization;
 - desired-state idempotency/concurrency;
 - secret scanning and redacted logs;
 - Compose health/readiness;

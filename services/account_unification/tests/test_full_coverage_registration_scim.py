@@ -299,12 +299,14 @@ def test_scim_replace_translates_unknown_user_and_lock_timeout() -> None:
 def test_scim_patch_handles_unknown_and_ignored_operations() -> None:
     """SCIM PATCH rejects unknown users and ignores unsupported operations."""
     provisioner = _MinimalProvisioner()
+    locks = InMemoryUserOperationLocks()
 
     with pytest.raises(HTTPException) as missing_error:
         scim.patch_user(
             "missing",
             {"Operations": []},
             provisioner=provisioner,
+            user_operation_locks=locks,
         )
 
     response = scim.patch_user(
@@ -317,6 +319,7 @@ def test_scim_patch_handles_unknown_and_ignored_operations() -> None:
             ]
         },
         provisioner=provisioner,
+        user_operation_locks=locks,
     )
 
     assert missing_error.value.status_code == 404
@@ -324,9 +327,38 @@ def test_scim_patch_handles_unknown_and_ignored_operations() -> None:
     assert "deactivate" in provisioner.calls
 
 
+def test_scim_patch_translates_lock_timeout() -> None:
+    """SCIM PATCH returns a retryable error when the shared lock is busy."""
+    with pytest.raises(HTTPException) as error:
+        scim.patch_user(
+            "user-1",
+            {"Operations": []},
+            provisioner=_MinimalProvisioner(),
+            user_operation_locks=_TimeoutLocks(),
+        )
+
+    assert error.value.status_code == 503
+
+
 def test_scim_delete_rejects_unknown_user() -> None:
     """SCIM DELETE reports a missing resource without mutation."""
     with pytest.raises(HTTPException) as error:
-        scim.delete_user("missing", provisioner=_MinimalProvisioner())
+        scim.delete_user(
+            "missing",
+            provisioner=_MinimalProvisioner(),
+            user_operation_locks=InMemoryUserOperationLocks(),
+        )
 
     assert error.value.status_code == 404
+
+
+def test_scim_delete_translates_lock_timeout() -> None:
+    """SCIM DELETE returns a retryable error when the shared lock is busy."""
+    with pytest.raises(HTTPException) as error:
+        scim.delete_user(
+            "user-1",
+            provisioner=_MinimalProvisioner(),
+            user_operation_locks=_TimeoutLocks(),
+        )
+
+    assert error.value.status_code == 503
