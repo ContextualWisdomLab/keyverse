@@ -68,7 +68,17 @@ Mapper unit tests alone do not prove Naruon product authorization readiness.
 
 ## Account merge recovery
 
-Merge and SCIM full replacement (`PUT`) must hold the shared operation lock. Protected-main `PATCH active=false` is not currently inside that shared-lock guarantee and must not be treated as transactionally serialized with merge. On failure, classify whether state changed in Keycloak, Keyverse audit, linked identities, or tombstone status. Re-observe before retry. Never infer a retry is safe solely from the previous HTTP response. Preserve survivor and duplicate lineage in audit.
+The active PR implementation makes merge, SCIM full replacement (`PUT`),
+`PATCH active=false`, and `DELETE` hold the shared operation lock. Only SCIM
+lock contention is translated at this boundary into a retryable `503` before
+entering the mutation sequence. Merge retains its existing service error
+contract; SCIM endpoints use the root-level RFC 7644 error envelope for
+`_scim_error` failures, while `PUT` and `DELETE` retain their existing
+mutation/status semantics. The protected-main promotion remains
+an active-PR gate in `docs/TRACEABILITY.md`. On failure, classify whether state
+changed in Keycloak, Keyverse audit, linked identities, or tombstone status.
+Re-observe before retry. Never infer a retry is safe solely from the previous
+HTTP response. Preserve survivor and duplicate lineage in audit.
 
 ## Desired-state recovery
 

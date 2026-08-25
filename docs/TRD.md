@@ -31,7 +31,7 @@ Identity matching precedence is exact `(identity_provider, subject)` → verifie
 
 ## 5. Concurrency and transactions
 
-User merge and SCIM full replacement (`PUT`) share one cross-process operation-lock boundary. Protected-main `PATCH active=false` is currently outside that shared-lock guarantee and must not be represented as serialized with merge. Any PATCH or future SCIM read-modify-write operation that can affect tombstone/survivor invariants must join the same lock boundary and add a concurrency regression before the stronger guarantee is promoted. Desired-state records and apply receipts require deterministic keys, transaction-safe update semantics, exact desired-version binding, and reconciliation after crash/retry. Remote deletion precedes local desired-state removal when local-first deletion could falsely report success.
+User merge, SCIM full replacement (`PUT`), and supported `PATCH active=false` deprovisioning share one cross-process operation-lock boundary. Lock contention returns retryable SCIM `503` before the mutation sequence. Any future SCIM read-modify-write operation that can affect tombstone/survivor invariants must join the same lock boundary and add a concurrency regression before the stronger guarantee is promoted. Desired-state records and apply receipts require deterministic keys, transaction-safe update semantics, exact desired-version binding, and reconciliation after crash/retry. Remote deletion precedes local desired-state removal when local-first deletion could falsely report success.
 
 ## 6. Federation requirements
 
