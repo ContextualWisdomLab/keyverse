@@ -47,18 +47,26 @@ def _ci_source() -> str:
 
 
 def test_exact_coupled_dependencies_update_atomically() -> None:
-    """Packages with exact child pins remain in one version-update pull request."""
+    """Packages with exact child pins stay atomic for version and security updates."""
     groups = _pip_update().get("groups")
     assert isinstance(groups, dict)
 
     expected_groups = {
-        "pydantic-runtime": {"pydantic", "pydantic-core"},
-        "httpx2-runtime": {"httpx2", "httpcore2"},
+        "pydantic-runtime": ("version-updates", {"pydantic", "pydantic-core"}),
+        "httpx2-runtime": ("version-updates", {"httpx2", "httpcore2"}),
+        "pydantic-runtime-security": (
+            "security-updates",
+            {"pydantic", "pydantic-core"},
+        ),
+        "httpx2-runtime-security": (
+            "security-updates",
+            {"httpx2", "httpcore2"},
+        ),
     }
-    for group_name, expected_patterns in expected_groups.items():
+    for group_name, (update_scope, expected_patterns) in expected_groups.items():
         group = groups.get(group_name)
         assert isinstance(group, dict)
-        assert group.get("applies-to") == "version-updates"
+        assert group.get("applies-to") == update_scope
         patterns = group.get("patterns")
         assert isinstance(patterns, list)
         assert set(patterns) == expected_patterns
