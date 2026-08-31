@@ -182,6 +182,7 @@ def test_gap_baseline_documents_product_evidence_and_hourly_loop() -> None:
     for heading in (
         "## Product contract",
         "## Evidence classification",
+        "## Current live queue snapshot",
         "## Live PR inventory",
         "## Open Issue inventory",
         "## Gap register and buyer-visible order",
@@ -204,7 +205,8 @@ def test_gap_baseline_documents_product_evidence_and_hourly_loop() -> None:
     assert "pending" in lowered
     assert "skipped" in lowered
     assert "review_required" in lowered
-    assert "## Live queue refresh — 2026-08-23" in baseline
+    assert "source observation head" in lowered
+    assert "does not recursively rename" in lowered
 
 
 def test_traceability_links_gap_baseline_and_doctoring() -> None:
