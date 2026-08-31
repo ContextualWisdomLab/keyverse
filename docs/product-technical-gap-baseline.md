@@ -1,6 +1,6 @@
 # Keyverse product and technical gap baseline
 
-**Evidence snapshot:** 2026-08-23 (Asia/Seoul)
+**Evidence snapshot:** 2026-08-31 (merge of main `2e00633e` into PR #100)
 **Repository:** `ContextualWisdomLab/keyverse`
 **Protected-main head observed:** `ce207dfd42975db61c82a5963e206fc1db14ac2b`
 **Status:** live inventory and gap register; not a release acceptance record
@@ -11,6 +11,10 @@ It separates implementation on protected `main`, active PR work, accepted
 contracts, and evidence that is still absent. A green unit or preflight check
 does not promote a lower-level result into login, token, authorization, or
 release acceptance.
+
+## 2026-08-31 merge of protected main `2e00633e` into PR #100
+
+This merge brings protected main (PR #112 uv lockfile plus ADR-0013 MCP OAuth / SCIM lock / Helm notes already present on that history) onto the live LineageWeave ADR-0009 RP-profile branch without force-push. Predecessor-head Checks on `d978e9a` are non-passing for the merge commit. Docs-only SHA rebinds from `a1a65b2` / `655aaad` / `84e0c75` stay historical; they do not transfer evidence onto this merge commit.
 
 ## Product contract
 

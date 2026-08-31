@@ -133,7 +133,7 @@ Unverified email cannot enter `candidate_link` by itself.
 ```mermaid
 flowchart LR
     PUT[SCIM full replacement PUT]
-    PATCH[SCIM PATCH active=false — current narrower path]
+    PATCH[SCIM PATCH active=false]
     MERGE[Merge/link mutation]
     LOCK[user_operation_lock_state]
     USER[Keycloak user state]
@@ -142,11 +142,14 @@ flowchart LR
     PUT --> LOCK
     MERGE --> LOCK
     LOCK --> USER
-    PATCH -. not currently in shared-lock guarantee .-> USER
+    PATCH --> LOCK
     USER --> AUDIT
 ```
 
-Protected `main` guarantees the shared cross-process lock for merge/link and full SCIM replacement. The current `PATCH active=false` path is explicitly not represented as serialized with merge. Extending that guarantee is a source-and-concurrency-test change, not a documentation relabel.
+Protected `main` guarantees the shared cross-process lock for merge/link and
+full SCIM replacement. Active PR #113 extends the boundary to the supported
+`PATCH active=false` deprovisioning path; its retryable SCIM `503` behavior is
+not a protected-main guarantee until exact-head review and Checks pass.
 
 ## Automation authority
 

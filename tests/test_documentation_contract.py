@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
+
 REQUIRED_DOCUMENTS = (
     "DOCUMENTATION.md",
     "docs/PRD.md",
@@ -17,6 +17,8 @@ REQUIRED_DOCUMENTS = (
     "docs/TEST_STRATEGY.md",
     "docs/OPERABILITY.md",
     "docs/TRACEABILITY.md",
+    "docs/product-technical-gap-baseline.md",
+    "docs/doctoring/product-technical-gap-baseline.md",
     "docs/adr/README.md",
     "README.md",
     "AGENTS.md",
@@ -90,6 +92,53 @@ def test_erd_keeps_keycloak_internal_schema_external() -> None:
     erd = _read("docs/ERD.md")
     assert "Keycloak internal schema remains Keycloak-owned" in erd
     assert "does not duplicate or directly edit unsupported Keycloak internal tables" in erd
+
+
+def test_mcp_authorization_contract_tracks_current_issuer_and_token_rules() -> None:
+    """Keep the design-only MCP security contract aligned across its records."""
+
+    adr = _read("docs/adr/0013-mcp-oauth-client-authorization.md")
+    doctoring = _read("docs/doctoring/mcp-oauth-authorization.md")
+    traceability = _read("docs/TRACEABILITY.md")
+    changelog = _read("CHANGELOG.md")
+    for text in (adr, doctoring):
+        normalized = " ".join(text.split())
+        assert "`authorization_response_iss_parameter_supported=true`" in normalized
+        assert "simple string comparison" in normalized
+        assert "`at+jwt`" in normalized
+        assert "`application/at+jwt`" in normalized
+        assert "alg=none" in text
+        assert "missing `iat`/`jti`" in text
+    assert "MCP Authorization 2026-07-28" in traceability
+    assert "RFC 9207" in traceability
+    assert "mismatch rejects the authorization code" in traceability
+    assert "MCP Authorization 2026-07-28" in " ".join(changelog.split())
+
+
+def test_baseline_carries_mcp_reference_and_current_rp_checklist() -> None:
+    """Keep product evidence and README guidance aligned with standards."""
+
+    baseline = _read("docs/product-technical-gap-baseline.md")
+    doctoring = _read("docs/doctoring/product-technical-gap-baseline.md")
+    readme = _read("README.md")
+    for text in (baseline, doctoring):
+        assert "RFC 9068" in text
+        assert "RFC 9207" in text
+    normalized_readme = " ".join(readme.split())
+    for requirement in (
+        "issuer",
+        "signature",
+        "allowed algorithm",
+        "audience",
+        "subject",
+        "expiry",
+        "iat",
+        "exact resource",
+        "tenant",
+        "purpose",
+    ):
+        assert requirement in normalized_readme
+    assert "before applying its own access-control policy" in normalized_readme
 
 
 def test_adr_index_contains_governing_identity_decisions() -> None:

@@ -2,6 +2,11 @@
 
 `Accepted` means the decision governs architecture; it does not imply an active PR has merged or a customer deployment has completed acceptance.
 
+Accepted ADRs 0001–0007 are expanded in place with Context, Decision,
+Consequences, and APA 7th references. The shared bibliography is
+[`docs/REFERENCES.md`](../REFERENCES.md). ADR 0008 remains the RP
+authorization boundary and is not rewritten by that expansion.
+
 | ADR | Decision | Status |
 |---|---|---|
 | [0001](0001-keycloak-hub.md) | Keep Keycloak/Keyverse as the ecosystem identity hub | Accepted |
@@ -9,10 +14,19 @@
 | [0003](0003-identity-matching.md) | Exact external subject → verified email → explicit link matching precedence | Accepted |
 | [0004](0004-desired-state-reconciliation.md) | Side-effect-free preflight plus intent/reconcile/re-observe/receipt lifecycle | Accepted |
 | [0005](0005-secret-ownership.md) | Deployment/KV owns secrets; portable desired state remains secret-minimized | Accepted |
-| [0006](0006-user-operation-lock.md) | Merge and SCIM full replacement share one user-operation lock boundary | Accepted |
+| [0006](0006-user-operation-lock.md) | Merge/link, SCIM full replacement, and supported `PATCH active=false` share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 | [0009](0009-lineageweave-account-derived-rp-claims.md) | Bind LineageWeave claims to explicit, administrator-managed Keyverse account attributes | Accepted |
+| [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
+
+ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
+proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
+ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
+the next intended number without renumbering parallel work; it must be
+reconciled after those PRs land, and none of the absent records is accepted
+architecture on protected `main` yet.
+
 
 ## ADR triggers
 
