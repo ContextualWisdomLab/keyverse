@@ -36,6 +36,7 @@ SECRET_PLACEHOLDER = "__set_from_kv__"
 MAX_PUBLIC_TOKEN_LIFESPAN = 900
 USER_PROFILE_FILENAME = "lineageweave-user-profile.json"
 BUILTIN_USER_PROFILE_ATTRIBUTES = {"username", "email", "firstName", "lastName"}
+EXPECTED_USER_PROFILE_ATTRIBUTES = BUILTIN_USER_PROFILE_ATTRIBUTES | {"org", "workspace"}
 
 
 def _executions(realm: dict, alias: str) -> list[dict]:
@@ -225,21 +226,50 @@ def validate(realm: dict) -> list[str]:
     return errors
 
 
-def validate_user_profile(profile: dict) -> list[str]:
-    """Return violations for closed, administrator-managed product attributes."""
+def validate_user_profile(profile: object) -> list[str]:
+    """Return violations for the exact administrator-managed profile contract."""
     errors: list[str] = []
+    profile_is_object = isinstance(profile, dict)
+    errors.extend(["user profile must be a JSON object"] * int(not profile_is_object))
+    profile_object = {True: profile, False: {}}[profile_is_object]
+
     # Keycloak 26.3.2 has no DISABLED enum member: a missing/null policy is its
     # fail-closed representation. Sending the documented string makes the API
     # reject the complete profile payload.
-    if profile.get("unmanagedAttributePolicy") is not None:
+    if profile_object.get("unmanagedAttributePolicy") is not None:
         errors.append(
             "user profile must omit unmanagedAttributePolicy so Keycloak 26 "
             "disables unmanaged attributes"
         )
+
+    raw_attributes = profile_object.get("attributes", [])
+    attributes_are_array = isinstance(raw_attributes, list)
+    errors.extend(
+        ["user profile attributes must be an array"] * int(not attributes_are_array)
+    )
+    attribute_items = {True: raw_attributes, False: []}[attributes_are_array]
+    normalized_attributes: list[dict] = []
+    for item in attribute_items:
+        item_is_object = isinstance(item, dict)
+        errors.extend(
+            ["user profile attribute entries must be JSON objects"]
+            * int(not item_is_object)
+        )
+        normalized_attributes.append({True: item, False: {}}[item_is_object])
+
+    attribute_names = [str(item.get("name")) for item in normalized_attributes]
+    attribute_name_set = set(attribute_names)
+    errors.extend(
+        ["user profile attributes must match the reviewed attribute-name set"]
+        * int(attribute_name_set != EXPECTED_USER_PROFILE_ATTRIBUTES)
+    )
+    errors.extend(
+        ["user profile attribute names must not be duplicated"]
+        * int(len(attribute_names) != len(attribute_name_set))
+    )
     attributes = {
-        item.get("name"): item
-        for item in profile.get("attributes", [])
-        if isinstance(item, dict)
+        str(item.get("name")): item
+        for item in normalized_attributes
     }
     if not BUILTIN_USER_PROFILE_ATTRIBUTES <= attributes.keys():
         errors.append(
