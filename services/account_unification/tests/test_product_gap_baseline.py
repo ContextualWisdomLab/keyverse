@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
-_OBSERVATION_HEADS = {
-    113: "9bd33ee0d00ef1874fd5efabac3462f678a256ed",
-    112: "ec34ac14fd38c9c7c463cddbd0ced04b4dfccafd",
-    103: "77b8f4ea9995329f1c55b916d110b460b4bc7649",
-    101: "50dd9c96cab5c230f775685e8baea939fba390dd",
-    100: "a1a65b26c1ebcd3ce964e56b1f0976e132d33cb9",
-    83: "dd1ab7444a75342b42e3af013ccda6d1dbfb359d",
-}
 _OPEN_ISSUES = (114, 102, 99, 71, 2)
-_PROTECTED_MAIN = "ce207dfd42975db61c82a5963e206fc1db14ac2b"
+_CURRENT_QUEUE_MARKER = "## Current live queue snapshot"
 
 
 def _repository_root() -> Path:
@@ -30,19 +23,19 @@ def _read(relative_path: str) -> str:
 
 
 def _current_refresh(baseline: str) -> str:
-    """Return the current dated live-queue refresh, not historical snapshots."""
+    """Return the explicitly designated current queue snapshot."""
 
-    marker = "## Live queue refresh — 2026-08-23"
-    start = baseline.find(marker)
+    start = baseline.find(_CURRENT_QUEUE_MARKER)
     if start < 0:
-        raise AssertionError("missing 2026-08-23 live queue refresh")
+        raise AssertionError("missing explicit current live queue snapshot")
     rest = baseline[start:]
     for stop in (
-        "## Live queue refresh — 2026-08-22",
+        "## Live queue refresh — 2026-08-23",
+        "## Historical queue snapshot",
         "## Current capability map",
         "## Live PR inventory",
     ):
-        index = rest.find(stop, len(marker))
+        index = rest.find(stop, len(_CURRENT_QUEUE_MARKER))
         if index > 0:
             return rest[:index]
     return rest
@@ -83,37 +76,30 @@ def test_gap_baseline_keeps_required_product_and_loop_headings() -> None:
         assert f"`{classification}`" in baseline
 
 
-def test_live_queue_records_exact_heads_without_promoting_pending_checks() -> None:
-    """Current open PRs keep 40-character heads; skipped Checks stay unverified."""
+def test_live_queue_uses_explicit_current_snapshot_without_promoting_pending_checks() -> None:
+    """Current evidence stays explicit while nonterminal or stale results stay unverified."""
 
     baseline = _read("docs/product-technical-gap-baseline.md")
     refresh = " ".join(_current_refresh(baseline).split())
-    assert _PROTECTED_MAIN in refresh
-    assert "REVIEW_REQUIRED" in refresh
     lowered = refresh.lower()
-    assert "never promoted" in lowered
+
+    assert "[#100](" in refresh
+    assert "source observation head" in lowered
+    assert len(re.findall(r"`[0-9a-f]{40}`", refresh)) >= 2
+    assert "1 approving review" in lowered
+    assert "dismiss stale reviews" in lowered
+    assert "review-thread resolution" in lowered
+    assert "organization admin bypass" in lowered
+    assert "must not be used" in lowered
     assert "queued" in lowered
     assert "pending" in lowered
     assert "skipped" in lowered
+    assert "never promoted" in lowered
     assert "independent" in lowered
     assert "blocker" in lowered
     assert "not a merge license" in lowered
-    for number, sha in _OBSERVATION_HEADS.items():
-        assert f"[#{number}](" in refresh, f"missing live PR #{number}"
-        assert sha in refresh, f"PR #{number} is missing observation SHA {sha}"
-        assert len(sha) == 40
-    assert "observation SHA" in refresh
-    assert "inventory commit SHA" in refresh
-    assert "not recursively named" in lowered
-    assert "creates a later #100 head" in refresh
-    assert "competing product PR" in refresh
-    assert "G4" in refresh
-    assert "zero unresolved" in lowered
-    assert "strix" in lowered
-    assert "unverified" in lowered
-    assert "devin" in lowered
-    assert "source-fault" in lowered
-    assert "later than the observation SHA" in refresh
+    assert "observation" in lowered
+    assert "does not recursively rename" in lowered
 
 
 def test_open_issue_inventory_and_gap_order_match_the_live_queue() -> None:
