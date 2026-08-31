@@ -574,8 +574,9 @@ the #112 stack and is no longer an open Keyverse PR. The design keeps Keycloak
 as the authorization server, assigns RFC 9728 protected-resource metadata to
 LineageWeave, requires exact public-client redirects and `S256` PKCE, binds one
 canonical RFC 8707 resource URI to the token audience and least-privilege scope
-set, and defers RFC 8628 until a real callback-less client requires it. The
-merged design is documentation-only; runtime MCP authorization remains
+set, requires RFC 9207 callback issuer comparison and RFC 9068 JWT access-token
+validation, and defers RFC 8628 until a real callback-less client requires it.
+The merged design is documentation-only; runtime MCP authorization remains
 unclaimed.
 
 **Acceptance:** after ADR review, run a real browser/client flow and record
@@ -668,9 +669,10 @@ or test design, but they are not evidence of a merge or release.
 
 The baseline follows OpenID Connect's exact issuer/audience/time/signature
 validation boundary, JWT Best Current Practices' issuer/subject/audience
-validation, and OAuth Security BCP's authorization-code + PKCE and exact
-redirect guidance. Keycloak protocol mappers are treated as claim projection
-configuration, not as downstream authorization proof.
+validation, OAuth Security BCP's authorization-code + PKCE and exact redirect
+guidance, RFC 9068 JWT access-token validation, and RFC 9207 authorization-
+response issuer comparison. Keycloak protocol mappers are treated as claim
+projection configuration, not as downstream authorization proof.
 
 This change adds no UI or frontend behavior, so no Figma file or Storybook
 inventory is required for this baseline. If a future buyer gap changes a web
@@ -686,6 +688,8 @@ before implementation is claimed.
 - Sheffer, Y., Hardt, D., & Jones, M. (2020). *JSON Web Token best current practices* (RFC 8725). Internet Engineering Task Force. https://www.rfc-editor.org/rfc/rfc8725.html
 - Internet Engineering Task Force. (2018). *OAuth 2.0 authorization server metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 - Internet Engineering Task Force. (2024). *Resource indicators for OAuth 2.0* (RFC 8707). https://doi.org/10.17487/RFC8707
+- Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens* (RFC 9068). https://doi.org/10.17487/RFC9068
+- Meyer zu Selhausen, K., & Fett, D. (2022). *OAuth 2.0 authorization server issuer identification* (RFC 9207). https://doi.org/10.17487/RFC9207
 - Internet Engineering Task Force. (2025). *OAuth 2.0 protected resource metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
 - Model Context Protocol. (2025, November 25). *Authorization*. https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
 

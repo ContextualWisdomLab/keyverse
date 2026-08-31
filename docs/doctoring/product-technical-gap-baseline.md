@@ -178,6 +178,9 @@ evidence gaps.
 - RFC 9700 is the current OAuth 2.0 Security BCP used here. It supports exact
   redirect matching and authorization-code + PKCE protection, with `S256` as
   the interoperable code-challenge method for this profile.
+- RFC 9068 JWT access-token requirements (`typ=at+jwt`, `iat`, `jti`) and RFC
+  9207 authorization-response issuer comparison are consumer or resource-server
+  acceptance requirements. Mapper configuration does not satisfy them.
 - Keycloak's current administration guide documents protocol mappers as the
   mechanism that projects roles and user/session data into tokens. That vendor
   behavior does not establish that a receiving application enforces ABAC/RBAC.
@@ -375,6 +378,12 @@ metadata* (RFC 8414). https://doi.org/10.17487/RFC8414
 
 Internet Engineering Task Force. (2020). *Resource indicators for OAuth 2.0*
 (RFC 8707). https://doi.org/10.17487/RFC8707
+
+Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens*
+(RFC 9068). https://doi.org/10.17487/RFC9068
+
+Meyer zu Selhausen, K., & Fett, D. (2022). *OAuth 2.0 authorization server
+issuer identification* (RFC 9207). https://doi.org/10.17487/RFC9207
 
 Internet Engineering Task Force. (2025). *OAuth 2.0 protected resource
 metadata* (RFC 9728). https://doi.org/10.17487/RFC9728
