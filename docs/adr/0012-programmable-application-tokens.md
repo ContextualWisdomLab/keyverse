@@ -30,8 +30,11 @@ inherit down the org tree (ADR-0010).
    verify, and revoke responses never include the secret or hash.
 5. Verification does not consult org-tree grants. Tokens never inherit.
 6. Tenant is explicit at issue, verify, and rotate time; a token is accepted
-   only for its stored tenant. Management routes require the operator bearer,
-   while `:verify` is a runtime route authenticated by the presented token.
+   only for its stored tenant. Management routes require the operator bearer.
+   `POST /application-tokens:verify` is a separate runtime route authenticated
+   with the least-privilege `X-Keyverse-Runtime-Token` service credential;
+   `presented_token` in the request body is only the PAT being verified and is
+   never the credential that authenticates the verification endpoint itself.
 7. Issue, revoke, and rotate mutations roll back token state when audit
    persistence fails; rotation restores the predecessor and deletes its
    replacement in one KV-store operation. Expired or retired predecessors
@@ -42,7 +45,9 @@ inherit down the org tree (ADR-0010).
 ## Consequences
 
 - Relying applications store the plaintext token in their own secret manager
-  and present it only to `POST /application-tokens:verify`, authenticated with
-  the separately provisioned runtime service token.
-- Keycloak client secrets and operator bearers remain separate credentials.
+  and present it only as the PAT under verification to
+  `POST /application-tokens:verify`; the caller separately authenticates that
+  runtime request with the provisioned `X-Keyverse-Runtime-Token`.
+- Keycloak client secrets, runtime service tokens, programmable application
+  tokens, and operator bearers remain separate credentials.
 - This slice does not replace confidential RP client-secret placement.
