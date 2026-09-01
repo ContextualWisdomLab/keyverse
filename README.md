@@ -1,171 +1,243 @@
-# cwl-idp — ecosystem central IdP
+# Keyverse
 
-The **ContextualWisdom ecosystem's central Identity Provider**, a standalone
-component built on [**Keycloak**](https://www.keycloak.org) (Apache-2.0). It:
+**Central identity, federation, provisioning, and authorization control plane for the ContextualWisdomLab ecosystem.**
 
-- issues **OIDC / OAuth 2.1** to ecosystem relying parties (`naruon`,
-  `pg-erd-cloud`, `semantic-data-portal`, `clearfolio`, `contextual-orchestrator`,
-  and `newsdom-api` through the WAF edge);
-- is **passwordless-first**: FIDO2 / passkeys are the default and the **password
-  authenticator is removed** from the login flow for ecosystem-local accounts;
-- runs a **SCIM v2 server shim** for inbound provisioning into Keycloak;
-- **federates external IdPs in** — employer ADFS via SAML, corporate LDAP/AD,
-  and optional personal OIDC — while keeping unverified email ineligible for
-  account linking; and
-- adds an **account-unification** admin service to link one human's many external
-  identities and to **merge** two pre-existing accounts into one.
+Keyverse is a standalone, embeddable identity platform built on Keycloak. It gives applications one standards-based place to consume passwordless authentication, external identity federation, SCIM provisioning, account unification, relying-party lifecycle, and issuer-side authorization decisions without making every product own Keycloak administration or identity-security policy.
 
-> Employer ADFS and corporate directories are **external, proprietary**
-> compatibility targets—not the hub. cwl-idp is the hub, and customer-specific
-> federation remains deployment data rather than portable realm code.
+Keyverse is designed for application teams, enterprise identity engineers, security operators, and integrators that need stable OIDC/OAuth identity contracts with explicit trust, secret, and authorization boundaries.
 
-RP client registrations and secrets live in the **IdP DB / KV**, never in an RP's
-environment.
+## What Keyverse provides
 
-## Architecture
+| Need | Keyverse responsibility |
+| --- | --- |
+| Passwordless local identity | WebAuthn/passkey-first authentication policy with no ordinary password authenticator for ecosystem-local accounts |
+| Application identity | OIDC/OAuth relying-party lifecycle, exact redirect/origin validation, and downstream token-validation contracts |
+| Enterprise federation | SAML/OIDC identity-provider onboarding and LDAPS directory integration through safe preflight and desired-state workflows |
+| Provisioning | Inbound SCIM v2 lifecycle integration while preserving identity/merge invariants |
+| Account continuity | Deterministic account linking, unification, and survivor-wins merge based on verified identity evidence |
+| Authorization | Software-unit ACL, menu ABAC/RBAC decisions, SSO-combination scopes, and hierarchical org-path inheritance |
+| Application credentials | Hashed-at-rest, purpose-bound programmable application tokens scoped to software units and APIs |
+| Operations | Compose/Helm deployment, readiness, reconciliation, audit, rollback, and controlled configuration boundaries |
+
+## Identity and authorization boundary
+
+Keyverse is the **issuer and identity/authorization decision plane**. Relying parties remain responsible for enforcing application access.
+
+Every application integrating with Keyverse must still validate the token and the application-specific decision context it consumes, including issuer, signature/algorithm, expiry, subject, audience, tenant/resource constraints, and the applicable authorization policy. Successful login is not by itself application authorization.
+
+External employer/customer systems—ADFS, LDAP/Active Directory, other SAML/OIDC providers, HR/IGA systems—remain external sources. Customer-specific credentials and federation configuration are deployment data, not portable realm source.
 
 ```text
-external IdPs  ──►  cwl-idp (Keycloak)  ──►  OIDC to ecosystem RPs
-  ADFS (SAML)       passwordless OIDC/OAuth
-  LDAP/AD           FIDO2 passkeys
-  OIDC (opt)        SCIM v2 shim (inbound)
-  HR/IGA (SCIM)     account-unification admin service
+Enterprise identity sources
+ SAML / OIDC / LDAP / SCIM
+            │
+            ▼
+┌───────────────────────────────┐
+│           Keyverse            │
+│ identity + authorization      │
+│ control plane                 │
+├───────────────────────────────┤
+│ Keycloak identity engine      │
+│ passwordless policy           │
+│ federation desired state      │
+│ SCIM provisioning             │
+│ account unification           │
+│ RP lifecycle                  │
+│ authorization decisions       │
+│ audit / readiness             │
+└───────────────┬───────────────┘
+                │ OIDC/OAuth +
+                │ bounded decisions
+                ▼
+     ContextualWisdomLab apps
+           / customer RPs
 ```
 
-Architecture and trust boundaries: [`ARCHITECTURE.md`](ARCHITECTURE.md). Full
-network diagram: [`docs/topology.md`](docs/topology.md).
+Orgmetra remains the source of truth for employment and organization structure where that integration is used. Keyverse consumes bounded assignment snapshots for authorization; it does not become the authoritative organization database.
 
-## Repository layout
+## Quick start
 
-| Path | What |
-| --- | --- |
-| `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
-| `deploy/keycloak/` | Portable Keycloak realm config-as-code, passwordless flows, shared scopes, concrete Naruon RP, and service-account bootstrap |
-| `deploy/templates/` | Private deployment templates split between Keyverse preflight/desired state and explicit Keycloak Admin REST apply contracts |
-| `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
-| `deploy/scripts/healthz.sh` | Cross-component readiness probe |
-| `scripts/validate_realm.py` | Realm config-as-code validator (CI gate) |
-| `services/account_unification/` | FastAPI admin service (link + merge + SCIM + federation validation/desired state) with unit tests |
-| `helm/cwl-idp/` | Helm chart (templated Keycloak + Postgres + admin service) |
-| `docs/operations/` | Scheduled maintenance and product-development operating procedures |
-| `docs/doctoring/` | Standards interpretation and APA 7th engineering traceability |
-| `docs/` | Topology, passwordless policy, federation, merge flow, RP onboarding, and papers |
-
-## Quick start (standalone)
-
-Requires Docker or Podman with the compose plugin.
+The standalone development stack uses Keycloak, PostgreSQL, and the Keyverse control service. Docker or Podman with a Compose-compatible workflow is supported by the repository configuration.
 
 ```bash
-cp .env.example .env          # populate values from your KV (bootstrap transport)
+cp .env.example .env
 cp deploy/bootstrap/bootstrap.example.yaml deploy/bootstrap/bootstrap.yaml
 
-docker compose up -d          # or: podman compose up -d
-./deploy/scripts/healthz.sh   # waits for Keycloak realm + admin service to be READY
+docker compose up -d
+./deploy/scripts/healthz.sh
 ```
 
-- Keycloak console: `http://localhost:8080`
-- Admin service health: `http://localhost:8099/healthz`
+With Podman:
 
-The stack imports the **passwordless-first** realm at first start
-(`deploy/keycloak/realm-cwl.json`): a `browser-passwordless` flow with a
-WebAuthn passwordless authenticator and **no password authenticator**, plus
-`registrationAllowed:false` / `resetPasswordAllowed:false`.
+```bash
+podman compose up -d
+./deploy/scripts/healthz.sh
+```
 
-### Register external federation
+Local endpoints in the default development stack:
 
-The portable realm contains no employer ADFS, LDAP/AD source, or other
-customer-specific federation. Render deployment values from KV and preflight
-every private payload before apply:
+- Keycloak administration surface: `http://localhost:8080`
+- Keyverse control-service health: `http://localhost:8099/healthz`
 
-- SAML and external OIDC:
-  `POST /federation/identity-providers:validate`, followed by the Keyverse
-  desired-state `PUT` and reconciliation flow.
-- LDAP and Active Directory:
-  `POST /federation/user-directories:validate`, followed by deployment-owned
-  private Keycloak component apply. The first profile is LDAPS-only,
-  read-only, Kerberos-disabled, and `trustEmail=false`.
+The portable realm is passwordless-first and intentionally excludes customer-specific federation secrets and confidential relying-party credentials.
 
-LDAP preflight performs no DNS lookup, socket connection, bind, search, KV/DB
-write, or Keycloak call. Its response redacts `bindDn` and `bindCredential` and
-must never be used as the apply payload; apply the original private file only.
+## Onboard a relying party
 
-See [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
-[`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
-[`deploy/templates/README.md`](deploy/templates/README.md).
+Start with [`docs/rp-onboarding.md`](docs/rp-onboarding.md). Relying-party desired state is secret-free; confidential client credentials remain a separate secret-management responsibility.
 
-An application backend starts brokered login through
-`POST /federation/identity-providers:start-login` with the separately
-provisioned `X-Keyverse-Runtime-Token`; it then adds PKCE locally. The operator
-Bearer token is reserved for grant and token-management endpoints. See
-[`docs/authorization-onboarding.md`](docs/authorization-onboarding.md).
+For authorization integration, use [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md). Keyverse can make issuer-side decisions for:
 
-### Onboard a relying party
+- whether a subject may use a software unit / relying party;
+- menu access after software-unit admission;
+- closed ABAC constraints and capability-based RBAC;
+- approved combinations of software units that may share one Keyverse session;
+- org-path inheritance with more-specific assignment precedence and default deny.
 
-See [`docs/rp-onboarding.md`](docs/rp-onboarding.md). Software-unit ACL, menu
-decisions, SSO combinations, and programmable application tokens are documented
-in [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md).
+Secrets and programmable application tokens do not inherit through the org hierarchy.
 
-## Account unification & merge
+## Start brokered login from an application
+
+An application backend can request a brokered-login start URL through the Keyverse helper:
+
+```text
+POST /federation/identity-providers:start-login
+```
+
+The helper resolves an enabled locally configured identity provider and returns a Keycloak authorization URL carrying `kc_idp_hint`. The relying party adds its PKCE material locally and performs the redirect. The helper does not fetch remote metadata or move federation ownership into the application.
+
+Use the separately provisioned runtime token for this application-facing flow; operator credentials remain reserved for privileged administration and token-management operations.
+
+## Programmable application tokens
+
+Keyverse can mint purpose-bound application tokens for service/application workflows. Tokens are:
+
+- stored only as hashes in the Keyverse-owned store;
+- scoped to a software unit and explicit API capabilities;
+- revocable and rotatable;
+- auditable;
+- separate from user password/passkey authentication and org-tree inheritance.
+
+See [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md) for the issue/verify/revoke lifecycle and the current public contract.
+
+## External federation
+
+The portable repository does not embed employer/customer federation configuration.
+
+### SAML and external OIDC
+
+Use Keyverse preflight and desired-state workflows to validate an external identity provider before apply. Trust policy, email-link behavior, endpoint profiles, and deployment-owned secrets remain explicit.
+
+### LDAP / Active Directory
+
+The current directory profile is LDAPS-only, read-only, Kerberos-disabled, and does not trust email by default. Preflight is deliberately side-effect-free: it does not perform DNS lookup, socket connection, bind, search, Keycloak mutation, or durable write.
+
+See:
+
+- [`docs/federation-onboarding.md`](docs/federation-onboarding.md)
+- [`deploy/keycloak/README.md`](deploy/keycloak/README.md)
+- [`deploy/templates/README.md`](deploy/templates/README.md)
+
+A successful preflight is configuration evidence, not proof that a production login or directory bind has succeeded.
+
+## Account unification and merge
+
+The account-unification service supports deterministic linking and survivor-wins merge while refusing weak identity evidence.
+
+Matching precedence is:
+
+```text
+exact (identity provider, subject)
+        ↓
+verified email
+        ↓
+explicit operator link
+```
+
+Unverified email never authorizes automatic account linking or merge.
+
+For local development of the service:
 
 ```bash
 cd services/account_unification
-python -m venv .venv && . .venv/bin/activate
+python -m venv .venv
+. .venv/bin/activate
 pip install -e '.[dev]'
 pytest -q
 ```
 
-Design: [`docs/merge-unification-flow.md`](docs/merge-unification-flow.md).
-Matching precedence is **exact (idp, subject) → verified email → explicit link**,
-and the engine **never merges on an unverified email**.
+See [`docs/merge-unification-flow.md`](docs/merge-unification-flow.md) for the lifecycle and audit model.
 
-## Standalone AND submodule-embeddable
+## Configuration and secret boundary
 
-- **Standalone:** the compose file or the Helm chart.
-- **Submodule:** add this repo as a git submodule and `include:` its
-  `docker-compose.yml`, or depend on `helm/cwl-idp`. Every component exposes a
-  `/healthz`-style readiness probe so the parent can gate on it.
+Runtime application code consumes configuration from the approved KV/DB boundary. Environment variables are bootstrap transport only; they are not the long-term source of truth for application secrets.
 
-## Configuration & secrets
+Portable realm/configuration source must not contain customer federation secrets, confidential RP credentials, raw programmable application tokens, or private apply payloads. Preflight responses and logs must not reflect protected credentials.
 
-Config and secrets are read from the **KV / DB store**, not from runtime
-`os.getenv`. Environment variables are used **only as bootstrap transport** to
-reach that store (`CWL_IDP_BOOTSTRAP` → `deploy/bootstrap/bootstrap.yaml`).
-Database objects use two-word snake_case names (`idp_config_entries`,
-`account_merge_audit`).
+## Deployment modes
 
-## Engine & licensing
+Keyverse is independently deployable through the repository's Compose and Helm surfaces and can also be integrated by a host through those published deployment contracts.
 
-- Engine: **Keycloak** (Apache-2.0). This repo: **Apache-2.0** (`LICENSE`).
-- **Permissive OSS only** — no GPL/AGPL dependencies. cwl-idp deliberately does
-  **not** use ZITADEL (AGPL-3.0) nor the commercial scim-for-keycloak plugin;
-  the SCIM shim in this repo is our own Apache-2.0 code.
+| Surface | Purpose |
+| --- | --- |
+| `docker-compose.yml` | Standalone Keycloak + PostgreSQL + Keyverse service stack |
+| `helm/cwl-idp/` | Kubernetes-oriented deployment package |
+| `deploy/keycloak/` | Portable Keycloak realm and identity configuration |
+| `deploy/templates/` | Deployment preflight / desired-state templates |
+| `deploy/bootstrap/` | Bootstrap pointer into the approved config/secret boundary |
+| `services/account_unification/` | Keyverse-owned control service |
 
-## References
+Deployment readiness distinguishes process/configuration reachability from complete external login, federation, provisioning, or RP acceptance evidence.
 
-Standards and papers live under `docs/papers/` and `docs/doctoring/`, including
-NIST SP 800-63C federation, RFC 7644 SCIM, OIDC Core, SAML V2.0, and the LDAP
-RFC 4511–4515 family.
+## Security posture
 
----
+Keyverse is built around several non-negotiable identity invariants:
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+- passwordless-first local identity must not silently fall back to an ordinary password authenticator;
+- exact provider subject identity is stronger evidence than email;
+- unverified email cannot authorize automatic link/merge;
+- issuer/audience/signature/expiry/subject validation is mandatory at relying parties;
+- customer-specific secrets remain outside portable source;
+- privileged desired-state mutation is separated from secret provisioning;
+- duplicate or ambiguous remote identity/client/component matches fail closed;
+- operation receipts are written only after re-observing the intended live outcome;
+- tenant or application authorization is never inferred from client IDs, UUIDs, email, or federation source names alone.
 
-## Hourly OpenCode product development
+Security and trust details live in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), and the [`docs/adr/`](docs/adr/) decision records.
 
-At minute 41 UTC, and only when no pull request exists and the exact `main` SHA
-is healthy, Keyverse may run one bounded OpenCode development cycle through a
-loopback NVIDIA NIM credential broker. The model works from a disposable
-`git archive` without `.git`, GitHub credentials, Actions OIDC, publication
-authority, or the upstream NIM credential.
+## Verify the repository
 
-A fresh job independently validates the sealed patch and re-runs the complete
-100% production docstring, statement, and branch coverage gates plus package,
-realm, Compose, and provider-template checks. Only then may a dedicated
-`OPENCODE_PRODUCT_DEVELOPMENT_TOKEN` create one draft PR. Existing review-agent
-workflows and credentials are unchanged; the development workflow cannot
-approve, merge, tag, or release.
+The account-unification/control-service tests can be run from its package directory:
 
-Operations are documented in
-[`docs/operations/hourly-product-development.md`](docs/operations/hourly-product-development.md).
-Standards traceability and APA 7th references are recorded in
-[`docs/doctoring/hourly-opencode-product-development.md`](docs/doctoring/hourly-opencode-product-development.md).
+```bash
+cd services/account_unification
+uv sync --locked
+uv run pytest -q
+```
+
+Repository CI additionally validates the portable realm and Compose configuration. Exact current-head protected checks and review evidence remain authoritative for integration; predecessor-head results do not transfer after source changes.
+
+## Documentation map
+
+| Goal | Start here |
+| --- | --- |
+| Product requirements | [`docs/PRD.md`](docs/PRD.md) |
+| Technical requirements | [`docs/TRD.md`](docs/TRD.md) |
+| Architecture and trust boundaries | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| Architecture decisions | [`docs/adr/README.md`](docs/adr/README.md) |
+| Relying-party onboarding | [`docs/rp-onboarding.md`](docs/rp-onboarding.md) |
+| Authorization onboarding | [`docs/authorization-onboarding.md`](docs/authorization-onboarding.md) |
+| Federation onboarding | [`docs/federation-onboarding.md`](docs/federation-onboarding.md) |
+| Operability | [`docs/OPERABILITY.md`](docs/OPERABILITY.md) |
+| Threat model | [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) |
+| Test strategy | [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md) |
+| Traceability | [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md) |
+| Documentation index | [`DOCUMENTATION.md`](DOCUMENTATION.md) |
+| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
+
+## Contributing
+
+Changes to identity, federation, provisioning, account merge, relying-party, or authorization behavior must preserve the repository's explicit trust boundaries and update tests, public contracts, architecture decisions, and operator documentation together. Contributor/agent procedure belongs in the repository's contributor guidance rather than the customer-facing product overview.
+
+## License
+
+Keyverse source is licensed under the [Apache License 2.0](LICENSE). The underlying Keycloak project is also Apache-2.0. Third-party dependencies retain their own license terms and must remain compatible with ContextualWisdomLab's commercial-use policy.
