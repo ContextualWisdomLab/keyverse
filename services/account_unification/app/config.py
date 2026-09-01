@@ -153,6 +153,25 @@ def _validated_https_uri(raw_uri: str, *, entry_key: str) -> str:
     return candidate
 
 
+def _validated_public_issuer_url(raw_uri: str) -> str:
+    """Return one canonical HTTPS issuer URL without query or fragment state."""
+    candidate = raw_uri.strip()
+    parsed = urlsplit(candidate)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError(
+            f"config '{KEY_PUBLIC_ISSUER_URL}' must be an absolute HTTPS issuer "
+            "URL without credentials, query, or fragment"
+        )
+    return candidate
+
+
 def _registration_settings(
     store: KvStore,
     namespace: str,
@@ -237,10 +256,7 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
             store, namespace, KEY_KEYCLOAK_CLIENT_SECRET
         ),
         public_issuer_url=(
-            _validated_https_uri(
-                public_issuer_url,
-                entry_key=KEY_PUBLIC_ISSUER_URL,
-            )
+            _validated_public_issuer_url(public_issuer_url)
             if (public_issuer_url := store.get(namespace, KEY_PUBLIC_ISSUER_URL))
             else None
         ),
