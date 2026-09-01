@@ -56,16 +56,16 @@ clients in the portable realm.
 ## Measured repository evidence
 
 `services/account_unification/tests/test_org_authorization.py` and
-`tests/test_authorization_plane.py` cover inheritance, restriction, software-
-unit and menu ABAC/RBAC, tenant-isolated grants and combinations, reserved-name
-rejection, and fail-closed storage. The focused
-`test_menu_path_inheritance_is_reported_when_org_path_is_exact` regression
-proves that a strict menu-prefix match sets `inherited=true` even when the org
-path is exact. The HTTP regression suite also verifies that the authorization router
-rejects an unauthenticated direct embedding and accepts only the configured
-operator bearer. The router now owns both the operator-authentication and
-privileged-path dependencies rather than relying only on the application
-factory's include-site wiring.
+`services/account_unification/tests/test_authorization_plane.py` cover
+inheritance, restriction, software-unit and menu ABAC/RBAC, tenant-isolated
+grants and combinations, reserved-name rejection, and fail-closed storage. The
+focused `test_menu_path_inheritance_is_reported_when_org_path_is_exact`
+regression proves that a strict menu-prefix match sets `inherited=true` even
+when the org path is exact. The HTTP regression suite also verifies that the
+authorization router rejects an unauthenticated direct embedding and accepts
+only the configured operator bearer. The router now owns both the
+operator-authentication and privileged-path dependencies rather than relying
+only on the application factory's include-site wiring.
 The `test_ambiguous_grant_reads_and_deletes_accept_explicit_tenant` regression
 proves that same-named grants remain ambiguous without scope but can be read
 and deleted through the explicit tenant query parameter.
