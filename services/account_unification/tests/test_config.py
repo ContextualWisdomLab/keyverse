@@ -78,6 +78,34 @@ def test_runtime_token_must_not_equal_operator_token() -> None:
         )
 
 
+def test_runtime_token_must_not_equal_registration_token() -> None:
+    """Runtime and registration credentials remain separate trust domains."""
+    with pytest.raises(RuntimeError, match="runtime_api_token"):
+        load_service_config(
+            _config_store(
+                runtime_api_token="shared-token",
+                registration_api_token="shared-token",
+            ),
+            "account_unification",
+        )
+
+
+@pytest.mark.parametrize(
+    "public_issuer_url",
+    [
+        "https://login.example/realms/cwl?tenant=other",
+        "https://login.example/realms/cwl#fragment",
+    ],
+)
+def test_public_issuer_rejects_query_and_fragment(public_issuer_url: str) -> None:
+    """A configured issuer is one canonical HTTPS origin/path, not a URI template."""
+    with pytest.raises(RuntimeError, match="public_issuer_url"):
+        load_service_config(
+            _config_store(public_issuer_url=public_issuer_url),
+            "account_unification",
+        )
+
+
 def test_missing_required_config_fails_loudly() -> None:
     """Startup fails when any foundational Keycloak setting is absent."""
     store = InMemoryKvStore({"account_unification": {}})
