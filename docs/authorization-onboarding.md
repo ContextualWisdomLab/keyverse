@@ -63,11 +63,30 @@ session stays in Keycloak; this only authorizes the selected RP set.
 1. Register the employer IdP through the existing federation desired-state
    APIs (`docs/federation-onboarding.md`).
 2. From the application (or its deployment helper), call the runtime endpoint
-   with the separately provisioned `X-Keyverse-Runtime-Token` header. This is
-   not the operator bearer used for grant administration:
+   with the separately provisioned `X-Keyverse-Runtime-Token`. This is not the
+   operator bearer used for grant administration. Keep the runtime credential
+   out of process arguments by placing the header in a private curl config:
 
 ```bash
-curl --config "$AUTH_CONFIG" --request POST \
+set -euo pipefail
+RUNTIME_AUTH_CONFIG="$(mktemp)"
+cleanup_runtime_auth() { rm -f "$RUNTIME_AUTH_CONFIG"; }
+trap cleanup_runtime_auth EXIT
+chmod 0600 "$RUNTIME_AUTH_CONFIG"
+
+XTRACE_WAS_ON=0
+case $- in
+  *x*) XTRACE_WAS_ON=1; set +x ;;
+esac
+KEYVERSE_RUNTIME_TOKEN="$(kv get secret/keyverse/runtime-api-token)"
+printf 'header = "X-Keyverse-Runtime-Token: %s"\n' \
+  "$KEYVERSE_RUNTIME_TOKEN" >"$RUNTIME_AUTH_CONFIG"
+unset KEYVERSE_RUNTIME_TOKEN
+if [ "$XTRACE_WAS_ON" -eq 1 ]; then
+  set -x
+fi
+
+curl --config "$RUNTIME_AUTH_CONFIG" --request POST \
   --header "Content-Type: application/json" \
   --data '{"software_unit_id":"naruon-web","client_id":"naruon-web","redirect_uri":"https://naruon.example/callback","provider_alias_hint":"employer-adfs"}' \
   "$KEYVERSE_RUNTIME/federation/identity-providers:start-login"
@@ -89,13 +108,13 @@ curl --config "$AUTH_CONFIG" --request POST \
 ```
 
 Store `plaintext_token` in the application's secret manager and discard the
-response. Present the token only to `POST /application-tokens:verify` with the
-same software unit and requested API capabilities, plus the runtime service
-header. Rotate or revoke instead of treating the token as a password. Tokens
-never inherit org-tree grants.
-The request must also carry the same explicit tenant; use the runtime service
-header and never treat the token as a password. Tokens never inherit org-tree
+response. Present that PAT only as the `presented_token` value sent to
+`POST /application-tokens:verify`, together with the same software unit,
+requested API capabilities, and explicit tenant. The verification endpoint
+itself is authenticated separately with `X-Keyverse-Runtime-Token` using a
+private curl config like the runtime example above. Rotate or revoke instead
+of treating either credential as a password. Tokens never inherit org-tree
 grants.
 
-Keep bearer tokens out of `curl` process arguments; use a private `--config`
-file as in `docs/rp-onboarding.md`.
+Keep bearer and runtime service tokens out of `curl` process arguments; use
+private `--config` files as shown above and in `docs/rp-onboarding.md`.
