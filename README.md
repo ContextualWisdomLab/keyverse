@@ -1,5 +1,7 @@
 # Keyverse
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ContextualWisdomLab/keyverse)
+
 **Central identity, federation, provisioning, and authorization control plane for the ContextualWisdomLab ecosystem.**
 
 Keyverse is a standalone, embeddable identity platform built on Keycloak. It gives applications one standards-based place to consume passwordless authentication, external identity federation, SCIM provisioning, account unification, relying-party lifecycle, and issuer-side authorization decisions without making every product own Keycloak administration or identity-security policy.
