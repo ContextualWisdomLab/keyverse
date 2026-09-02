@@ -29,6 +29,9 @@ KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS = (
     "registration_action_lifespan_seconds"
 )
 KEY_AUDIT_DATABASE_PATH = "audit_database_path"
+KEY_KEYVAULT_DATABASE_PATH = "keyvault_database_path"
+KEY_KEYVAULT_AUDIT_DATABASE_PATH = "keyvault_audit_database_path"
+KEY_KEYVAULT_PASSPHRASE = "keyvault_passphrase"
 
 MAX_REGISTRATION_ACTION_LIFESPAN_SECONDS = 3600
 
@@ -51,6 +54,14 @@ class ServiceConfig:
     registration_redirect_uri: str | None = None
     registration_action_lifespan_seconds: int = 900
     audit_database_path: str = "/var/lib/account-unification/audit.db"
+    # Keyvault stays opt-in: a deployment with no passphrase configured gets
+    # keyvault_service=None (503 "not configured"), never a silently-open
+    # secret store. See app/keyvault.py and app/keyvault_admin.py.
+    keyvault_database_path: str = "/var/lib/account-unification/keyvault.db"
+    keyvault_audit_database_path: str = (
+        "/var/lib/account-unification/keyvault-audit.db"
+    )
+    keyvault_passphrase: str | None = None
     merge_conflict_policy: str = "survivor_wins"
     # This is an invariant, not a deployer-selectable feature. The field remains
     # so audit/config evidence can prove it was explicitly disabled.
@@ -235,6 +246,15 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
             store.get(namespace, KEY_AUDIT_DATABASE_PATH)
             or "/var/lib/account-unification/audit.db"
         ),
+        keyvault_database_path=(
+            store.get(namespace, KEY_KEYVAULT_DATABASE_PATH)
+            or "/var/lib/account-unification/keyvault.db"
+        ),
+        keyvault_audit_database_path=(
+            store.get(namespace, KEY_KEYVAULT_AUDIT_DATABASE_PATH)
+            or "/var/lib/account-unification/keyvault-audit.db"
+        ),
+        keyvault_passphrase=store.get(namespace, KEY_KEYVAULT_PASSPHRASE) or None,
         merge_conflict_policy=merge_conflict_policy,
         allow_unverified_email_link=allow_unverified_email_link,
         request_timeout_seconds=_as_finite_float(

@@ -21,6 +21,13 @@ from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .directory_federation import directory_federation_router
 from .federation import FederationService, federation_router
+from .keyvault import (
+    KeyvaultService,
+    SqliteKeyvaultAuditSink,
+    SqliteKeyvaultStore,
+    derive_fernet_key,
+)
+from .keyvault_admin import router as keyvault_router
 from .path_security import (
     ScimPathValidationError,
     admin_path_security_dependency,
@@ -61,6 +68,25 @@ def _user_operation_lock_path(audit_database_path: str) -> tuple[str, bool]:
     return temporary_path, True
 
 
+def _build_keyvault_service(config) -> KeyvaultService | None:
+    """Build the Keyvault service, or ``None`` when no passphrase is configured.
+
+    Opt-in by design (see ``config.py``): a deployment that never sets
+    ``keyvault_passphrase`` gets no Keyvault service at all, and the router's
+    ``get_keyvault`` dependency then fails closed with 503 rather than
+    exposing an unencrypted or default-keyed store.
+    """
+    if not config.keyvault_passphrase:
+        return None
+    for path in (config.keyvault_database_path, config.keyvault_audit_database_path):
+        _ensure_parent_directory(path)
+    return KeyvaultService(
+        SqliteKeyvaultStore(config.keyvault_database_path),
+        SqliteKeyvaultAuditSink(config.keyvault_audit_database_path),
+        derive_fernet_key(config.keyvault_passphrase),
+    )
+
+
 def build_service(app: FastAPI) -> None:
     """Wire all live service dependencies from the bootstrap configuration."""
     descriptor = load_bootstrap_descriptor()
@@ -95,6 +121,7 @@ def build_service(app: FastAPI) -> None:
     app.state.temporary_user_operation_lock_database = temporary_lock_database
     app.state.federation_service = FederationService(store, api)
     app.state.relying_party_service = RelyingPartyService(store, api)
+    app.state.keyvault_service = _build_keyvault_service(config)
     app.state.operator_api_token = config.operator_api_token
     app.state.registration_api_token = config.registration_api_token
     app.state.registration_client_id = config.registration_client_id
@@ -136,6 +163,7 @@ async def lifespan(app: FastAPI):
         app.state.ready = False
         _close_resource(getattr(app.state, "keycloak_api", None))
         _close_resource(getattr(app.state, "audit_logger", None))
+        _close_resource(getattr(app.state, "keyvault_service", None))
         _close_resource(getattr(app.state, "config_store", None))
         _remove_temporary_lock_database(app)
 
@@ -211,6 +239,13 @@ def create_app(*, wire: bool = True) -> FastAPI:
     app.include_router(
         registration_router,
         dependencies=[registration_auth_dependency],
+    )
+    app.include_router(
+        keyvault_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
     )
     return app
 
