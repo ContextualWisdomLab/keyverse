@@ -70,6 +70,16 @@ and `role`/`org`/`workspace` claims required by the current Naruon session
 contract. Its access tokens last 300 seconds; the longer SSO session is serviced
 through normal token refresh/reissue rather than a twelve-hour bearer token.
 
+`naruon-web` also has `directAccessGrantsEnabled: true` — a scoped, reviewed
+exception ([ADR-0014](../../docs/adr/0014-naruon-owned-password-form.md)) so
+naruon can render its own login form with zero Keycloak-rendered HTML in the
+loop. This does **not** make Direct Access Grants usable today: no account in
+`cwl` has a password credential (`docs/passwordless-policy.md`), so every
+attempt fails closed with `invalid_grant` until a separate, separately-reviewed
+credential-issuance path exists. No other RP gets this exception; the
+account-unification dynamic-registration validator still hard-rejects
+`directAccessGrantsEnabled: true` for everyone else.
+
 ## Bootstrap
 
 ```bash
