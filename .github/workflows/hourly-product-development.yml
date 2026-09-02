@@ -39,7 +39,7 @@ env:
   # Pinned to the exact commit ContextualWisdomLab/.github's central review
   # sidecar (scripts/ci/contextual_orchestrator_review_sidecar.sh) already
   # vendors and trusts.
-  ORCHESTRATOR_PIN_SHA: "045d17da5e2aea56a97e241ee158ab1628d78660"
+  ORCHESTRATOR_PIN_SHA: "464da4715b495b5eaaa593eba3796e2d976ee0c9"
 
 jobs:
   develop-product-gap:
