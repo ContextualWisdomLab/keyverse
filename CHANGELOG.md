@@ -7,6 +7,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- ADR-0014 (Proposed): SCIM (RFC 7643/7644) `Group`/`User` extension, a
+  non-standard `cwl_context_memberships` OIDC claim, and a
+  `urn:cwl:claims:context_membership` SAML attribute, all projecting
+  `context-graph-contracts`'s `ContextAssertion`/`ContextMembership` org-hierarchy
+  contract. Design only; no code, no Keycloak mapper, no `/scim/v2/Groups`
+  endpoint yet.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
