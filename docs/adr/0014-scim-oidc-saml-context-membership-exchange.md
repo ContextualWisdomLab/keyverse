@@ -3,6 +3,30 @@
 **Status:** Proposed
 **Date:** 2026-09-02
 
+**Upstream status note (added same day, after this ADR was drafted):** the
+`context-graph-contracts` ADR-0001 PR this design was written against
+(context-graph-contracts#23) was **closed, not merged**, by a concurrent review shortly
+after this ADR's own commit landed. That review's stated reasons: PR #23 was based on
+bare `develop` (the `ContextAssertion`/`ContextMembership` schemas it depends on are
+still on context-graph-contracts#4, itself open/unmerged/`blocked`), declared itself
+`Accepted` ahead of that dependency landing, collided with that PR stack's own ADR
+numbering, and — most relevant here — has "unresolved executable-contract defects (wire
+interpretation, bitemporal/replay semantics, **primary-membership cardinality**,
+reproducibility)." That reviewer's own closing note says the branch "is preserved for
+evidence" and that "any org-membership contract should be rebuilt test-first on the
+current CGC owner stack after the foundation/Context Assertion dependency is protected."
+This ADR's *field shapes* (`context_ref`, `parent_context_ref`, `membership_level`,
+`predicate`, `interval`) were read directly from context-graph-contracts#4's actual
+schema files, not from ADR-0001's prose, and remain structurally accurate against that
+still-open dependency; what changed is that ADR-0001's own **governance status** (an ADR
+self-declaring `Accepted` before its schema dependency merges, registering
+`org_member_primary`/`org_member_secondary`/`org_member_observed` by prose alone ahead
+of versioned conformance fixtures) is no longer a settled foundation to build against.
+This ADR should therefore be re-validated against whatever org-membership contract is
+eventually rebuilt test-first on the protected CGC stack, not treated as finalized
+because ADR-0001 currently reads "Accepted" — do not promote this ADR to `Accepted`
+before that reconciliation happens.
+
 ## Context
 
 `context-graph-contracts` ADR-0001 (`docs/adr/0001-enterprise-org-hierarchy-membership-contract.md`,
