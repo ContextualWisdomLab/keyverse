@@ -75,6 +75,10 @@ mitigating the risk of software vulnerabilities* (NIST SP 800-218 Rev. 1,
 Initial Public Draft). National Institute of Standards and Technology.
 https://doi.org/10.6028/NIST.SP.800-218r1.ipd
 
+ContextualWisdomLab. (2026). *contextual-orchestrator* (Revision
+464da4715b495b5eaaa593eba3796e2d976ee0c9) [Computer software]. GitHub.
+https://github.com/ContextualWisdomLab/contextual-orchestrator/tree/464da4715b495b5eaaa593eba3796e2d976ee0c9
+
 GitHub. (n.d.). *Workflow syntax for GitHub Actions*. GitHub Docs. Retrieved
 August 5, 2026, from
 https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions
