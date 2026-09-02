@@ -25,13 +25,21 @@ env:
   CORE_WORKFLOWS: '["ci","CodeQL"]'
   OPENCODE_VERSION: "1.17.13"
   OPENCODE_SHA256: 157afa289d1a8d9372de0ce19ac726119b937a1f6b201808d46f06e4e59bb348
-  OPENCODE_MODEL_CANDIDATES: >-
-    nvidia-nim/nvidia/llama-3.3-nemotron-super-49b-v1.5
-    nvidia-nim/nvidia/nemotron-3-super-120b-a12b
-    nvidia-nim/deepseek-ai/deepseek-v4-pro
+  # A single fail-closed zero-cost virtual pool, not a fixed model list: the
+  # gateway's own routing picks a live candidate from whichever of the five
+  # provider secrets are registered, so there is no per-model retry loop here
+  # any more (see ContextualWisdomLab/keyverse#131 and the identical two-call-site
+  # change in ContextualWisdomLab/contextual-orchestrator's own
+  # .github/workflows/opencode-hourly-loop.yml, PR #1013).
+  OPENCODE_MODEL: "contextual_orchestrator_gateway/orchestrator/free"
   OPENCODE_RUN_TIMEOUT_SECONDS: "2100"
-  NIM_PROXY_HOST: "127.0.0.1"
-  NIM_PROXY_PORT: "8765"
+  ORCHESTRATOR_HOST: "127.0.0.1"
+  ORCHESTRATOR_PORT: "8765"
+  ORCHESTRATOR_GIT_URL: "https://github.com/ContextualWisdomLab/contextual-orchestrator.git"
+  # Pinned to the exact commit ContextualWisdomLab/.github's central review
+  # sidecar (scripts/ci/contextual_orchestrator_review_sidecar.sh) already
+  # vendors and trusts.
+  ORCHESTRATOR_PIN_SHA: "045d17da5e2aea56a97e241ee158ab1628d78660"
 
 jobs:
   develop-product-gap:
@@ -54,12 +62,16 @@ jobs:
           egress-policy: block
           disable-telemetry: true
           allowed-endpoints: >-
+            api.bytez.com:443
             api.github.com:443
+            api.openai.com:443
             cafe.github.com:443
             codeload.github.com:443
             github.com:443
             integrate.api.nvidia.com:443
+            models.dev:443
             objects.githubusercontent.com:443
+            openrouter.ai:443
             raw.githubusercontent.com:443
             registry.npmjs.org:443
             release-assets.githubusercontent.com:443
@@ -407,7 +419,7 @@ jobs:
             or touch more than 12 files or 1,500 changed lines.
           - Do not stage, commit, push, open or merge a pull request, approve work, tag,
             or publish a release. This workspace contains no .git directory and the
-            model process receives no GitHub, OIDC, or upstream NVIDIA credential.
+            model process receives no GitHub, OIDC, or upstream model-provider credential.
 
           Before finishing, run focused tests and the available local quality gates with
           the preinstalled environment. Update CHANGELOG.md [Unreleased], beginner-
@@ -421,65 +433,129 @@ jobs:
           required checks. Do not publish a release.
           PROMPT
 
-      - name: Start the loopback-only NIM credential broker
+      - name: Vendor and start the contextual-orchestrator gateway
         if: steps.gate.outputs.develop == 'true'
-        id: nim_broker
+        id: orchestrator_gateway
         shell: bash
         env:
-          NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          BYTEZ_API_KEY: ${{ secrets.BYTEZ_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          NVIDIA_NIM_API_KEY_SUB: ${{ secrets.NVIDIA_NIM_API_KEY_SUB }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${NIM_UPSTREAM_API_KEY:-}" ]; then
-            echo "::error::NVIDIA_NIM_API_KEY is required only for model-backed development."
+          # Missing individual provider secrets are allowed (the gateway's own
+          # auto-discovery skips an unregistered provider); at least one of
+          # the five is required so the free pool is never empty.
+          provider_secret_count=0
+          for secret_name in BYTEZ_API_KEY NVIDIA_NIM_API_KEY NVIDIA_NIM_API_KEY_SUB OPENROUTER_API_KEY OPENAI_API_KEY; do
+            if [ -n "${!secret_name:-}" ]; then
+              provider_secret_count=$((provider_secret_count + 1))
+            fi
+          done
+          if [ "$provider_secret_count" -lt 1 ]; then
+            echo "::error::At least one of BYTEZ_API_KEY, NVIDIA_NIM_API_KEY, NVIDIA_NIM_API_KEY_SUB, OPENROUTER_API_KEY, or OPENAI_API_KEY is required only for model-backed development."
             exit 1
           fi
+
           secret_fingerprint="$(
             python3 - <<'PY'
           import base64
           import hashlib
           import os
 
-          secret = os.environ["NIM_UPSTREAM_API_KEY"].encode("utf-8")
-          representations = (
-              secret,
-              base64.b64encode(secret),
-              base64.urlsafe_b64encode(secret),
-              secret.hex().encode("ascii"),
-          )
-          print(",".join(
-              f"{len(value)}:{hashlib.sha256(value).hexdigest()}"
-              for value in representations
-          ))
+          fingerprints = []
+          for name in (
+              "BYTEZ_API_KEY",
+              "NVIDIA_NIM_API_KEY",
+              "NVIDIA_NIM_API_KEY_SUB",
+              "OPENROUTER_API_KEY",
+              "OPENAI_API_KEY",
+          ):
+              secret = os.environ.get(name, "").encode("utf-8")
+              if not secret:
+                  continue
+              representations = (
+                  secret,
+                  base64.b64encode(secret),
+                  base64.urlsafe_b64encode(secret),
+                  secret.hex().encode("ascii"),
+              )
+              fingerprints.extend(
+                  f"{len(value)}:{hashlib.sha256(value).hexdigest()}"
+                  for value in representations
+              )
+          print(",".join(fingerprints))
           PY
           )"
           printf 'secret_fingerprint=%s\n' "$secret_fingerprint" >>"$GITHUB_OUTPUT"
+
+          orchestrator_source="${RUNNER_TEMP}/contextual-orchestrator"
+          rm -rf "$orchestrator_source"
+          git clone --quiet --filter=blob:none --no-checkout \
+            "$ORCHESTRATOR_GIT_URL" "$orchestrator_source"
+          git -C "$orchestrator_source" -c advice.detachedHead=false \
+            checkout --quiet "$ORCHESTRATOR_PIN_SHA"
+          checked_out="$(git -C "$orchestrator_source" rev-parse HEAD)"
+          if [ "$checked_out" != "$ORCHESTRATOR_PIN_SHA" ]; then
+            echo "::error::Vendored contextual-orchestrator HEAD $checked_out != pin $ORCHESTRATOR_PIN_SHA"
+            exit 1
+          fi
+
+          python3 -m pip install --quiet --disable-pip-version-check --no-cache-dir \
+            --require-hashes --no-deps \
+            -r "$orchestrator_source/requirements.lock"
+
+          gateway_token="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$gateway_token"
           umask 077
-          proxy_log="${RUNNER_TEMP}/keyverse-nim-proxy.log"
-          proxy_pid="${RUNNER_TEMP}/keyverse-nim-proxy.pid"
-          python scripts/ci/nim_proxy.py \
-            --host "$NIM_PROXY_HOST" \
-            --port "$NIM_PROXY_PORT" \
-            >"$proxy_log" 2>&1 &
-          printf '%s\n' "$!" >"$proxy_pid"
-          unset NIM_UPSTREAM_API_KEY
+          token_file="${RUNNER_TEMP}/keyverse-orchestrator-gateway.token"
+          printf '%s' "$gateway_token" >"$token_file"
+          chmod 600 "$token_file"
+          # Export only the file path, never the raw bearer: GitHub renders
+          # $GITHUB_ENV before a later step's own add-mask can protect a value
+          # placed there directly.
+          printf 'ORCHESTRATOR_GATEWAY_TOKEN_FILE=%s\n' "$token_file" >>"$GITHUB_ENV"
+
+          gateway_log="${RUNNER_TEMP}/keyverse-orchestrator-gateway.log"
+          gateway_pid_file="${RUNNER_TEMP}/keyverse-orchestrator-gateway.pid"
+          (
+            cd "$orchestrator_source"
+            CONTEXTUAL_ORCHESTRATOR_TOKEN="$gateway_token" \
+            BYTEZ_API_KEY="${BYTEZ_API_KEY:-}" \
+            NVIDIA_NIM_API_KEY="${NVIDIA_NIM_API_KEY:-}" \
+            NVIDIA_NIM_API_KEY_SUB="${NVIDIA_NIM_API_KEY_SUB:-}" \
+            OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+            OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+            PYTHONPATH="$orchestrator_source" \
+              nohup python3 -m scripts.ci.serve_seeded_gateway \
+                --serve \
+                --auto-discover-model-agents \
+                --auth-token-key CONTEXTUAL_ORCHESTRATOR_TOKEN \
+                --host "$ORCHESTRATOR_HOST" --port "$ORCHESTRATOR_PORT" \
+              >"$gateway_log" 2>&1 &
+            echo "$!" >"$gateway_pid_file"
+          )
+          unset gateway_token BYTEZ_API_KEY NVIDIA_NIM_API_KEY NVIDIA_NIM_API_KEY_SUB OPENROUTER_API_KEY OPENAI_API_KEY
 
           ready=false
-          for _attempt in $(seq 1 30); do
+          for _attempt in $(seq 1 60); do
             if curl -fsS \
-              "http://${NIM_PROXY_HOST}:${NIM_PROXY_PORT}/healthz" \
+              "http://${ORCHESTRATOR_HOST}:${ORCHESTRATOR_PORT}/healthz" \
               >/dev/null; then
               ready=true
               break
             fi
-            sleep 1
+            sleep 2
           done
           if [ "$ready" != "true" ]; then
-            cat "$proxy_log" >&2
-            echo "::error::The loopback NIM credential broker did not become ready."
+            cat "$gateway_log" >&2
+            echo "::error::The contextual-orchestrator gateway did not become ready."
             exit 1
           fi
 
-      - name: Run the NVIDIA NIM development agent in a disposable workspace
+      - name: Run the orchestrator/free development agent in a disposable workspace
         if: steps.gate.outputs.develop == 'true'
         id: agent
         shell: bash
@@ -487,21 +563,20 @@ jobs:
           set -euo pipefail
           trap 'sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true' EXIT
           prompt="$(cat "${RUNNER_TEMP}/keyverse-agent-prompt.md")"
+          gateway_token="$(cat "$ORCHESTRATOR_GATEWAY_TOKEN_FILE")"
           successful_workspace=""
           trusted_venv="${GITHUB_WORKSPACE}/services/account_unification/.venv"
 
-          for model in $OPENCODE_MODEL_CANDIDATES; do
-            sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true
-            agent_workspace="${RUNNER_TEMP}/keyverse-agent"
-            agent_home="${RUNNER_TEMP}/keyverse-agent-home"
-            rm -rf "$agent_workspace" "$agent_home"
-            install -d -m 0750 "$agent_workspace" "$agent_home" "$agent_home/tmp"
-            git archive HEAD | tar -x -C "$agent_workspace"
+          agent_workspace="${RUNNER_TEMP}/keyverse-agent"
+          agent_home="${RUNNER_TEMP}/keyverse-agent-home"
+          rm -rf "$agent_workspace" "$agent_home"
+          install -d -m 0750 "$agent_workspace" "$agent_home" "$agent_home/tmp"
+          git archive HEAD | tar -x -C "$agent_workspace"
 
-            cat >"${agent_workspace}/opencode.json" <<'CONFIG'
+          cat >"${agent_workspace}/opencode.json" <<'CONFIG'
           {
             "$schema": "https://opencode.ai/config.json",
-            "enabled_providers": ["nvidia-nim"],
+            "enabled_providers": ["contextual_orchestrator_gateway"],
             "lsp": false,
             "mcp": {},
             "permission": {
@@ -518,26 +593,16 @@ jobs:
               "external_directory": "deny"
             },
             "provider": {
-              "nvidia-nim": {
+              "contextual_orchestrator_gateway": {
                 "npm": "@ai-sdk/openai-compatible",
-                "name": "NVIDIA NIM through local Keyverse broker",
+                "name": "Contextual Orchestrator Gateway through the local Keyverse sidecar",
                 "options": {
                   "baseURL": "http://127.0.0.1:8765/v1",
-                  "apiKey": "{env:NVIDIA_API_KEY}"
+                  "apiKey": "{env:CONTEXTUAL_ORCHESTRATOR_TOKEN}"
                 },
                 "models": {
-                  "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
-                    "name": "NVIDIA Llama 3.3 Nemotron Super 49B v1.5",
-                    "tool_call": true,
-                    "limit": {"context": 131072, "output": 8192}
-                  },
-                  "nvidia/nemotron-3-super-120b-a12b": {
-                    "name": "NVIDIA Nemotron 3 Super 120B",
-                    "tool_call": true,
-                    "limit": {"context": 131072, "output": 8192}
-                  },
-                  "deepseek-ai/deepseek-v4-pro": {
-                    "name": "DeepSeek V4 Pro (NIM)",
+                  "orchestrator/free": {
+                    "name": "fail-closed zero-cost orchestration",
                     "tool_call": true,
                     "limit": {"context": 131072, "output": 8192}
                   }
@@ -547,53 +612,52 @@ jobs:
           }
           CONFIG
 
-            sudo chown -R 65532:65532 "$agent_workspace" "$agent_home"
-            echo "::group::opencode $model"
-            if timeout --kill-after=30s "${OPENCODE_RUN_TIMEOUT_SECONDS}s" \
-              sudo -u '#65532' -g '#65532' env -i \
-                PATH="${trusted_venv}/bin:/usr/local/bin:/usr/bin:/bin" \
-                HOME="$agent_home" \
-                TMPDIR="$agent_home/tmp" \
-                PYTHONPATH="$agent_workspace/services/account_unification" \
-                PYTHONDONTWRITEBYTECODE=1 \
-                PIP_NO_INDEX=1 \
-                LANG=C.UTF-8 \
-                LC_ALL=C.UTF-8 \
-                NVIDIA_API_KEY=keyverse-local-broker \
-                OPENCODE_DISABLE_AUTOUPDATE=1 \
-                /bin/bash -c \
-                  'ulimit -u 256; ulimit -n 1024; cd "$1"; exec opencode run "$2" --model "$3"' \
-                bash "$agent_workspace" "$prompt" "$model"; then
-              sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true
-              successful_workspace="$agent_workspace"
-              echo "::endgroup::"
-              echo "Agent session completed with \`$model\`." >>"$GITHUB_STEP_SUMMARY"
-              break
-            fi
+          sudo chown -R 65532:65532 "$agent_workspace" "$agent_home"
+          echo "::group::opencode $OPENCODE_MODEL"
+          if timeout --kill-after=30s "${OPENCODE_RUN_TIMEOUT_SECONDS}s" \
+            sudo -u '#65532' -g '#65532' env -i \
+              PATH="${trusted_venv}/bin:/usr/local/bin:/usr/bin:/bin" \
+              HOME="$agent_home" \
+              TMPDIR="$agent_home/tmp" \
+              PYTHONPATH="$agent_workspace/services/account_unification" \
+              PYTHONDONTWRITEBYTECODE=1 \
+              PIP_NO_INDEX=1 \
+              LANG=C.UTF-8 \
+              LC_ALL=C.UTF-8 \
+              CONTEXTUAL_ORCHESTRATOR_TOKEN="$gateway_token" \
+              OPENCODE_DISABLE_AUTOUPDATE=1 \
+              /bin/bash -c \
+                'ulimit -u 256; ulimit -n 1024; cd "$1"; exec opencode run "$2" --model "$3"' \
+              bash "$agent_workspace" "$prompt" "$OPENCODE_MODEL"; then
+            sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true
+            successful_workspace="$agent_workspace"
+            echo "::endgroup::"
+            echo "Agent session completed with \`$OPENCODE_MODEL\`." >>"$GITHUB_STEP_SUMMARY"
+          else
             sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true
             echo "::endgroup::"
-            echo "::warning::Model $model failed; its disposable workspace was discarded."
-          done
+            echo "::error::The orchestrator/free development agent run failed."
+          fi
 
           if [ -z "$successful_workspace" ]; then
-            echo "::error::Every NVIDIA NIM model candidate failed."
+            echo "::error::The orchestrator/free development agent run failed."
             exit 1
           fi
           sudo chown -R "$(id -u):$(id -g)" "$successful_workspace"
           rm -f "$successful_workspace/opencode.json"
           echo "workspace=$successful_workspace" >>"$GITHUB_OUTPUT"
 
-      - name: Stop the credential broker and all model descendants
+      - name: Stop the gateway and all model descendants
         if: always() && steps.gate.outputs.develop == 'true'
         shell: bash
         run: |
           set -euo pipefail
           sudo pkill -KILL -u 65532 >/dev/null 2>&1 || true
-          proxy_pid_file="${RUNNER_TEMP}/keyverse-nim-proxy.pid"
-          if [ -s "$proxy_pid_file" ]; then
-            proxy_pid="$(cat "$proxy_pid_file")"
-            kill "$proxy_pid" >/dev/null 2>&1 || true
-            wait "$proxy_pid" >/dev/null 2>&1 || true
+          gateway_pid_file="${RUNNER_TEMP}/keyverse-orchestrator-gateway.pid"
+          if [ -s "$gateway_pid_file" ]; then
+            gateway_pid="$(cat "$gateway_pid_file")"
+            kill "$gateway_pid" >/dev/null 2>&1 || true
+            wait "$gateway_pid" >/dev/null 2>&1 || true
           fi
 
       - name: Capture the bounded credential-free patch
@@ -601,7 +665,7 @@ jobs:
         id: package
         shell: bash
         env:
-          KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT: ${{ steps.nim_broker.outputs.secret_fingerprint }}
+          KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT: ${{ steps.orchestrator_gateway.outputs.secret_fingerprint }}
         run: |
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/hourly-product-change"
@@ -882,7 +946,7 @@ jobs:
               stream.write(body + "\n")
           PY
 
-          branch="nim-agent/product-dev-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          branch="orchestrator-agent/product-dev-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git config user.name "opencode-agent[bot]"
           git config user.email "219766164+opencode-agent[bot]@users.noreply.github.com"
           git config core.hooksPath /dev/null

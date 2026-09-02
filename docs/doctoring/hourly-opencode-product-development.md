@@ -12,7 +12,7 @@ patch across jobs, and independently re-runs the repository acceptance suite.
 
 | Control area | Repository implementation |
 | --- | --- |
-| Least privilege | Read-only default `GITHUB_TOKEN`; upstream NIM and draft-PR publication use separate, step-scoped credentials, and only broker-derived fingerprints cross the patch-scanning boundary. |
+| Least privilege | Read-only default `GITHUB_TOKEN`; the five org provider secrets (routed through the vendored, pinned-SHA `contextual-orchestrator` gateway's `orchestrator/free` pool) and draft-PR publication use separate, step-scoped credentials, and only gateway-derived fingerprints cross the patch-scanning boundary. |
 | Untrusted AI output | No `.git` or GitHub/OIDC credentials in the model workspace; bounded path and patch validation; secrets and common encodings rejected. |
 | Supply-chain integrity | OpenCode and GitHub Actions are commit/digest pinned; generated patches are SHA-256 sealed and reverified on fresh checkouts. |
 | Verification | Realistic regression tests, 100% production docstrings, 100% statement and branch coverage, package/deployment validation, and exact-base race checks. |
@@ -45,8 +45,17 @@ require a separately scoped assessment and evidence package.
   configuration remain operational dependencies.
 - Scheduling and draft-PR creation are not release evidence.
 - The post-model patch scanner intentionally receives only bounded
-  `length:sha256` fingerprints for the raw/common encoded NIM credential; it
-  must never be given the credential again merely to perform leak detection.
+  `length:sha256` fingerprints for the raw/common encoded forms of whichever
+  of the five provider secrets are present; it must never be given a
+  credential again merely to perform leak detection.
+- 2026-09-02 update: migrated from a repository-local NVIDIA NIM credential
+  broker (`scripts/ci/nim_proxy.py`, now removed) to the org's governed
+  `contextual-orchestrator` gateway, vendored at a pinned commit SHA and
+  pointed at the fail-closed zero-cost `orchestrator/free` pool, matching the
+  same pattern already landed in `ContextualWisdomLab/.github`'s central
+  review workflows and `ContextualWisdomLab/contextual-orchestrator`'s own
+  hourly maintenance loop. See
+  `ContextualWisdomLab/keyverse#131`.
 
 ## References — APA 7th
 
