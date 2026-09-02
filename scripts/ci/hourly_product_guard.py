@@ -51,8 +51,8 @@ class BoundaryError(RuntimeError):
     """Raised when an autonomous proposal crosses a trusted boundary."""
 
 
-def _run(
-    args: Sequence[str],
+def _run_command(
+    command_arguments: Sequence[str],
     *,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
@@ -61,7 +61,7 @@ def _run(
 ) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]:
     """Run one trusted command without a shell and capture its output."""
     return subprocess.run(
-        list(args),
+        list(command_arguments),
         cwd=cwd,
         env=env,
         check=check,
@@ -87,7 +87,7 @@ def _nul_names(
     env: dict[str, str],
 ) -> list[str]:
     """Decode strict UTF-8 names from one NUL-delimited Git response."""
-    raw = _run([*git, *args, "-z"], env=env).stdout
+    raw = _run_command([*git, *args, "-z"], env=env).stdout
     assert isinstance(raw, bytes)
     return [part.decode("utf-8", errors="strict") for part in raw.split(b"\0") if part]
 
@@ -113,8 +113,8 @@ def _prepare_diff_index(
     index_file.unlink(missing_ok=True)
     env = os.environ.copy()
     env["GIT_INDEX_FILE"] = str(index_file)
-    _run([*git, "read-tree", head], env=env)
-    untracked = _run(
+    _run_command([*git, "read-tree", head], env=env)
+    untracked = _run_command(
         [*git, "ls-files", "--others", "--exclude-standard", "-z"],
         env=env,
     ).stdout
@@ -122,7 +122,7 @@ def _prepare_diff_index(
     if untracked:
         pathspec = index_file.with_suffix(".pathspec")
         pathspec.write_bytes(untracked)
-        _run(
+        _run_command(
             [
                 *git,
                 "add",
@@ -305,12 +305,12 @@ def validate_worktree_diff(
         raise BoundaryError("Autonomous development exceeded the changed-file byte limit")
 
     _require_product_vertical(names)
-    summary = _run([*git, "diff", *DIFF_SAFETY, "--summary"], env=env, text=True)
+    summary = _run_command([*git, "diff", *DIFF_SAFETY, "--summary"], env=env, text=True)
     assert isinstance(summary.stdout, str)
     if " mode change " in summary.stdout:
         raise BoundaryError("Autonomous development must not change file modes")
 
-    numstat = _run([*git, "diff", *DIFF_SAFETY, "--numstat", "-z"], env=env).stdout
+    numstat = _run_command([*git, "diff", *DIFF_SAFETY, "--numstat", "-z"], env=env).stdout
     assert isinstance(numstat, bytes)
     changed_lines = 0
     for record in (part for part in numstat.split(b"\0") if part):
@@ -323,7 +323,7 @@ def validate_worktree_diff(
             f"Autonomous development exceeded the changed-line budget: {changed_lines}"
         )
 
-    _run([*git, "diff", "--no-ext-diff", "--no-textconv", "--check"], env=env)
+    _run_command([*git, "diff", "--no-ext-diff", "--no-textconv", "--check"], env=env)
     return names
 
 
@@ -398,7 +398,7 @@ def capture(args: argparse.Namespace) -> int:
     expected_head = args.base_sha_file.read_text(encoding="utf-8").strip()
     if COMMIT_SHA.fullmatch(expected_head) is None:
         raise BoundaryError("Base SHA file did not contain one lowercase commit SHA")
-    baseline_head = _run(
+    baseline_head = _run_command(
         ["git", f"--git-dir={baseline_git}", "rev-parse", "HEAD"], text=True
     ).stdout.strip()
     if baseline_head != expected_head:
@@ -408,7 +408,7 @@ def capture(args: argparse.Namespace) -> int:
     index_file = args.patch_file.with_suffix(".index")
     git = _git_command(git_dir=baseline_git, work_tree=workspace)
     env = _prepare_diff_index(git=git, head=expected_head, index_file=index_file)
-    quiet = _run(
+    quiet = _run_command(
         [*git, "diff", "--no-ext-diff", "--no-textconv", "--quiet"],
         env=env,
         check=False,
@@ -420,8 +420,8 @@ def capture(args: argparse.Namespace) -> int:
         raise BoundaryError("Git could not determine whether the model changed the workspace")
 
     names = validate_worktree_diff(workspace=workspace, git=git, env=env)
-    patch = _run([*git, "diff", *DIFF_SAFETY, "--binary"], env=env).stdout
-    stat_text = _run([*git, "diff", *DIFF_SAFETY, "--stat"], env=env, text=True).stdout
+    patch = _run_command([*git, "diff", *DIFF_SAFETY, "--binary"], env=env).stdout
+    stat_text = _run_command([*git, "diff", *DIFF_SAFETY, "--stat"], env=env, text=True).stdout
     assert isinstance(patch, bytes)
     assert isinstance(stat_text, str)
     if len(patch) > MAX_PATCH_BYTES:
@@ -502,15 +502,15 @@ def apply_patch(args: argparse.Namespace) -> int:
     observed_digest = hashlib.sha256(patch_bytes).hexdigest()
     if observed_digest != proposal["patch_sha256"]:
         raise BoundaryError("Patch digest did not match the proposal envelope")
-    current_head = _run(["git", "rev-parse", "HEAD"], cwd=workspace, text=True).stdout.strip()
+    current_head = _run_command(["git", "rev-parse", "HEAD"], cwd=workspace, text=True).stdout.strip()
     if current_head != proposal["base_sha"]:
         raise BoundaryError("Protected branch moved after the proposal was captured")
 
     patch_paths = validate_patch_text(patch_file)
     if patch_paths != proposal["changed_paths"]:
         raise BoundaryError("Patch paths did not match the proposal envelope")
-    _run(["git", "apply", "--check", str(patch_file)], cwd=workspace)
-    _run(["git", "apply", str(patch_file)], cwd=workspace)
+    _run_command(["git", "apply", "--check", str(patch_file)], cwd=workspace)
+    _run_command(["git", "apply", str(patch_file)], cwd=workspace)
 
     git = _git_command(git_dir=workspace / ".git", work_tree=workspace)
     env = _prepare_diff_index(
@@ -539,9 +539,9 @@ def self_test() -> int:
         baseline = root / "baseline"
         workspace = root / "workspace"
         source.mkdir()
-        _run(["git", "init", "-q"], cwd=source)
-        _run(["git", "config", "user.name", "Guard Test"], cwd=source)
-        _run(["git", "config", "user.email", "guard@example.invalid"], cwd=source)
+        _run_command(["git", "init", "-q"], cwd=source)
+        _run_command(["git", "config", "user.name", "Guard Test"], cwd=source)
+        _run_command(["git", "config", "user.email", "guard@example.invalid"], cwd=source)
         (source / "README.md").write_text("before\n", encoding="utf-8")
         (source / "CHANGELOG.md").write_text("base\n", encoding="utf-8")
         (source / TEST_ROOT).mkdir(parents=True)
@@ -550,10 +550,10 @@ def self_test() -> int:
         (source / f"{PRODUCTION_ROOTS[0]}sample.py").write_text(
             '"""Sample."""\n', encoding="utf-8"
         )
-        _run(["git", "add", "."], cwd=source)
-        _run(["git", "commit", "-qm", "base"], cwd=source)
-        _run(["git", "clone", "-q", "--local", "--no-hardlinks", str(source), str(baseline)])
-        _run(["git", "clone", "-q", "--local", "--no-hardlinks", str(source), str(workspace)])
+        _run_command(["git", "add", "."], cwd=source)
+        _run_command(["git", "commit", "-qm", "base"], cwd=source)
+        _run_command(["git", "clone", "-q", "--local", "--no-hardlinks", str(source), str(baseline)])
+        _run_command(["git", "clone", "-q", "--local", "--no-hardlinks", str(source), str(workspace)])
         (workspace / ".git").rename(root / "discarded-git")
         (workspace / f"{PRODUCTION_ROOTS[0]}sample.py").write_text(
             '"""Sample."""\nVALUE = 1\n', encoding="utf-8"
@@ -565,7 +565,7 @@ def self_test() -> int:
         (workspace / PROPOSAL_FILENAME).write_text(
             "Improve sample\n\nVerified product change.\n", encoding="utf-8"
         )
-        base_sha = _run(["git", "rev-parse", "HEAD"], cwd=source, text=True).stdout.strip()
+        base_sha = _run_command(["git", "rev-parse", "HEAD"], cwd=source, text=True).stdout.strip()
         base_file = root / "base-sha"
         base_file.write_text(base_sha + "\n", encoding="utf-8")
         patch_file = root / "change.patch"
@@ -582,7 +582,7 @@ def self_test() -> int:
             )
         )
         apply_target = root / "apply-target"
-        _run(["git", "clone", "-q", "--local", "--no-hardlinks", str(source), str(apply_target)])
+        _run_command(["git", "clone", "-q", "--local", "--no-hardlinks", str(source), str(apply_target)])
         apply_patch(
             argparse.Namespace(
                 workspace=apply_target,
