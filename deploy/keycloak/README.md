@@ -73,12 +73,19 @@ through normal token refresh/reissue rather than a twelve-hour bearer token.
 `naruon-web` also has `directAccessGrantsEnabled: true` — a scoped, reviewed
 exception ([ADR-0014](../../docs/adr/0014-naruon-owned-password-form.md)) so
 naruon can render its own login form with zero Keycloak-rendered HTML in the
-loop. This does **not** make Direct Access Grants usable today: no account in
-`cwl` has a password credential (`docs/passwordless-policy.md`), so every
-attempt fails closed with `invalid_grant` until a separate, separately-reviewed
-credential-issuance path exists. No other RP gets this exception; the
-account-unification dynamic-registration validator still hard-rejects
-`directAccessGrantsEnabled: true` for everyone else.
+loop. No other RP gets this exception; the account-unification dynamic-
+registration validator still hard-rejects `directAccessGrantsEnabled: true`
+for everyone else.
+
+A real password credential to authenticate with comes from
+`POST /registration/accounts/password`
+([ADR-0015](../../docs/adr/0015-naruon-password-credential-issuance.md)),
+gated by its own `password_registration_api_token` — a third bearer
+credential, distinct from `operator_api_token` and `registration_api_token`.
+Without it configured, naruon's signup surface stays unavailable (503)
+rather than open. The realm's `passwordPolicy`
+(`"length(12) and notUsername and notEmail"`) enforces the same minimum a
+second time, server-side, independent of the endpoint's own validation.
 
 ## Bootstrap
 

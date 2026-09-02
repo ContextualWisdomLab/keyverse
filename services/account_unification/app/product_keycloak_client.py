@@ -36,6 +36,7 @@ _ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
     ("users", None, "groups"),
     ("users", None, "groups", None),
     ("users", None, "execute-actions-email"),
+    ("users", None, "reset-password"),
     ("identity-provider", "instances"),
     ("identity-provider", "instances", None),
     ("components",),
@@ -93,6 +94,10 @@ class ProductAdminApi(AdminApi, Protocol):
 
     def delete_user(self, user_id: str) -> None:
         """Delete one user during failed registration rollback."""
+        ...
+
+    def reset_password(self, user_id: str, password: str) -> None:
+        """Set an immediately usable (non-temporary) password credential."""
         ...
 
     def get_identity_provider(self, provider_alias: str) -> dict | None:
@@ -444,6 +449,25 @@ class ProductHttpAdminApi(HttpAdminApi):
         """Delete one user during failed registration rollback."""
         safe_user_id = self._safe_segment(user_id, "user_id")
         self._delete(f"/admin/realms/{self._realm}/users/{safe_user_id}")
+
+    def reset_password(self, user_id: str, password: str) -> None:
+        """Set an immediately usable (non-temporary) password credential.
+
+        ``password`` reaches Keycloak only as this call's JSON body over the
+        existing authenticated HTTPS transport; it is never logged, retried
+        with a captured copy, or included in any exception message here.
+        """
+        safe_user_id = self._safe_segment(user_id, "user_id")
+        path = self._guard_path(
+            f"/admin/realms/{self._realm}/users/{safe_user_id}/reset-password"
+        )
+        self._send_with_reauth(
+            lambda: self._client.put(
+                path,
+                json={"type": "password", "value": password, "temporary": False},
+                headers=self._auth_header(),
+            )
+        )
 
     def get_identity_provider(self, provider_alias: str) -> dict | None:
         """Return an identity provider or ``None`` for a Keycloak 404."""

@@ -227,6 +227,7 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
         redirect_uri="https://naruon.example/auth/passkey-complete",
         lifespan_seconds=900,
     )
+    api.reset_password("u1", "correct horse battery staple 1!")
     api.create_identity_provider({"alias": "employer-adfs"})
     api.update_identity_provider(
         "employer-adfs",
@@ -255,6 +256,17 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
         "VERIFY_EMAIL",
         "webauthn-register-passwordless",
     ]
+    reset_password_request = next(
+        call
+        for call in calls
+        if call.url.path.endswith("/users/u1/reset-password")
+    )
+    assert reset_password_request.method == "PUT"
+    assert json.loads(reset_password_request.content) == {
+        "type": "password",
+        "value": "correct horse battery staple 1!",
+        "temporary": False,
+    }
 
 
 def test_product_adapter_reauthenticates_get_once() -> None:

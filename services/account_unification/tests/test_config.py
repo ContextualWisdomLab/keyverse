@@ -128,6 +128,38 @@ def test_registration_redirect_uri_requires_absolute_https(
         load_service_config(store, "account_unification")
 
 
+def test_password_registration_token_defaults_to_none() -> None:
+    """Naruon's password-signup surface is disabled unless explicitly set."""
+    config = load_service_config(_config_store(), "account_unification")
+    assert config.password_registration_api_token is None
+
+
+def test_password_registration_token_must_not_equal_operator_token() -> None:
+    """Naruon's signup credential cannot acquire operator authority."""
+    store = _config_store(password_registration_api_token="operator-token")
+    with pytest.raises(RuntimeError, match="password_registration_api_token"):
+        load_service_config(store, "account_unification")
+
+
+def test_password_registration_token_must_not_equal_registration_token() -> None:
+    """The password-signup and passwordless-enrollment tokens stay independent."""
+    store = _config_store(
+        registration_api_token="registration-token",
+        registration_client_id="naruon-web",
+        registration_redirect_uri="https://naruon.example/auth/passkey-complete",
+        password_registration_api_token="registration-token",
+    )
+    with pytest.raises(RuntimeError, match="password_registration_api_token"):
+        load_service_config(store, "account_unification")
+
+
+def test_password_registration_token_loads_when_distinct() -> None:
+    """A distinct password-signup token loads and is usable independently."""
+    store = _config_store(password_registration_api_token="password-registration-token")
+    config = load_service_config(store, "account_unification")
+    assert config.password_registration_api_token == "password-registration-token"
+
+
 @pytest.mark.parametrize(
     "raw_value",
     ["0", "-1", "1.5", "nan", "inf", "not-a-number"],

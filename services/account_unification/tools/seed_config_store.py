@@ -22,6 +22,7 @@ from app.config import (  # noqa: E402
     KEY_KEYCLOAK_SERVER_URL,
     KEY_MERGE_CONFLICT_POLICY,
     KEY_OPERATOR_API_TOKEN,
+    KEY_PASSWORD_REGISTRATION_API_TOKEN,
     KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS,
     KEY_REGISTRATION_API_TOKEN,
     KEY_REGISTRATION_CLIENT_ID,
@@ -68,6 +69,15 @@ def _build_parser() -> argparse.ArgumentParser:
         default="900",
     )
     parser.add_argument(
+        "--password-registration-token",
+        default="",
+        help=(
+            "Enable naruon's own password-signup form (scoped Direct Access "
+            "Grants exception, naruon-web only) only when a dedicated token, "
+            "distinct from --registration-token, is supplied."
+        ),
+    )
+    parser.add_argument(
         "--audit-database-path",
         default="../../deploy/bootstrap/account_unification_audit.sqlite3",
     )
@@ -88,6 +98,13 @@ def _registration_entries(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
+def _password_registration_entries(args: argparse.Namespace) -> dict[str, str]:
+    """Return the password-signup token entry only when it is supplied."""
+    if not args.password_registration_token:
+        return {}
+    return {KEY_PASSWORD_REGISTRATION_API_TOKEN: args.password_registration_token}
+
+
 def main() -> int:
     """Write development Keycloak settings into a local SQLite KV store."""
     args = _build_parser().parse_args()
@@ -103,6 +120,7 @@ def main() -> int:
             KEY_OPERATOR_API_TOKEN: args.operator_token,
             KEY_AUDIT_DATABASE_PATH: args.audit_database_path,
             **_registration_entries(args),
+            **_password_registration_entries(args),
         }
         for entry_key, entry_value in entries.items():
             store.put(args.namespace, entry_key, entry_value)

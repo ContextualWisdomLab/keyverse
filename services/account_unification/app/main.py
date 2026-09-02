@@ -21,6 +21,10 @@ from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .directory_federation import directory_federation_router
 from .federation import FederationService, federation_router
+from .password_registration import (
+    password_registration_auth_dependency,
+    password_registration_router,
+)
 from .path_security import (
     ScimPathValidationError,
     admin_path_security_dependency,
@@ -101,6 +105,9 @@ def build_service(app: FastAPI) -> None:
     app.state.registration_redirect_uri = config.registration_redirect_uri
     app.state.registration_action_lifespan_seconds = (
         config.registration_action_lifespan_seconds
+    )
+    app.state.password_registration_api_token = (
+        config.password_registration_api_token
     )
     app.state.ready = True
 
@@ -211,6 +218,10 @@ def create_app(*, wire: bool = True) -> FastAPI:
     app.include_router(
         registration_router,
         dependencies=[registration_auth_dependency],
+    )
+    app.include_router(
+        password_registration_router,
+        dependencies=[password_registration_auth_dependency],
     )
     return app
 

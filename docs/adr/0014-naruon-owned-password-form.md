@@ -95,6 +95,12 @@ provided it is never logged, cached, or persisted.
 
 ## What this does *not* yet deliver
 
+**Update (2026-09-02):** the credential-issuance gap this section describes
+is now closed by [ADR-0015](0015-naruon-password-credential-issuance.md)
+(`POST /registration/accounts/password`, gated by its own third bearer
+token). The rest of this section is kept as written for the historical
+record of what ADR-0014 alone did and did not deliver.
+
 Flipping `directAccessGrantsEnabled` does not, by itself, let any real user
 sign in. **No account in the `cwl` realm has a password credential today.**
 `POST /registration/accounts` explicitly refuses to accept or create one

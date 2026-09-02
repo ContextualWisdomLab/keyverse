@@ -19,6 +19,7 @@ authorization boundary and is not rewritten by that expansion.
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
 | [0014](0014-naruon-owned-password-form.md) | Scoped Direct Access Grants exception for `naruon-web` only, so naruon can render its own login form with zero Keycloak-rendered HTML; every other RP still hard-blocked | Accepted |
+| [0015](0015-naruon-password-credential-issuance.md) | `POST /registration/accounts/password`: scoped, third-token-gated account-unification endpoint that gives naruon signups an immediately usable password credential, closing ADR-0014's "nothing can log in yet" gap | Accepted |
 
 ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
 proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
