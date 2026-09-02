@@ -24,6 +24,14 @@ def _load_guard() -> ModuleType:
     return module
 
 
+def test_guard_exposes_semantic_command_helper_name() -> None:
+    """Repository-owned command execution uses a bounded semantic helper name."""
+    guard = _load_guard()
+
+    assert hasattr(guard, "_run_command")
+    assert not hasattr(guard, "_run")
+
+
 def test_guard_allows_product_files_and_rejects_control_plane_files() -> None:
     """The model may edit product slices but never workflow or dependency controls."""
     guard = _load_guard()
