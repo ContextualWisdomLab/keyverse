@@ -38,12 +38,35 @@ def _wire_password_registration_app(api):
 
 
 @pytest.fixture
-def client(api):
-    """Return a password-registration-authenticated test client."""
+def client(api, monkeypatch):
+    """Return a password-registration-authenticated test client.
+
+    Patches the module's fail-closed gate open so these tests exercise the
+    account-creation logic itself; the gate's own default-closed behavior is
+    covered separately by ``test_registration_fails_closed_by_default``.
+    """
+    monkeypatch.setattr(
+        password_registration_module, "PASSWORD_CREDENTIAL_LOGIN_AVAILABLE", True
+    )
     app = _wire_password_registration_app(api)
     headers = {"Authorization": f"Bearer {PASSWORD_REGISTRATION_TOKEN}"}
     with TestClient(app, headers=headers) as test_client:
         yield test_client
+
+
+def test_registration_fails_closed_by_default(api):
+    """Direct Access Grants is disabled, so signup must not create dead accounts."""
+    app = _wire_password_registration_app(api)
+    headers = {"Authorization": f"Bearer {PASSWORD_REGISTRATION_TOKEN}"}
+    with TestClient(app, headers=headers) as test_client:
+        response = test_client.post(
+            "/registration/accounts/password", json=_registration()
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == password_registration_module.PASSWORD_LOGIN_BLOCKED_DETAIL
+    assert api.find_users_by_email("new.user@example.com") == []
+    assert api.calls == []
 
 
 def _registration(
@@ -386,9 +409,12 @@ def test_password_registration_window_resets_after_expiry(monkeypatch) -> None:
     password_registration_module._record_registration_attempt("caller")
 
 
-def test_password_registration_reports_empty_upstream_identifier() -> None:
+def test_password_registration_reports_empty_upstream_identifier(monkeypatch) -> None:
     """An upstream create response without an ID becomes a bounded 502."""
     password_registration_module.reset_rate_limit_state()
+    monkeypatch.setattr(
+        password_registration_module, "PASSWORD_CREDENTIAL_LOGIN_AVAILABLE", True
+    )
 
     with pytest.raises(HTTPException) as error:
         password_registration_module.register_account_with_password(
@@ -401,9 +427,12 @@ def test_password_registration_reports_empty_upstream_identifier() -> None:
     assert error.value.detail == "account_creation_failed"
 
 
-def test_password_registration_preserves_non_conflict_keycloak_errors() -> None:
+def test_password_registration_preserves_non_conflict_keycloak_errors(monkeypatch) -> None:
     """Only a Keycloak 409 is translated to an email conflict."""
     password_registration_module.reset_rate_limit_state()
+    monkeypatch.setattr(
+        password_registration_module, "PASSWORD_CREDENTIAL_LOGIN_AVAILABLE", True
+    )
 
     with pytest.raises(httpx.HTTPStatusError) as error:
         password_registration_module.register_account_with_password(

@@ -39,6 +39,19 @@ PASSWORD_REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS = 30
 _password_registration_attempt_lock = threading.Lock()
 _password_registration_attempt_windows: dict[str, tuple[float, int]] = {}
 
+# docs/adr/0014-naruon-owned-password-form.md's Correction (2026-09-03, RFC 9700
+# SS2.4 / RFC 10017 SS7.3) disabled Direct Access Grants. An account created by
+# this endpoint would carry a password credential nothing can use to log in --
+# the bound browser flow accepts only passkeys (services/account_unification/
+# tests/test_realm_policy.py::test_bound_browser_flow_rejects_password_authenticator).
+# Flip back to True only alongside a standards-compliant replacement mechanism.
+PASSWORD_CREDENTIAL_LOGIN_AVAILABLE = False
+PASSWORD_LOGIN_BLOCKED_DETAIL = (
+    "password registration temporarily unavailable: Direct Access Grants login "
+    "is blocked pending a standards-compliant replacement -- see "
+    "docs/adr/0014-naruon-owned-password-form.md's Correction"
+)
+
 
 class PasswordRegistrationRequest(BaseModel):
     """One password-credential registration submission from naruon's signup form."""
@@ -202,7 +215,13 @@ def register_account_with_password(
     request: Request,
     api: ProductAdminApi = Depends(get_admin_api),
 ) -> PasswordRegistrationResult:
-    """Create an account with an immediately usable password credential."""
+    """Create an account with an immediately usable password credential.
+
+    Fails closed while ``PASSWORD_CREDENTIAL_LOGIN_AVAILABLE`` is False -- see
+    the module-level comment above it.
+    """
+    if not PASSWORD_CREDENTIAL_LOGIN_AVAILABLE:
+        raise HTTPException(status_code=503, detail=PASSWORD_LOGIN_BLOCKED_DETAIL)
     _record_registration_attempt(_registration_client_key(request))
     email_address = _validated_email(request_body.email_address)
     password = _validated_password(request_body.password, email_address)

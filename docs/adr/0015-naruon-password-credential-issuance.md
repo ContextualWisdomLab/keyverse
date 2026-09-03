@@ -1,6 +1,7 @@
 # ADR-0015: Scoped password-credential issuance so naruon's signup form actually logs in
 
-**Status:** Accepted
+**Status:** Accepted, endpoint fails closed pending RFC-compliant redesign — see
+**Correction (2026-09-03)** below before implementing anything against this ADR.
 **Date:** 2026-09-02
 **Decision owner:** Keyverse maintainers
 **Scope:** A new, narrowly scoped account-unification endpoint that creates a
@@ -8,6 +9,24 @@
 only by naruon. Does not touch `browserFlow`, does not change any other RP's
 capabilities, and does not add self-service password reset, email
 verification, or CAPTCHA-equivalent abuse hardening — see "Deferred."
+
+## Correction (2026-09-03)
+
+[ADR-0014](0014-naruon-owned-password-form.md)'s Correction disabled `naruon-web`'s
+`directAccessGrantsEnabled` (RFC 9700 §2.4 / RFC 10017 §7.3: the Resource Owner
+Password Credentials grant this ADR's "immediately usable password credential" was
+built for). That leaves the account this endpoint creates with no way to log in at
+all — the bound `browser-passwordless` flow accepts only passkeys
+(`services/account_unification/tests/test_realm_policy.py::test_bound_browser_flow_rejects_password_authenticator`),
+and Direct Access Grants (the only mechanism that could use a password credential)
+is off.
+
+`POST /registration/accounts/password` (`app/password_registration.py`) now fails
+closed with `503` behind the module constant `PASSWORD_CREDENTIAL_LOGIN_AVAILABLE
+= False`, rather than create accounts nothing can authenticate into. The rest of
+this ADR's Decision, Security tradeoffs, and Deferred sections are kept as the
+historical record of what was built and why; flip the constant back to `True`
+only alongside the same standards-compliant login replacement ADR-0014 calls for.
 
 ## Context
 
