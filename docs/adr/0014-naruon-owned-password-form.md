@@ -1,6 +1,6 @@
 # ADR-0014: Scoped Direct Access Grants exception so naruon can render its own login form
 
-**Status:** Accepted
+**Status:** Accepted, mechanism superseded pending RFC-compliant redesign — see **Correction (2026-09-03)** below before implementing anything against this ADR.
 **Date:** 2026-09-02
 **Decision owner:** Keyverse maintainers, with explicit product direction from
 the naruon product owner (see Context).
@@ -9,6 +9,59 @@ any password credential, and does not change the account-unification
 dynamic-RP-registration policy that still hard-rejects
 `directAccessGrantsEnabled: true` for every other/future RP
 (`services/account_unification/app/relying_party.py`, `must be false`).
+
+## Correction (2026-09-03)
+
+**A newer standards finding invalidates this ADR's grant-type choice. The underlying product goal —
+naruon renders 100% of its own login/signup UI with zero Keycloak-rendered HTML in the loop, Keyverse
+stays the canonical identity backend — is NOT superseded and should not be abandoned.**
+
+RFC 9700 (*OAuth 2.0 Security Best Current Practice*, BCP 240, January 2025), §2.4, states that clients
+and authorization servers **MUST NOT** use the Resource Owner Password Credentials grant. RFC 10017
+(*OAuth 2.0 for Browser-Based Applications*, BCP, August 2026), §7.3, independently repeats that
+prohibition specifically for browser-based OAuth/OIDC applications and requires a redirect-based flow
+such as Authorization Code (+ PKCE) instead. Both post-date RFC 6749 (cited in this ADR's own References
+below), which merely *defined* the ROPC grant in 2012 without reflecting the subsequent decade of
+threat-model findings that led to its later deprecation.
+
+This ADR's Decision section (point 1, below) treated the product owner's explicit sign-off as satisfying
+[ADR-0002](0002-passwordless-local-accounts.md)'s "explicit security/product review and migration
+evidence" amendment clause. **That is no longer sufficient**: a product-owner risk acceptance can
+document an organizational deviation from this org's own passwordless-first preference, but it cannot
+make `grant_type=password` standards-compliant for a browser-based application — RFC 9700/10017 are
+current IETF security guidance, not one team's stylistic preference, and no local risk-acceptance memo
+overrides a MUST-NOT.
+
+Discovered when `naruon#1532` (the companion PR implementing point 4 of the Decision below) was returned
+to Draft over this exact finding rather than merged or landed as-is — see that PR and this PR's own
+comment thread (2026-09-03T02:59:17Z) for the original citation. Primary references:
+[RFC 9700 §2.4](https://www.rfc-editor.org/rfc/rfc9700.html#section-2.4),
+[RFC 10017 §7.3](https://www.rfc-editor.org/rfc/rfc10017.html#section-7.3).
+
+**What remains valid, unchanged:** every section below this one — the Context, what was ruled out and
+why (Keycloak-theme reskin fails by construction; a naruon-rendered WebAuthn ceremony against Keycloak
+is currently unachievable without a custom Keycloak REST resource provider) — is still accurate. Read
+the rest of this ADR as the record of *why the product requirement exists and what does not solve it*,
+not as license to ship the specific mechanism in point 1 of the Decision below.
+
+**What needs repair before `naruon-web`'s `directAccessGrantsEnabled: true`
+(`deploy/keycloak/realm-cwl.json`) and the companion naruon-side password route
+(`frontend/src/app/auth/password/login/route.ts`) may ship:** the ROPC mechanism must be replaced with a
+standards-compliant headless authentication contract. Candidates worth investigating, not yet decided:
+(a) an Authorization Code + PKCE flow run inside an in-app browser view (popup/webview) rather than a
+full top-level redirect — may satisfy "naruon renders the surrounding chrome" without a full-page
+Keycloak-rendered navigation, needs verification against the "zero Keycloak-rendered HTML" requirement
+before assuming it qualifies; (b) a custom Keycloak REST resource provider exposing a headless, versioned
+session/challenge API for password and/or passkey/WebAuthn authentication — this ADR's own Consequences
+section already anticipated a custom Keycloak SPI/REST provider as the eventual path for a full WebAuthn
+ceremony, so this investment may resolve both gaps (password AND passkey) at once.
+
+**Status intentionally left as Accepted, not Rejected/Superseded**, because the product goal stands and
+the Context/ruled-out-alternatives sections remain load-bearing evidence — only the grant-type mechanism
+in the Decision needs a successor. Per this org's repair-not-close convention for findings against an
+already-Accepted decision with real, still-valid product intent behind it: open a new ADR once a
+replacement mechanism is chosen and cross-reference it here, rather than silently rewriting this one's
+history or treating this correction as grounds to abandon the underlying naruon-owned-login-form goal.
 
 ## Context
 
