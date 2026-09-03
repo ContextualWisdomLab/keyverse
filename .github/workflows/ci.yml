@@ -3,13 +3,7 @@ name: ci
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
   pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
 
 # Cancel superseded evidence for the same pull request or branch. This keeps the
 # runner queue bounded during review-fix loops while preserving the newest head.
