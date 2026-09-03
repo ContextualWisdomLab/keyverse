@@ -3,7 +3,8 @@
 The tool writes the same two-word snake_case entries consumed by the service.
 Values are development placeholders; production deployments populate the
 platform KV and provide only the bootstrap pointer to the process. Registration
-remains disabled unless its dedicated token is supplied explicitly.
+remains disabled unless its dedicated token is supplied explicitly, and a later
+seed without the password-registration token revokes any stale stored value.
 """
 from __future__ import annotations
 
@@ -124,6 +125,8 @@ def main() -> int:
         }
         for entry_key, entry_value in entries.items():
             store.put(args.namespace, entry_key, entry_value)
+        if not args.password_registration_token:
+            store.delete(args.namespace, KEY_PASSWORD_REGISTRATION_API_TOKEN)
     finally:
         store.close()
     print(f"seeded {args.db} namespace={args.namespace}")
