@@ -137,7 +137,7 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
         return httpx.Response(204)
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "account-unification-svc",
         "secret",
@@ -291,7 +291,7 @@ def test_product_adapter_reauthenticates_get_once() -> None:
         )
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -324,7 +324,7 @@ def test_product_adapter_reauthenticates_create_once() -> None:
         )
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -362,7 +362,7 @@ def test_product_adapter_rejects_unsafe_paths(unsafe_user_id: str) -> None:
         raise AssertionError("unsafe path must not reach the transport")
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -395,7 +395,7 @@ def test_action_email_rejects_unsafe_configuration(
         raise AssertionError("invalid enrollment input reached transport")
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
