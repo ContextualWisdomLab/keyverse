@@ -5,9 +5,13 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 
-from app.config import KEY_PASSWORD_REGISTRATION_API_TOKEN
+from app.config import (
+    KEY_PASSWORD_REGISTRATION_API_TOKEN,
+    KEY_REGISTRATION_API_TOKEN,
+)
 from app.kv_store import SqliteKvStore
 from tools import seed_config_store
 
@@ -109,12 +113,24 @@ def test_local_seed_keeps_registration_disabled_by_default() -> None:
     assert "if not args.registration_token" in seed_tool
 
 
-def test_local_reseed_revokes_omitted_password_registration_token(
-    tmp_path: Path, monkeypatch
+@pytest.mark.parametrize(
+    ("token_option", "entry_key"),
+    [
+        ("--registration-token", KEY_REGISTRATION_API_TOKEN),
+        ("--password-registration-token", KEY_PASSWORD_REGISTRATION_API_TOKEN),
+    ],
+    ids=["passwordless-registration", "password-registration"],
+)
+def test_local_reseed_revokes_omitted_signup_token(
+    tmp_path: Path,
+    monkeypatch,
+    token_option: str,
+    entry_key: str,
 ) -> None:
-    """Omitting the password token on a later seed revokes stale signup access."""
-    database_path = tmp_path / "idp_config_store.db"
+    """Omitting a signup token on a later seed revokes stale endpoint authority."""
+    database_path = tmp_path / f"{entry_key}.db"
     namespace = "account_unification"
+    stale_token = f"old-{entry_key}-token"
 
     monkeypatch.setattr(
         sys,
@@ -125,17 +141,15 @@ def test_local_reseed_revokes_omitted_password_registration_token(
             str(database_path),
             "--namespace",
             namespace,
-            "--password-registration-token",
-            "old-password-signup-token",
+            token_option,
+            stale_token,
         ],
     )
     assert seed_config_store.main() == 0
 
     store = SqliteKvStore(str(database_path))
     try:
-        assert store.get(namespace, KEY_PASSWORD_REGISTRATION_API_TOKEN) == (
-            "old-password-signup-token"
-        )
+        assert store.get(namespace, entry_key) == stale_token
     finally:
         store.close()
 
@@ -154,6 +168,6 @@ def test_local_reseed_revokes_omitted_password_registration_token(
 
     store = SqliteKvStore(str(database_path))
     try:
-        assert store.get(namespace, KEY_PASSWORD_REGISTRATION_API_TOKEN) is None
+        assert store.get(namespace, entry_key) is None
     finally:
         store.close()
