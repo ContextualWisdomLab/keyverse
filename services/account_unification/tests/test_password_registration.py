@@ -71,6 +71,11 @@ def test_registration_creates_account_with_immediately_usable_password(
     assert api.users[account_id].is_email_verified is False
     assert api.password_credentials[account_id] == VALID_PASSWORD
     assert account_id not in api.action_emails
+    # Regression: the realm's passwordless-enrollment default required
+    # action is an interactive step Direct Access Grants cannot complete.
+    # Without an explicit override, every immediate post-signup login
+    # failed even though a usable password credential exists.
+    assert api.users[account_id].required_actions == []
 
 
 def test_registration_rolls_back_when_credential_set_fails(client, api, monkeypatch):

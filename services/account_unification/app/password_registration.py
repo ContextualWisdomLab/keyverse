@@ -157,6 +157,13 @@ def _create_account_with_password(
                 state="active",
                 first_name=_validated_name(request_body.first_name),
                 last_name=_validated_name(request_body.last_name),
+                # The realm's default required action (WebAuthn passwordless
+                # enrollment) is an interactive browser step that Direct
+                # Access Grants cannot complete. This account already gets
+                # an immediately usable password credential below, so it
+                # carries no required action instead of silently inheriting
+                # one that would make every post-signup login fail.
+                required_actions=[],
             )
         )
     except httpx.HTTPStatusError as error:

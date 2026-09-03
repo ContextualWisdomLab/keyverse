@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.identifiers import InvalidIdentifierError
-from app.keycloak_client import AdminApi, HttpAdminApi
+from app.keycloak_client import AdminApi, HttpAdminApi, _to_keycloak_user
 from app.models import (
     FederatedIdentity,
     GroupMembership,
@@ -411,3 +411,32 @@ def test_action_email_rejects_unsafe_configuration(
             redirect_uri=redirect_uri,
             lifespan_seconds=lifespan_seconds,
         )
+
+
+def test_to_keycloak_user_omits_required_actions_by_default() -> None:
+    """``required_actions=None`` leaves Keycloak's realm default untouched."""
+    payload = _to_keycloak_user(UserAccount(user_id="", user_name="jane"))
+
+    assert "requiredActions" not in payload
+
+
+def test_to_keycloak_user_sends_empty_required_actions_list() -> None:
+    """An explicit empty list overrides the realm default with no action."""
+    payload = _to_keycloak_user(
+        UserAccount(user_id="", user_name="jane", required_actions=[])
+    )
+
+    assert payload["requiredActions"] == []
+
+
+def test_to_keycloak_user_sends_explicit_required_actions() -> None:
+    """A non-empty override list is forwarded to Keycloak verbatim."""
+    payload = _to_keycloak_user(
+        UserAccount(
+            user_id="",
+            user_name="jane",
+            required_actions=["UPDATE_PASSWORD"],
+        )
+    )
+
+    assert payload["requiredActions"] == ["UPDATE_PASSWORD"]
