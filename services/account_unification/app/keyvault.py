@@ -25,7 +25,6 @@ for its own provider-credential registry).
 from __future__ import annotations
 
 import base64
-import hashlib
 import sqlite3
 import threading
 import time
@@ -33,22 +32,45 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 class SecretNotFoundError(KeyError):
     """Raised when a Keyvault read or delete targets an absent secret."""
 
 
+# Fixed, context-specific salt: not a secret (PBKDF2 salts need only be
+# unique per use-context, not hidden -- OWASP Password Storage Cheat
+# Sheet), but domain-separates this KDF use from any other passphrase-derived
+# key in the org so a precomputed table built against one cannot be reused
+# against the other. Fixed (not per-installation) so derive_fernet_key stays
+# deterministic for a given passphrase with the existing single-argument
+# signature -- this module has exactly one caller (``main.py`` at bootstrap)
+# and no salt-storage location to thread a per-install value through.
+_KEYVAULT_KDF_SALT = b"keyverse.account_unification.keyvault.fernet-key-derivation.v1"
+# OWASP's 2023 minimum recommendation for PBKDF2-HMAC-SHA256.
+_KEYVAULT_KDF_ITERATIONS = 600_000
+
+
 def derive_fernet_key(passphrase: str) -> bytes:
     """Derive a urlsafe-base64 Fernet key from an operator passphrase.
 
-    SHA-256 gives Fernet (which requires a 32-byte urlsafe-base64 key) a
-    fixed-length key from an arbitrary-length passphrase. The passphrase
-    itself is read once at process bootstrap and is never logged, returned,
-    or persisted anywhere by this module.
+    Uses PBKDF2-HMAC-SHA256 (not a bare SHA-256 digest -- CodeQL correctly
+    flags that as too fast/computationally cheap to resist brute-force
+    against a human-chosen passphrase) to give Fernet (which requires a
+    32-byte urlsafe-base64 key) a fixed-length key from an arbitrary-length
+    passphrase. The passphrase itself is read once at process bootstrap and
+    is never logged, returned, or persisted anywhere by this module.
     """
-    digest = hashlib.sha256(passphrase.encode("utf-8")).digest()
-    return base64.urlsafe_b64encode(digest)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=_KEYVAULT_KDF_SALT,
+        iterations=_KEYVAULT_KDF_ITERATIONS,
+    )
+    key = kdf.derive(passphrase.encode("utf-8"))
+    return base64.urlsafe_b64encode(key)
 
 
 @dataclass(frozen=True)
