@@ -42,6 +42,20 @@ def test_validate_path_segment_accepts_uuid_and_slug():
     assert validate_path_segment("employer-adfs") == "employer-adfs"
 
 
+def test_product_admin_client_rejects_cleartext_server_url():
+    """Product credentials cannot be bound to a cleartext Keycloak origin."""
+    with pytest.raises(ValueError, match="server_url must be an absolute HTTPS URI"):
+        ProductHttpAdminApi(
+            server_url="http://keycloak.test",
+            realm="cwl",
+            client_id="account-unification-svc",
+            client_secret="secret",
+            transport=httpx.MockTransport(
+                lambda request: pytest.fail(f"unexpected request: {request.url}")
+            ),
+        )
+
+
 def test_product_admin_client_rejects_route_confusion_before_request():
     """An extra path segment cannot change the intended Admin REST operation."""
     seen: list[str] = []
@@ -53,7 +67,7 @@ def test_product_admin_client_rejects_route_confusion_before_request():
         return httpx.Response(200, json={"id": "x"})
 
     api = ProductHttpAdminApi(
-        server_url="http://keycloak.test",
+        server_url="https://keycloak.test",
         realm="cwl",
         client_id="account-unification-svc",
         client_secret="secret",
@@ -78,7 +92,7 @@ def test_product_admin_client_allows_safe_id():
         )
 
     api = ProductHttpAdminApi(
-        server_url="http://keycloak.test",
+        server_url="https://keycloak.test",
         realm="cwl",
         client_id="account-unification-svc",
         client_secret="secret",
