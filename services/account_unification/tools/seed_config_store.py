@@ -3,8 +3,8 @@
 The tool writes the same two-word snake_case entries consumed by the service.
 Values are development placeholders; production deployments populate the
 platform KV and provide only the bootstrap pointer to the process. Registration
-remains disabled unless its dedicated token is supplied explicitly, and a later
-seed without the password-registration token revokes any stale stored value.
+remains disabled unless its dedicated token is supplied explicitly, and later
+seeds without signup tokens revoke any stale stored endpoint authority.
 """
 from __future__ import annotations
 
@@ -73,9 +73,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "--password-registration-token",
         default="",
         help=(
-            "Enable naruon's own password-signup form (scoped Direct Access "
-            "Grants exception, naruon-web only) only when a dedicated token, "
-            "distinct from --registration-token, is supplied."
+            "Seed the reserved password-registration credential for controlled "
+            "compatibility testing. The password-registration route remains "
+            "fail-closed until a standards-compliant login replacement exists."
         ),
     )
     parser.add_argument(
@@ -125,6 +125,8 @@ def main() -> int:
         }
         for entry_key, entry_value in entries.items():
             store.put(args.namespace, entry_key, entry_value)
+        if not args.registration_token:
+            store.delete(args.namespace, KEY_REGISTRATION_API_TOKEN)
         if not args.password_registration_token:
             store.delete(args.namespace, KEY_PASSWORD_REGISTRATION_API_TOKEN)
     finally:
