@@ -70,12 +70,15 @@ and `role`/`org`/`workspace` claims required by the current Naruon session
 contract. Its access tokens last 300 seconds; the longer SSO session is serviced
 through normal token refresh/reissue rather than a twelve-hour bearer token.
 
-`naruon-web` also has `directAccessGrantsEnabled: true` — a scoped, reviewed
-exception ([ADR-0014](../../docs/adr/0014-naruon-owned-password-form.md)) so
-naruon can render its own login form with zero Keycloak-rendered HTML in the
-loop. No other RP gets this exception; the account-unification dynamic-
-registration validator still hard-rejects `directAccessGrantsEnabled: true`
-for everyone else.
+`naruon-web`'s `directAccessGrantsEnabled` is currently `false`. It was
+briefly `true` as a scoped, reviewed exception
+([ADR-0014](../../docs/adr/0014-naruon-owned-password-form.md)) so naruon
+could render its own login form with zero Keycloak-rendered HTML in the
+loop, but that ADR's Correction (2026-09-03) found the grant type itself
+(OAuth2 ROPC) violates RFC 9700 §2.4 / RFC 10017 §7.3, so the flag was set
+back to `false` pending a standards-compliant replacement. No other RP ever
+gets this exception; the account-unification dynamic-registration validator
+still hard-rejects `directAccessGrantsEnabled: true` for everyone else.
 
 A real password credential to authenticate with comes from
 `POST /registration/accounts/password`

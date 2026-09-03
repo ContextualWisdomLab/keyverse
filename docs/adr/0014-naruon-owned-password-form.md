@@ -56,6 +56,15 @@ session/challenge API for password and/or passkey/WebAuthn authentication — th
 section already anticipated a custom Keycloak SPI/REST provider as the eventual path for a full WebAuthn
 ceremony, so this investment may resolve both gaps (password AND passkey) at once.
 
+**Config change, 2026-09-03:** `naruon-web`'s `directAccessGrantsEnabled` in
+`deploy/keycloak/realm-cwl.json` has been set to `false` as a fail-closed measure — the
+mechanism this ADR's Decision (point 1, below) turned on must not ship per the RFC 9700/10017
+finding above, and this PR was not yet merged/deployed, so nothing live depended on it staying
+`true`. Decision point 1 is left unedited below as the historical record of what was originally
+decided; it no longer describes the current config value. Re-enable only alongside a
+standards-compliant replacement mechanism (see the candidates above), tracked in the new ADR
+called for below.
+
 **Status intentionally left as Accepted, not Rejected/Superseded**, because the product goal stands and
 the Context/ruled-out-alternatives sections remain load-bearing evidence — only the grant-type mechanism
 in the Decision needs a successor. Per this org's repair-not-close convention for findings against an
