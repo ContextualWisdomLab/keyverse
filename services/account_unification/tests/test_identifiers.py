@@ -42,11 +42,21 @@ def test_validate_path_segment_accepts_uuid_and_slug():
     assert validate_path_segment("employer-adfs") == "employer-adfs"
 
 
-def test_product_admin_client_rejects_cleartext_server_url():
-    """Product credentials cannot be bound to a cleartext Keycloak origin."""
+@pytest.mark.parametrize(
+    "server_url",
+    [
+        "http://keycloak.test",
+        "https://",
+        "https://admin:secret@keycloak.test",
+        "https://keycloak.test/#fragment",
+    ],
+    ids=["cleartext", "missing-host", "userinfo", "fragment"],
+)
+def test_product_admin_client_rejects_unsafe_server_url(server_url: str):
+    """Product credentials are bound only to an absolute credential-free TLS origin."""
     with pytest.raises(ValueError, match="server_url must be an absolute HTTPS URI"):
         ProductHttpAdminApi(
-            server_url="http://keycloak.test",
+            server_url=server_url,
             realm="cwl",
             client_id="account-unification-svc",
             client_secret="secret",
