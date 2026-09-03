@@ -3,7 +3,13 @@ name: CodeQL
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
 
 # Code scanning evidence is head-specific; cancel scans made obsolete by a
 # newer commit on the same pull request or branch.
