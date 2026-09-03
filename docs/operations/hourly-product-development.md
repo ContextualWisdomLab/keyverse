@@ -1,12 +1,15 @@
 # Hourly product-development loop
 
 Keyverse separates protected pull-request maintenance from autonomous product
-development. The schedules are offset so the merge loop has time to settle the
-repository before a new product slice is considered.
+development. Protected PR maintenance (updating trusted PR branches, requiring
+approval and required Checks, then arming exact-head auto-merge) is owned by
+the organization's central `pr-review-merge-scheduler.yml`, which dispatches
+in real time on every PR event rather than on an hourly schedule — Keyverse's
+own former hourly steward workflow provided no security boundary beyond that
+already-required central scheduler and was removed (#140).
 
 | Minute (UTC) | Workflow | Responsibility |
 | --- | --- | --- |
-| `17 * * * *` | `hourly-pr-steward.yml` | Update trusted PR branches, require approval and required Checks, then arm exact-head auto-merge. |
 | `41 * * * *` | `hourly-product-development.yml` | When the PR queue is empty and exact `main` is healthy, use OpenCode through the vendored contextual-orchestrator gateway (`orchestrator/free`) to produce one bounded buyer-visible draft PR. |
 
 The development scheduler never approves or merges its own work and never
