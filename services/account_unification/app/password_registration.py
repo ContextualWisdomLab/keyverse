@@ -209,6 +209,17 @@ def _create_account_with_password(
     "/accounts/password",
     response_model=PasswordRegistrationResult,
     status_code=201,
+    responses={
+        503: {
+            "description": (
+                "Currently always returned: Direct Access Grants login is "
+                "disabled pending a standards-compliant replacement (see "
+                "docs/adr/0014-naruon-owned-password-form.md's Correction), "
+                "so this endpoint fails closed rather than create an account "
+                "nothing can authenticate into."
+            ),
+        },
+    },
 )
 def register_account_with_password(
     request_body: PasswordRegistrationRequest,

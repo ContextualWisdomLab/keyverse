@@ -218,5 +218,14 @@ Hardt, D. (Ed.). (2012). *The OAuth 2.0 authorization framework* (RFC 6749),
 §4.3 Resource Owner Password Credentials Grant.
 https://doi.org/10.17487/RFC6749
 
+Internet Engineering Task Force. (2025, January). *OAuth 2.0 security best
+current practice* (RFC 9700, BCP 240), §2.4 Resource Owner Password
+Credentials Grant — the finding behind this ADR's Correction, above.
+https://www.rfc-editor.org/rfc/rfc9700.html
+
+Internet Engineering Task Force. (2026, August). *OAuth 2.0 for browser-based
+applications* (RFC 10017), §7.3 Resource Owner Password Credentials Grant.
+https://www.rfc-editor.org/rfc/rfc10017.html
+
 Keycloak. (n.d.). *Server administration guide* (Version 26.7.1), Direct
 Access Grants. https://www.keycloak.org/docs/latest/server_admin/

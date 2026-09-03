@@ -111,6 +111,17 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Disabled `naruon-web`'s Direct Access Grants (ADR-0014) and the
+  `POST /registration/accounts/password` signup endpoint that depended on it
+  (ADR-0015): RFC 9700 §2.4 (BCP 240) and RFC 10017 §7.3 prohibit the OAuth
+  2.0 Resource Owner Password Credentials grant, and disabling it in isolation
+  had left password-only signups with no way to authenticate at all -- the
+  bound `browser-passwordless` flow accepts only passkeys. The endpoint now
+  fails closed (`503`) behind a single flippable module constant rather than
+  create dead accounts; `scripts/validate_realm.py` now rejects a silent
+  re-enable of the grant. See
+  `docs/doctoring/2026-09-03-naruon-password-ropc-standards-correction.md`
+  for the full evidence trail.
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
