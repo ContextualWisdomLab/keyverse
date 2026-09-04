@@ -64,8 +64,8 @@ DDD convention of keeping Shared Kernels small):
 
 - The **pattern** already proven twice in this service (`kv_store.py`,
   `audit.py`): a small `Protocol` plus in-memory and SQLite backends, WAL
-  journal mode, a 10-second `busy_timeout`, and an `AuditLogger`-shaped
-  append-only trail. `keyvault.py` reuses this pattern, not either table.
+  journal mode, a 10-second `busy_timeout`, and an append-only trail.
+  Keyvault keeps each mutation and its audit event in one transaction.
 - The `operator_auth_dependency` / `admin_path_security_dependency`
   router-level authentication and opaque-path-segment validation already
   required for every privileged router in `main.py`.
@@ -80,17 +80,16 @@ and ADR-0016):
 
 - `app/keyvault.py` — `SqliteKeyvaultStore`/`InMemoryKeyvaultStore` over a
   dedicated `keyvault_secrets` table (`secret_namespace`, `secret_key`,
-  `encrypted_value`, `updated_at`); `SqliteKeyvaultAuditSink`/
-  `InMemoryKeyvaultAuditSink` over a dedicated `keyvault_audit_log` table
+  `encrypted_value`, `updated_at`) and a dedicated `keyvault_audit_log` table
   (namespace/key/action/actor/`created_at` — deliberately not
   `AuditEvent`'s survivor/duplicate-user shape, since a Keyvault write has
   no survivor and forcing one schema onto the other would blur two
   different Aggregates); `KeyvaultService`, which is the only collaborator
   that ever holds plaintext (encryption/decryption happens at this service
-  boundary with `cryptography.fernet.Fernet`, keyed by SHA-256 of the
-  configured passphrase — the store never sees plaintext, the audit sink
-  never sees ciphertext or plaintext).
-- `app/keyvault_admin.py` — `PUT`/`GET`/`DELETE /keyvault/{namespace}/{key}`,
+  boundary with `cryptography.fernet.Fernet`, keyed by PBKDF2-HMAC-SHA256 of
+  the configured passphrase — the store never sees plaintext and audit events
+  never contain ciphertext or plaintext).
+- `app/keyvault_admin.py` — `PUT`/`DELETE /keyvault/{namespace}/{key}`,
   `GET /keyvault/{namespace}` (metadata only: namespace, key, `updated_at`
   — **never** a value, so an admin UI can render an inventory without ever
   holding plaintext it does not need), and
@@ -108,6 +107,13 @@ admin webs" work — see the sibling multi-repo research this ADR's PR
 accompanies) is designed but not built in this slice; the API above is the
 complete, tested surface it will consume.
 
+The branch briefly used a bare SHA-256 derivation before this feature reached
+protected main. No released database used that pre-release format, so there is
+no ciphertext to migrate and no legacy weak-key fallback is admitted. If live
+deployment evidence later contradicts that premise, migration must be a
+separate recovery change that identifies legacy rows explicitly and rewrites
+them once; new rows must never try the legacy derivation.
+
 ## Consequences
 
 - `idp_config_entries` stays exactly what its own docstring says it is:
@@ -122,6 +128,9 @@ complete, tested surface it will consume.
   `KeyverseCredentialBackend` — noted here as the motivating consumer, not
   implemented in this PR (see the "what's left" note in the accompanying
   PR description).
+- Plaintext retrieval is intentionally absent from the administrator surface.
+  A consumer adapter cannot ship until Keyverse can verify a signed workload
+  identity and bind its read scope to exactly one namespace.
 - 100% branch coverage and 100% docstring coverage on `app/keyvault.py`
   and `app/keyvault_admin.py` (verified: `uv run coverage run --branch
   --source=app -m pytest -q && uv run coverage report --fail-under=100`;

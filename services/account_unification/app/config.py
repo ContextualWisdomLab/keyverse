@@ -30,7 +30,6 @@ KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS = (
 )
 KEY_AUDIT_DATABASE_PATH = "audit_database_path"
 KEY_KEYVAULT_DATABASE_PATH = "keyvault_database_path"
-KEY_KEYVAULT_AUDIT_DATABASE_PATH = "keyvault_audit_database_path"
 KEY_KEYVAULT_PASSPHRASE = "keyvault_passphrase"
 
 MAX_REGISTRATION_ACTION_LIFESPAN_SECONDS = 3600
@@ -58,9 +57,6 @@ class ServiceConfig:
     # keyvault_service=None (503 "not configured"), never a silently-open
     # secret store. See app/keyvault.py and app/keyvault_admin.py.
     keyvault_database_path: str = "/var/lib/account-unification/keyvault.db"
-    keyvault_audit_database_path: str = (
-        "/var/lib/account-unification/keyvault-audit.db"
-    )
     keyvault_passphrase: str | None = None
     merge_conflict_policy: str = "survivor_wins"
     # This is an invariant, not a deployer-selectable feature. The field remains
@@ -249,10 +245,6 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
         keyvault_database_path=(
             store.get(namespace, KEY_KEYVAULT_DATABASE_PATH)
             or "/var/lib/account-unification/keyvault.db"
-        ),
-        keyvault_audit_database_path=(
-            store.get(namespace, KEY_KEYVAULT_AUDIT_DATABASE_PATH)
-            or "/var/lib/account-unification/keyvault-audit.db"
         ),
         keyvault_passphrase=store.get(namespace, KEY_KEYVAULT_PASSPHRASE) or None,
         merge_conflict_policy=merge_conflict_policy,

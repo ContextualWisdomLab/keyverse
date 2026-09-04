@@ -6,13 +6,10 @@ import sqlite3
 import pytest
 
 from app.keyvault import (
-    InMemoryKeyvaultAuditSink,
     InMemoryKeyvaultStore,
-    KeyvaultAuditSink,
     KeyvaultService,
     KeyvaultStore,
     SecretNotFoundError,
-    SqliteKeyvaultAuditSink,
     SqliteKeyvaultStore,
     derive_fernet_key,
 )
@@ -35,33 +32,14 @@ def test_store_protocol_methods_have_concrete_implementations():
         assert missing == []
 
 
-def test_audit_sink_protocol_methods_have_concrete_implementations():
-    """Every audit sink implements the complete event-logging protocol."""
-    protocol_methods = {
-        name
-        for name, member in KeyvaultAuditSink.__dict__.items()
-        if callable(member) and not name.startswith("_")
-    }
-    assert protocol_methods
-    for implementation in (InMemoryKeyvaultAuditSink, SqliteKeyvaultAuditSink):
-        missing = [
-            name
-            for name in sorted(protocol_methods)
-            if not callable(getattr(implementation, name, None))
-        ]
-        assert missing == []
-
-
 @pytest.fixture(params=["memory", "sqlite"])
 def keyvault_service(request, tmp_path) -> KeyvaultService:
     """Return a KeyvaultService over each supported backend pair."""
     if request.param == "memory":
         store = InMemoryKeyvaultStore()
-        audit = InMemoryKeyvaultAuditSink()
     else:
         store = SqliteKeyvaultStore(str(tmp_path / "keyvault.db"))
-        audit = SqliteKeyvaultAuditSink(str(tmp_path / "keyvault-audit.db"))
-    service = KeyvaultService(store, audit, derive_fernet_key("test-passphrase"))
+    service = KeyvaultService(store, derive_fernet_key("test-passphrase"))
     yield service
     service.close()
 
@@ -139,12 +117,12 @@ def test_wrong_passphrase_cannot_decrypt_another_services_secrets(tmp_path):
     """Encryption is real: a different Fernet key cannot read the ciphertext."""
     shared_store = SqliteKeyvaultStore(str(tmp_path / "shared.db"))
     writer = KeyvaultService(
-        shared_store, InMemoryKeyvaultAuditSink(), derive_fernet_key("correct-horse")
+        shared_store, derive_fernet_key("correct-horse")
     )
     writer.put_secret("ns", "key1", "top-secret", actor="operator1")
 
     reader = KeyvaultService(
-        shared_store, InMemoryKeyvaultAuditSink(), derive_fernet_key("wrong-passphrase")
+        shared_store, derive_fernet_key("wrong-passphrase")
     )
     with pytest.raises(Exception):
         reader.get_secret("ns", "key1", actor="operator1")
@@ -154,7 +132,7 @@ def test_wrong_passphrase_cannot_decrypt_another_services_secrets(tmp_path):
 def test_sqlite_store_persists_across_reopen(tmp_path):
     database_path = str(tmp_path / "keyvault.db")
     first = SqliteKeyvaultStore(database_path)
-    first.put("ns", "key1", b"ciphertext-bytes")
+    first.put("ns", "key1", b"ciphertext-bytes", actor="operator1")
     first.close()
 
     second = SqliteKeyvaultStore(database_path)
@@ -167,16 +145,43 @@ def test_sqlite_store_persists_across_reopen(tmp_path):
         ).fetchone() == (1,)
 
 
-def test_sqlite_audit_sink_persists_across_reopen(tmp_path):
-    database_path = str(tmp_path / "keyvault-audit.db")
-    first = SqliteKeyvaultAuditSink(database_path)
-    first.record(namespace="ns", secret_key="key1", action="secret_set", actor="operator1")
+def test_sqlite_audit_persists_across_reopen(tmp_path):
+    database_path = str(tmp_path / "keyvault.db")
+    first = SqliteKeyvaultStore(database_path)
+    first.put("ns", "key1", b"ciphertext", actor="operator1")
     first.close()
 
-    second = SqliteKeyvaultAuditSink(database_path)
+    second = SqliteKeyvaultStore(database_path)
     events = second.events_for("ns", "key1")
     assert len(events) == 1 and events[0]["action"] == "secret_set"
     second.close()
+
+
+def test_sqlite_write_rolls_back_when_audit_insert_fails(tmp_path):
+    """A secret mutation cannot commit without its audit event."""
+    store = SqliteKeyvaultStore(str(tmp_path / "keyvault.db"))
+    store._connection.execute(  # noqa: SLF001 - adversarial transaction fixture
+        "CREATE TRIGGER reject_keyvault_audit BEFORE INSERT ON keyvault_audit_log "
+        "BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END"
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        store.put("ns", "key1", b"ciphertext", actor="operator1")
+    assert store.get("ns", "key1") is None
+    store.close()
+
+
+def test_failed_decryption_is_not_recorded_as_successful_read(tmp_path):
+    """Corrupt or wrong-key ciphertext never produces a successful-read event."""
+    store = SqliteKeyvaultStore(str(tmp_path / "keyvault.db"))
+    writer = KeyvaultService(store, derive_fernet_key("correct-passphrase"))
+    writer.put_secret("ns", "key1", "secret", actor="writer")
+    reader = KeyvaultService(store, derive_fernet_key("wrong-passphrase"))
+    with pytest.raises(Exception):
+        reader.get_secret("ns", "key1", actor="reader")
+    assert [event["action"] for event in store.events_for("ns", "key1")] == [
+        "secret_set"
+    ]
+    writer.close()
 
 
 def test_derive_fernet_key_is_deterministic_for_the_same_passphrase():

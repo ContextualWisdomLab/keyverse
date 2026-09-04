@@ -83,10 +83,12 @@ class SecretMetadata:
 
 
 class KeyvaultStore(Protocol):
-    """Persistence contract for the encrypted secrets table."""
+    """Atomic persistence contract for encrypted secrets and their audit trail."""
 
-    def put(self, namespace: str, secret_key: str, encrypted_value: bytes) -> None:
-        """Upsert one already-encrypted secret."""
+    def put(
+        self, namespace: str, secret_key: str, encrypted_value: bytes, *, actor: str
+    ) -> None:
+        """Atomically upsert one encrypted secret and its audit event."""
         ...
 
     def get(self, namespace: str, secret_key: str) -> bytes | None:
@@ -97,8 +99,16 @@ class KeyvaultStore(Protocol):
         """Return metadata (never ciphertext or plaintext) for one namespace."""
         ...
 
-    def delete(self, namespace: str, secret_key: str) -> bool:
-        """Remove one secret; return whether a row was actually deleted."""
+    def delete(self, namespace: str, secret_key: str, *, actor: str) -> bool:
+        """Atomically remove one secret and append its audit event."""
+        ...
+
+    def record_read(self, namespace: str, secret_key: str, *, actor: str) -> None:
+        """Append a successful-read audit event."""
+        ...
+
+    def events_for(self, namespace: str, secret_key: str) -> list[dict]:
+        """Return recorded events for one secret in write order."""
         ...
 
     def close(self) -> None:
@@ -113,11 +123,15 @@ class InMemoryKeyvaultStore:
         """Create an empty in-memory encrypted-secret table."""
         self._lock = threading.RLock()
         self._data: dict[tuple[str, str], tuple[bytes, float]] = {}
+        self._events: list[dict] = []
 
-    def put(self, namespace: str, secret_key: str, encrypted_value: bytes) -> None:
-        """Upsert one already-encrypted secret with a fresh timestamp."""
+    def put(
+        self, namespace: str, secret_key: str, encrypted_value: bytes, *, actor: str
+    ) -> None:
+        """Atomically upsert one encrypted secret and its audit event."""
         with self._lock:
             self._data[(namespace, secret_key)] = (encrypted_value, time.time())
+            self._record(namespace, secret_key, "secret_set", actor)
 
     def get(self, namespace: str, secret_key: str) -> bytes | None:
         """Return one secret's ciphertext, or ``None`` if absent."""
@@ -134,10 +148,39 @@ class InMemoryKeyvaultStore:
                 if ns == namespace
             ]
 
-    def delete(self, namespace: str, secret_key: str) -> bool:
-        """Remove one secret; return whether it was present."""
+    def delete(self, namespace: str, secret_key: str, *, actor: str) -> bool:
+        """Atomically remove one secret and append its audit event."""
         with self._lock:
-            return self._data.pop((namespace, secret_key), None) is not None
+            deleted = self._data.pop((namespace, secret_key), None) is not None
+            if deleted:
+                self._record(namespace, secret_key, "secret_deleted", actor)
+            return deleted
+
+    def record_read(self, namespace: str, secret_key: str, *, actor: str) -> None:
+        """Append one successful-read event."""
+        with self._lock:
+            self._record(namespace, secret_key, "secret_read", actor)
+
+    def events_for(self, namespace: str, secret_key: str) -> list[dict]:
+        """Return recorded events for one secret in write order."""
+        with self._lock:
+            return [
+                dict(event)
+                for event in self._events
+                if event["namespace"] == namespace and event["secret_key"] == secret_key
+            ]
+
+    def _record(self, namespace: str, secret_key: str, action: str, actor: str) -> None:
+        """Append one event while the caller holds ``_lock``."""
+        self._events.append(
+            {
+                "namespace": namespace,
+                "secret_key": secret_key,
+                "action": action,
+                "actor": actor,
+                "created_at": time.time(),
+            }
+        )
 
     def close(self) -> None:
         """Release no-op in-memory resources."""
@@ -154,6 +197,14 @@ class SqliteKeyvaultStore:
         updated_at       REAL NOT NULL,
         PRIMARY KEY (secret_namespace, secret_key)
     );
+    CREATE TABLE IF NOT EXISTS keyvault_audit_log (
+        event_sequence   INTEGER PRIMARY KEY AUTOINCREMENT,
+        secret_namespace TEXT NOT NULL,
+        secret_key       TEXT NOT NULL,
+        action           TEXT NOT NULL,
+        actor            TEXT NOT NULL,
+        created_at       REAL NOT NULL
+    );
     """
 
     def __init__(self, database_path: str) -> None:
@@ -168,12 +219,15 @@ class SqliteKeyvaultStore:
             self._connection.execute("PRAGMA busy_timeout = 10000")
             self._connection.execute("PRAGMA journal_mode = WAL")
             self._connection.execute("PRAGMA synchronous = NORMAL")
-            self._connection.execute(self._SCHEMA)
+            self._connection.executescript(self._SCHEMA)
             self._connection.commit()
 
-    def put(self, namespace: str, secret_key: str, encrypted_value: bytes) -> None:
-        """Upsert one already-encrypted secret and refresh its timestamp."""
+    def put(
+        self, namespace: str, secret_key: str, encrypted_value: bytes, *, actor: str
+    ) -> None:
+        """Atomically upsert one encrypted secret and its audit event."""
         with self._lock, self._connection:
+            updated_at = time.time()
             self._connection.execute(
                 "INSERT INTO keyvault_secrets "
                 "(secret_namespace, secret_key, encrypted_value, updated_at) "
@@ -181,8 +235,9 @@ class SqliteKeyvaultStore:
                 "ON CONFLICT(secret_namespace, secret_key) DO UPDATE SET "
                 "encrypted_value = excluded.encrypted_value, "
                 "updated_at = excluded.updated_at",
-                (namespace, secret_key, encrypted_value, time.time()),
+                (namespace, secret_key, encrypted_value, updated_at),
             )
+            self._insert_event(namespace, secret_key, "secret_set", actor, updated_at)
 
     def get(self, namespace: str, secret_key: str) -> bytes | None:
         """Return one secret's ciphertext, or ``None`` if absent."""
@@ -207,131 +262,30 @@ class SqliteKeyvaultStore:
             for row in rows
         ]
 
-    def delete(self, namespace: str, secret_key: str) -> bool:
-        """Remove one secret; return whether a row actually existed."""
+    def delete(self, namespace: str, secret_key: str, *, actor: str) -> bool:
+        """Atomically remove one secret and append its audit event."""
         with self._lock, self._connection:
             cursor = self._connection.execute(
                 "DELETE FROM keyvault_secrets "
                 "WHERE secret_namespace = ? AND secret_key = ?",
                 (namespace, secret_key),
             )
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+            if deleted:
+                self._insert_event(namespace, secret_key, "secret_deleted", actor)
+            return deleted
 
-    def close(self) -> None:
-        """Close the SQLite connection."""
-        with self._lock:
-            self._connection.close()
-
-
-class KeyvaultAuditSink(Protocol):
-    """Persistence contract for append-only Keyvault access events.
-
-    Deliberately its own event shape (namespace/secret_key/action/actor),
-    separate from ``audit.AuditEvent``'s merge-correlation shape
-    (survivor/duplicate user ids) -- a Keyvault write has no survivor and
-    forcing one schema onto the other would blur two different Aggregates.
-    The value itself is never part of an audit event.
-    """
-
-    def record(
-        self, *, namespace: str, secret_key: str, action: str, actor: str
-    ) -> None:
-        """Append one Keyvault access event."""
-        ...
-
-    def events_for(self, namespace: str, secret_key: str) -> list[dict]:
-        """Return recorded events for one secret, in write order."""
-        ...
-
-    def close(self) -> None:
-        """Release resources held by the sink."""
-        ...
-
-
-class InMemoryKeyvaultAuditSink:
-    """Thread-safe in-memory Keyvault audit sink for tests and dev."""
-
-    def __init__(self) -> None:
-        """Create an empty in-memory event list."""
-        self._lock = threading.RLock()
-        self._events: list[dict] = []
-
-    def record(
-        self, *, namespace: str, secret_key: str, action: str, actor: str
-    ) -> None:
-        """Append one event with a fresh timestamp."""
-        with self._lock:
-            self._events.append(
-                {
-                    "namespace": namespace,
-                    "secret_key": secret_key,
-                    "action": action,
-                    "actor": actor,
-                    "created_at": time.time(),
-                }
-            )
-
-    def events_for(self, namespace: str, secret_key: str) -> list[dict]:
-        """Return recorded events for one secret, in write order."""
-        with self._lock:
-            return [
-                dict(event)
-                for event in self._events
-                if event["namespace"] == namespace and event["secret_key"] == secret_key
-            ]
-
-    def close(self) -> None:
-        """Release no-op in-memory resources."""
-
-
-class SqliteKeyvaultAuditSink:
-    """Durable append-only Keyvault audit sink."""
-
-    _SCHEMA = """
-    CREATE TABLE IF NOT EXISTS keyvault_audit_log (
-        event_sequence   INTEGER PRIMARY KEY AUTOINCREMENT,
-        secret_namespace TEXT NOT NULL,
-        secret_key       TEXT NOT NULL,
-        action           TEXT NOT NULL,
-        actor            TEXT NOT NULL,
-        created_at       REAL NOT NULL
-    );
-    """
-
-    def __init__(self, database_path: str) -> None:
-        """Open the audit database and ensure its table exists."""
-        self._lock = threading.RLock()
-        self._connection = sqlite3.connect(
-            database_path,
-            timeout=10.0,
-            check_same_thread=False,
-        )
-        with self._lock:
-            self._connection.execute("PRAGMA busy_timeout = 10000")
-            self._connection.execute("PRAGMA journal_mode = WAL")
-            self._connection.execute("PRAGMA synchronous = NORMAL")
-            self._connection.execute(self._SCHEMA)
-            self._connection.commit()
-
-    def record(
-        self, *, namespace: str, secret_key: str, action: str, actor: str
-    ) -> None:
-        """Persist one event row and commit immediately."""
+    def record_read(self, namespace: str, secret_key: str, *, actor: str) -> None:
+        """Append one successful-read event."""
         with self._lock, self._connection:
-            self._connection.execute(
-                "INSERT INTO keyvault_audit_log "
-                "(secret_namespace, secret_key, action, actor, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (namespace, secret_key, action, actor, time.time()),
-            )
+            self._insert_event(namespace, secret_key, "secret_read", actor)
 
     def events_for(self, namespace: str, secret_key: str) -> list[dict]:
         """Load events for one secret in write order."""
         with self._lock:
             rows = self._connection.execute(
                 "SELECT secret_namespace, secret_key, action, actor, created_at "
-                "FROM keyvault_audit_log "
-                "WHERE secret_namespace = ? AND secret_key = ? "
+                "FROM keyvault_audit_log WHERE secret_namespace = ? AND secret_key = ? "
                 "ORDER BY event_sequence",
                 (namespace, secret_key),
             ).fetchall()
@@ -346,6 +300,21 @@ class SqliteKeyvaultAuditSink:
             for row in rows
         ]
 
+    def _insert_event(
+        self,
+        namespace: str,
+        secret_key: str,
+        action: str,
+        actor: str,
+        created_at: float | None = None,
+    ) -> None:
+        """Insert one event on the caller's active transaction."""
+        self._connection.execute(
+            "INSERT INTO keyvault_audit_log "
+            "(secret_namespace, secret_key, action, actor, created_at) VALUES (?, ?, ?, ?, ?)",
+            (namespace, secret_key, action, actor, created_at or time.time()),
+        )
+
     def close(self) -> None:
         """Close the SQLite connection."""
         with self._lock:
@@ -355,19 +324,14 @@ class SqliteKeyvaultAuditSink:
 class KeyvaultService:
     """Encrypt/decrypt at the service boundary; audit every write and delete.
 
-    The store never sees plaintext (encryption happens here, before
-    ``store.put``) and the audit sink never sees ciphertext or plaintext
-    (only namespace/key/action/actor) -- each collaborator holds the minimum
-    it needs, matching this repo's least-privilege convention for the
-    Keycloak Admin client and the merge audit trail.
+    The store receives ciphertext plus non-secret audit fields in one atomic
+    operation. Plaintext exists only at this service boundary, matching the
+    least-privilege convention used by the Keycloak Admin client.
     """
 
-    def __init__(
-        self, store: KeyvaultStore, audit: KeyvaultAuditSink, fernet_key: bytes
-    ) -> None:
-        """Wire a storage backend, an audit sink, and the encryption key."""
+    def __init__(self, store: KeyvaultStore, fernet_key: bytes) -> None:
+        """Wire one atomic storage backend and the encryption key."""
         self._store = store
-        self._audit = audit
         self._fernet = Fernet(fernet_key)
 
     def put_secret(
@@ -375,10 +339,7 @@ class KeyvaultService:
     ) -> SecretMetadata:
         """Encrypt and store one secret; record a ``secret_set`` audit event."""
         encrypted = self._fernet.encrypt(value.encode("utf-8"))
-        self._store.put(namespace, secret_key, encrypted)
-        self._audit.record(
-            namespace=namespace, secret_key=secret_key, action="secret_set", actor=actor
-        )
+        self._store.put(namespace, secret_key, encrypted, actor=actor)
         return self._require_metadata(namespace, secret_key)
 
     def get_secret(self, namespace: str, secret_key: str, *, actor: str) -> str:
@@ -389,10 +350,9 @@ class KeyvaultService:
         encrypted = self._store.get(namespace, secret_key)
         if encrypted is None:
             raise SecretNotFoundError(f"{namespace}/{secret_key}")
-        self._audit.record(
-            namespace=namespace, secret_key=secret_key, action="secret_read", actor=actor
-        )
-        return self._fernet.decrypt(encrypted).decode("utf-8")
+        value = self._fernet.decrypt(encrypted).decode("utf-8")
+        self._store.record_read(namespace, secret_key, actor=actor)
+        return value
 
     def list_secrets(self, namespace: str) -> list[SecretMetadata]:
         """Return metadata (never values) for every secret in ``namespace``."""
@@ -403,19 +363,13 @@ class KeyvaultService:
 
         Raises :class:`SecretNotFoundError` when no such secret was stored.
         """
-        deleted = self._store.delete(namespace, secret_key)
+        deleted = self._store.delete(namespace, secret_key, actor=actor)
         if not deleted:
             raise SecretNotFoundError(f"{namespace}/{secret_key}")
-        self._audit.record(
-            namespace=namespace,
-            secret_key=secret_key,
-            action="secret_deleted",
-            actor=actor,
-        )
 
     def audit_history(self, namespace: str, secret_key: str) -> list[dict]:
         """Return the recorded access history for one secret."""
-        return self._audit.events_for(namespace, secret_key)
+        return self._store.events_for(namespace, secret_key)
 
     def _require_metadata(self, namespace: str, secret_key: str) -> SecretMetadata:
         """Return the just-written secret's metadata row."""
@@ -425,6 +379,5 @@ class KeyvaultService:
         raise SecretNotFoundError(f"{namespace}/{secret_key}")  # pragma: no cover
 
     def close(self) -> None:
-        """Release the wrapped store and audit sink."""
+        """Release the wrapped store."""
         self._store.close()
-        self._audit.close()

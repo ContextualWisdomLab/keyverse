@@ -23,7 +23,6 @@ from .directory_federation import directory_federation_router
 from .federation import FederationService, federation_router
 from .keyvault import (
     KeyvaultService,
-    SqliteKeyvaultAuditSink,
     SqliteKeyvaultStore,
     derive_fernet_key,
 )
@@ -78,11 +77,9 @@ def _build_keyvault_service(config) -> KeyvaultService | None:
     """
     if not config.keyvault_passphrase:
         return None
-    for path in (config.keyvault_database_path, config.keyvault_audit_database_path):
-        _ensure_parent_directory(path)
+    _ensure_parent_directory(config.keyvault_database_path)
     return KeyvaultService(
         SqliteKeyvaultStore(config.keyvault_database_path),
-        SqliteKeyvaultAuditSink(config.keyvault_audit_database_path),
         derive_fernet_key(config.keyvault_passphrase),
     )
 

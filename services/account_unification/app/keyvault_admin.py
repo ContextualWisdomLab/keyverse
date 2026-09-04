@@ -1,11 +1,10 @@
 """FastAPI routes for the Keyvault namespaced secrets store.
 
-Write/read/delete/list, each behind the same operator bearer token and
+Write/delete/list, each behind the same operator bearer token and
 opaque-path-segment validation already required for every other privileged
-router (see ``main.py``'s ``include_router`` wiring). The value only ever
-appears in a single-secret GET response body; the list endpoint returns
-metadata (namespace, key, ``updated_at``) and never a value, so an admin UI
-can render an inventory without ever holding plaintext it does not need.
+router (see ``main.py``'s ``include_router`` wiring). No administrator route
+returns plaintext. A future service-to-service read API must first bind a
+verified workload identity to one namespace and one explicit read scope.
 """
 from __future__ import annotations
 
@@ -29,14 +28,6 @@ class SecretMetadataOut(BaseModel):
     namespace: str
     secret_key: str
     updated_at: float
-
-
-class SecretValueOut(BaseModel):
-    """One decrypted secret, returned only from the single-secret GET."""
-
-    namespace: str
-    secret_key: str
-    value: str
 
 
 def get_keyvault(request: Request) -> KeyvaultService:
@@ -79,21 +70,6 @@ def put_secret(
         secret_key=metadata.secret_key,
         updated_at=metadata.updated_at,
     )
-
-
-@router.get("/{namespace}/{secret_key}", response_model=SecretValueOut)
-def get_secret(
-    namespace: str,
-    secret_key: str,
-    request: Request,
-    keyvault: KeyvaultService = Depends(get_keyvault),
-) -> SecretValueOut:
-    """Return one decrypted secret; each read is itself an audited event."""
-    try:
-        value = keyvault.get_secret(namespace, secret_key, actor=_actor(request))
-    except SecretNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="secret not found") from exc
-    return SecretValueOut(namespace=namespace, secret_key=secret_key, value=value)
 
 
 @router.get("/{namespace}", response_model=list[SecretMetadataOut])

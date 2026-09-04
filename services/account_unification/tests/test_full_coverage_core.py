@@ -360,7 +360,6 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
         registration_action_lifespan_seconds=900,
         keyvault_passphrase=None,
         keyvault_database_path=":memory:",
-        keyvault_audit_database_path=":memory:",
     )
     lock_path = str(Path.cwd() / "coverage-lock.sqlite3")
 
@@ -416,7 +415,6 @@ def test_build_keyvault_service_opens_real_backends_when_passphrase_is_set(
     config = SimpleNamespace(
         keyvault_passphrase="operator-chosen-passphrase",
         keyvault_database_path=str(tmp_path / "nested" / "keyvault.db"),
-        keyvault_audit_database_path=str(tmp_path / "nested" / "keyvault-audit.db"),
     )
     service = main._build_keyvault_service(config)
     try:

@@ -54,14 +54,14 @@ Split the concern instead of centralizing the whole thing:
 
 - **Keyvault (ADR-0014) is the shared storage primitive.** Its
   `KeyvaultStore`/`KeyvaultService` and
-  `PUT`/`GET`/`DELETE /keyvault/{namespace}/{key}` API already are exactly
-  "a namespaced, encrypted-at-rest place to put a secret and get it back,
-  audited." A service-account credential is not a structurally different
+  `PUT`/`DELETE` and metadata APIs provide the administrative foundation for
+  "a namespaced, encrypted-at-rest place to manage a secret, audited." A
+  service-account credential is not a structurally different
   secret from any other Keyvault entry.
 - **Each consuming service keeps its own Anti-Corruption Layer around
   that primitive.** Concretely, `contextual-orchestrator`'s existing
   `CredentialBackend` Protocol is the adapter seam: a future
-  `KeyverseCredentialBackend(dsn=..., ...)` implementing that same
+  `KeyverseCredentialBackend(...)` implementing that same
   Protocol (alongside the existing `InMemoryCredentialBackend` and
   `PostgresCredentialBackend`) would let that service point at Keyverse's
   Keyvault with **zero call-site changes**, because `get_credential`/
@@ -95,7 +95,9 @@ Split the concern instead of centralizing the whole thing:
 - The natural next step, for whichever team owns it, is a
   `contextual-orchestrator`-side `KeyverseCredentialBackend` PR — not
   Keyverse-side work — since the Protocol it would implement already
-  exists and needs no change here.
+  exists and needs no change here. It also requires a Keyverse workload-read
+  API that verifies signed identity and enforces namespace-bound authority;
+  the shared operator credential is not suitable for that path.
 
 ## References
 
