@@ -3,46 +3,28 @@
 **Status:** Proposed
 **Date:** 2026-09-02
 
-**Upstream status note (added same day, after this ADR was drafted):** the
-`context-graph-contracts` ADR-0001 PR this design was written against
-(context-graph-contracts#23) was **closed, not merged**, by a concurrent review shortly
-after this ADR's own commit landed. That review's stated reasons: PR #23 was based on
-bare `develop` (the `ContextAssertion`/`ContextMembership` schemas it depends on are
-still on context-graph-contracts#4, itself open/unmerged/`blocked`), declared itself
-`Accepted` ahead of that dependency landing, collided with that PR stack's own ADR
-numbering, and — most relevant here — has "unresolved executable-contract defects (wire
-interpretation, bitemporal/replay semantics, **primary-membership cardinality**,
-reproducibility)." That reviewer's own closing note says the branch "is preserved for
-evidence" and that "any org-membership contract should be rebuilt test-first on the
-current CGC owner stack after the foundation/Context Assertion dependency is protected."
-This ADR's *field shapes* (`context_ref`, `parent_context_ref`, `membership_level`,
-`predicate`, `interval`) were read directly from context-graph-contracts#4's actual
-schema files, not from ADR-0001's prose, and remain structurally accurate against that
-still-open dependency; what changed is that ADR-0001's own **governance status** (an ADR
-self-declaring `Accepted` before its schema dependency merges, registering
-`org_member_primary`/`org_member_secondary`/`org_member_observed` by prose alone ahead
-of versioned conformance fixtures) is no longer a settled foundation to build against.
-This ADR should therefore be re-validated against whatever org-membership contract is
-eventually rebuilt test-first on the protected CGC stack, not treated as finalized
-because ADR-0001 currently reads "Accepted" — do not promote this ADR to `Accepted`
-before that reconciliation happens.
+**Dependency status:** `context-graph-contracts` PR #4 remains open and owns only the
+provider-neutral assertion, provenance, and bitemporal envelope. Its former
+organization-specific PR #23 was closed unmerged because organization hierarchy and
+membership semantics belong to Orgmetra, not the shared kernel. This record therefore
+defines only Keyverse's protocol projection boundary. It does not register organization
+predicates or promote an unmerged dependency to released status.
 
 ## Context
 
-`context-graph-contracts` ADR-0001 (`docs/adr/0001-enterprise-org-hierarchy-membership-contract.md`,
-commit `c37c465` on `claude/enterprise-org-hierarchy-membership-contract`, PR
-[context-graph-contracts#23](https://github.com/ContextualWisdomLab/context-graph-contracts/pull/23))
-defines the canonical internal shape for an enterprise customer's multi-root,
-dynamically-ordered org hierarchy and concurrent (primary/secondary, TFT) membership:
-`ContextAssertion` (subject/predicate/object/truth_status/interval/provenance) plus
-one-to-sixteen `ContextMembership` entries (context_ref/membership_level/parent_context_ref),
-with a registered predicate vocabulary `org_member_primary` / `org_member_secondary` /
-`org_member_observed`. Orgmetra remains the org-tree and membership-fact source of
-truth; `context-graph-contracts` is the versioned wire contract; Keyverse is the PDP
-(`services/account_unification/app/org_authorization.py`, extending draft PR #103) — none
-of that changes here.
+Orgmetra is the canonical owner of organization units, typed organization edges,
+employment assignments, concurrent primary/secondary/TFT memberships, and their
+business-effective and system-recorded intervals. In particular, Orgmetra PR #141
+binds Employment to the employing legal organization and PR #142 exposes bitemporal
+assignment history. Those product-domain facts are not copied into this repository.
 
-What that ADR does not do is say how an enterprise customer's identity provider
+`context-graph-contracts` PR #4 provides the candidate provider-neutral assertion,
+provenance, identity, and bitemporal envelope used for ecosystem interchange. Keyverse
+owns identity protocol termination and authorization projection: it maps released,
+source-attributed Orgmetra facts onto SCIM, OIDC, or SAML and consumes observed inbound
+facts without upgrading their authority. Draft PR #103 remains the separate PDP lane.
+
+What the shared envelope does not do is say how an enterprise customer's identity provider
 actually gets this data in or out. Their IdP does not speak `ContextAssertion`. It
 speaks SCIM (provisioning push), OIDC (ID-token/UserInfo claims a relying party reads),
 or SAML (`<AttributeStatement>` on federated login). Keyverse is the only ecosystem
@@ -90,30 +72,31 @@ the PDP) obtains that assignment data from a protocol an external IdP or an ecos
 RP actually speaks. The two are adjacent and eventually connect (a resolved
 `cwl_context_memberships` claim is exactly PDP input shape, once mapped to
 `AssignmentSnapshot.memberships`), but PR #103 is itself draft and `mergeable_state:
-dirty`; this ADR does not modify it, matching `context-graph-contracts` ADR-0001's own
-reconciliation stance.
+dirty`; this ADR does not modify or promote that draft lane.
 
 ## Decision
 
 ### 1. Ownership
 
 Keyverse owns all three protocol adapters (SCIM ingest/egress, OIDC claim emission,
-SAML attribute ingest). `context-graph-contracts`'s `ContextAssertion`/
-`ContextMembership` (its ADR-0001, including the "SCIM, OIDC, and SAML exchange"
-section added there alongside this ADR) is the single schema authority each adapter
-projects from or into — this ADR does not redefine any field, only how Keyverse
-carries it over each protocol. Every adapter below serializes the same
+SAML attribute ingest). A released `context-graph-contracts` assertion envelope is the
+interchange authority for common identity, time, provenance, and disposition fields;
+Orgmetra owns organization edge types and membership semantics. This ADR does not
+redefine either owner's fields. Every adapter below serializes the same
 **membership-projection record**:
 
-```
-{assertion_id, context_ref, parent_context_ref, membership_level, predicate, valid_from, valid_to}
+```text
+{assertion_id, context_ref, parent_context_ref, organization_unit_type_code,
+ relationship_type_code, membership_type_code, valid_from, valid_to}
 ```
 
 one row per `ContextAssertion` (`assertion_id`, `predicate`, `interval.valid_from`/
-`valid_to`) joined to its matching `ContextMembership` entry (`context_ref`,
-`parent_context_ref`, `membership_level`).
+`valid_to`) joined to the Orgmetra-owned organization and assignment projection.
+`parent_context_ref` is optional, so the graph can have multiple roots. Consumers must
+follow typed edges; they must not infer holding-company, regional-HQ, affiliate,
+division, part, team, or TFT order from depth or a numeric level.
 
-### 2. SCIM (RFC 7643 §4.2, RFC 7644 §3.3)
+### 2. SCIM (RFC 7643 §§3.3, 4.2; RFC 7644 §3.3)
 
 Extend `scim.py`'s shim — currently `User`-only by explicit design choice — with a
 `Group` resource:
@@ -121,7 +104,7 @@ Extend `scim.py`'s shim — currently `User`-only by explicit design choice — 
 - **Tree shape → nested groups.** A parent org unit's `members[]` lists its child
   org-unit `Group`s (`"type": "Group"`, RFC 7643 §4.2) — core SCIM, no extension
   needed, and the natural inverse of `ContextMembership.parent_context_ref`.
-- **Fields SCIM core has no slot for → a custom extension** (RFC 7644 §3.3), split
+- **Fields SCIM core has no slot for → a custom extension** (RFC 7643 §3.3), split
   across two resources because tree shape and per-person fact have different change
   frequency:
 
@@ -130,8 +113,8 @@ Extend `scim.py`'s shim — currently `User`-only by explicit design choice — 
   {
     "contextRef": "urn:cwl:tenant_001:orgmetra:organization_unit:0195...-team-a",
     "parentContextRef": "urn:cwl:tenant_001:orgmetra:organization_unit:0195...-part-a",
-    "membershipLevel": 5,
-    "orgUnitTypeCode": "team"
+    "organizationUnitTypeCode": "team",
+    "relationshipTypeCode": "reports_to"
   }
   ```
 
@@ -142,7 +125,7 @@ Extend `scim.py`'s shim — currently `User`-only by explicit design choice — 
       {
         "assertionId": "0195eb2c-...",
         "contextRef": "urn:cwl:tenant_001:orgmetra:organization_unit:0195...-team-a",
-        "predicate": "org_member_primary",
+        "membershipTypeCode": "primary_assignment",
         "validFrom": "2026-01-01T00:00:00Z",
         "validTo": null
       }
@@ -151,19 +134,19 @@ Extend `scim.py`'s shim — currently `User`-only by explicit design choice — 
   ```
 
   `contextRef`/`parentContextRef` validate against the same canonical-asset-uri
-  grammar as `context-graph-contracts`; `membershipLevel` is `ContextMembership
-  .membership_level` unchanged (0-15); `predicate` is one of the three registered
-  values; `assertionId` is the source `ContextAssertion.assertion_id` (UUIDv7),
-  carried for traceability, not re-derived.
+  grammar as `context-graph-contracts`; organization, relationship, and membership
+  type codes are supplied by a versioned Orgmetra projection and are not closed or
+  reinterpreted by Keyverse; `assertionId` is the source assertion identity, carried
+  for traceability and retry deduplication, not re-derived.
 
 - **Ingest is asymmetric by construction.** A CWL-aware pusher (a future connector
   that knows this extension) supplies exact values; a generic HR/IGA tool's bare
   RFC 7643 `Group` (`displayName` + `members[]`, no extension) does not, because
   SCIM core has no primary/secondary concept for its own author to fill in. For the
-  bare case: `membershipLevel` and `parentContextRef` are inferred structurally
-  (nesting depth, parent Group's `members[]` back-reference); every direct `User`
-  member becomes `predicate: "org_member_observed"` — never guessed as
-  `org_member_primary`. Both cases produce `truth_status: "observed"`
+  bare case: `parentContextRef` may be observed from a parent Group's back-reference,
+  but no organization, relationship, or membership type is guessed from depth. Every
+  direct `User` member is an observed assignment — never guessed as primary. Both cases
+  produce `truth_status: "observed"`
   `ContextAssertion`s (never `authoritative` — an adapter does not generate assertions
   by owning-domain command) with `provenance.evidence_ref`/`sha256` over the inbound
   SCIM request, published for Orgmetra (or an equivalent reconciliation workflow) to
@@ -184,8 +167,9 @@ new claim is an array:
     "assertion_id": "0195eb2c-...",
     "context_ref": "urn:cwl:tenant_001:orgmetra:organization_unit:0195...-team-a",
     "parent_context_ref": "urn:cwl:tenant_001:orgmetra:organization_unit:0195...-part-a",
-    "membership_level": 5,
-    "predicate": "org_member_primary",
+    "organization_unit_type_code": "team",
+    "relationship_type_code": "reports_to",
+    "membership_type_code": "primary_assignment",
     "valid_from": "2026-01-01T00:00:00Z",
     "valid_to": null
   }
@@ -208,10 +192,9 @@ client first needs full multi-membership fidelity, not an extension of ADR-0009'
 `list_group_memberships` calls) is new code, not built by this ADR.
 
 Only the immediate `context_ref`/`parent_context_ref` travel in the token — not
-`ContextAssertion.memberships[]`'s full ancestor closure. An "is subject under org unit
-X" ABAC decision stays server-side in Keyverse's PDP (PR #103's extension, per
-`context-graph-contracts` ADR-0001's evaluation sketch), which already holds the full
-closure without a token round-trip; carrying a 6-level ancestor chain in every token per
+the full ancestor closure. An "is subject under org unit X" ABAC decision stays
+server-side in Keyverse's PDP, which must query a versioned Orgmetra projection rather
+than treating token order as hierarchy truth; carrying an ancestor chain in every token per
 membership was considered and rejected as unneeded token growth for a query the issuer
 answers more cheaply itself.
 
@@ -227,7 +210,7 @@ that is inherently per-tenant deployment configuration. The natural extension po
 IdP, what config" record) gaining a per-tenant raw-attribute-name/value →
 `context_ref` mapping table — **not designed further here**, only identified as where it
 belongs. Once resolved to a `context_ref`, the result is the same as SCIM's bare-push
-case: `predicate: "org_member_observed"`, `truth_status: "observed"`, provenance
+case: `membership_type_code` absent, `truth_status: "observed"`, provenance
 pointing at the SAML assertion (`evidence_ref` + `sha256` over its canonicalized bytes).
 
 **Egress** (Keyverse issuing SAML assertions to a downstream RP) has no current
@@ -241,7 +224,7 @@ array-shaped workaround:
 <saml2:Attribute Name="urn:cwl:claims:context_membership"
                   NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri"
                   FriendlyName="CWL Context Membership">
-  <saml2:AttributeValue xsi:type="xs:string">{"assertion_id":"0195eb2c-...","context_ref":"urn:cwl:tenant_001:orgmetra:organization_unit:0195...-team-a","parent_context_ref":"urn:cwl:tenant_001:orgmetra:organization_unit:0195...-part-a","membership_level":5,"predicate":"org_member_primary","valid_from":"2026-01-01T00:00:00Z","valid_to":null}</saml2:AttributeValue>
+  <saml2:AttributeValue xsi:type="xs:string">{"assertion_id":"0195eb2c-...","context_ref":"urn:cwl:tenant_001:orgmetra:organization_unit:0195...-team-a","parent_context_ref":"urn:cwl:tenant_001:orgmetra:organization_unit:0195...-part-a","organization_unit_type_code":"team","relationship_type_code":"reports_to","membership_type_code":"primary_assignment","valid_from":"2026-01-01T00:00:00Z","valid_to":null}</saml2:AttributeValue>
 </saml2:Attribute>
 ```
 
@@ -255,9 +238,7 @@ against.
 
 ### 5. Why no standalone JSON Schema file is added in this PR
 
-`context-graph-contracts` ADR-0001's own follow-up (task item 6) allows "a very small,
-safe, additive first step (e.g., just defining the SCIM schema extension's JSON Schema
-file)." Considered and **not done here**: this repository has no existing
+Considered and **not done here**: this repository has no existing
 `*.schema.json` convention anywhere — every wire shape in `org_authorization.py`
 (`AssignmentSnapshot`, `AuthorizationGrant`, …) is a Pydantic model, not a packaged JSON
 Schema file, and `context-graph-contracts` (a different, schema-first repository) is
@@ -277,18 +258,17 @@ pattern, not new schema files.
   one relying client — not `naruon-web`'s existing hardcoded profile), and
   `federation.py` (per-tenant attribute-mapping config, for SAML ingest). None of that
   is implemented in this PR.
-- Any field/predicate change still goes through `context-graph-contracts` ADR-0001
-  first — this ADR carries no schema authority of its own, only the protocol
-  projections of an authority that lives elsewhere.
+- Common envelope changes go through `context-graph-contracts`; organization edge,
+  membership, and cardinality changes go through Orgmetra. This ADR carries no schema
+  or employment authority of its own.
 - ADR-0008's boundary is unchanged and still governs: a `cwl_context_memberships` claim,
   a SCIM extension attribute, or a SAML `AttributeValue` is a **carried fact**, not an
   authorization decision. Every relying party still validates issuer/signature/
   audience/expiry and applies its own tenant/resource ABAC before any RBAC read of
   these claims, exactly as ADR-0008 already requires for `org`/`workspace`/`role`.
-- `org_member_observed` assertions (SCIM/SAML ingest) are never authorization-ready on
-  arrival. A relying party or the PDP that treats `org_member_observed` as equivalent to
-  `org_member_primary` violates this ADR and `context-graph-contracts` ADR-0003's
-  no-promotion rule.
+- Observed SCIM/SAML memberships are never authorization-ready on arrival. A relying
+  party or PDP that treats an observed assignment as authoritative violates this ADR
+  and the shared assertion envelope's no-promotion rule.
 
 ## Acceptance evidence (required before this leaves `Proposed`)
 
