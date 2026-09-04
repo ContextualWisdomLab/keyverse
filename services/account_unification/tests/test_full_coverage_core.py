@@ -358,6 +358,8 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
         registration_client_id="naruon-web",
         registration_redirect_uri="https://naruon.example/auth/callback",
         registration_action_lifespan_seconds=900,
+        keyvault_passphrase=None,
+        keyvault_database_path=":memory:",
     )
     lock_path = str(Path.cwd() / "coverage-lock.sqlite3")
 
@@ -398,10 +400,29 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
     assert app.state.user_operation_locks is locks
     assert wired_locks is locks
     assert app.state.federation_service is federation
+    # No keyvault_passphrase configured => opt-in Keyvault stays unwired.
+    assert app.state.keyvault_service is None
     assert app.state.operator_api_token == "operator"
     assert app.state.registration_api_token == "registration"
     assert app.state.ready is True
     assert app.state.temporary_user_operation_lock_database is True
+
+
+def test_build_keyvault_service_opens_real_backends_when_passphrase_is_set(
+    tmp_path,
+) -> None:
+    """A configured passphrase wires a real SqliteKeyvaultStore-backed service."""
+    config = SimpleNamespace(
+        keyvault_passphrase="operator-chosen-passphrase",
+        keyvault_database_path=str(tmp_path / "nested" / "keyvault.db"),
+    )
+    service = main._build_keyvault_service(config)
+    try:
+        assert service is not None
+        service.put_secret("ns", "key1", "value1", actor="operator1")
+        assert service.get_secret("ns", "key1", actor="operator1") == "value1"
+    finally:
+        service.close()
 
 
 def test_close_and_temporary_database_helpers(tmp_path) -> None:
