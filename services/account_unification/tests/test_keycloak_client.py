@@ -227,7 +227,6 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
         redirect_uri="https://naruon.example/auth/passkey-complete",
         lifespan_seconds=900,
     )
-    api.reset_password("u1", "correct horse battery staple 1!")
     api.create_identity_provider({"alias": "employer-adfs"})
     api.update_identity_provider(
         "employer-adfs",
@@ -256,17 +255,20 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
         "VERIFY_EMAIL",
         "webauthn-register-passwordless",
     ]
-    reset_password_request = next(
-        call
-        for call in calls
-        if call.url.path.endswith("/users/u1/reset-password")
+
+
+def test_product_adapter_rejects_password_reset_admin_path() -> None:
+    """A dormant signup implementation cannot widen the shared runtime client."""
+    api = ProductHttpAdminApi(
+        "https://keycloak.test",
+        "cwl",
+        "account-unification-svc",
+        "secret",
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={})),
     )
-    assert reset_password_request.method == "PUT"
-    assert json.loads(reset_password_request.content) == {
-        "type": "password",
-        "value": "correct horse battery staple 1!",
-        "temporary": False,
-    }
+    with pytest.raises(InvalidIdentifierError, match="allowed Keycloak Admin REST route"):
+        api._guard_path("/admin/realms/cwl/users/u1/reset-password")
+    api.close()
 
 
 def test_product_adapter_reauthenticates_get_once() -> None:

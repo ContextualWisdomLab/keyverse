@@ -80,6 +80,11 @@ resolved here.
   `test_naruon_direct_access_grants_stays_disabled`
   (`services/account_unification/tests/test_realm_policy.py`); ADR-0015
   gained a Correction section mirroring ADR-0014's.
+- **GREEN, owner-boundary repair:** the shared production adapter no longer
+  allowlists or implements Keycloak's `reset-password` Admin REST path. A focused
+  regression proves that path is rejected, while the unavailable registration
+  route remains fail closed and the existing Authorization Code + PKCE and
+  passwordless enrollment paths are unchanged.
 - **Measured boundary:** `coverage run --branch --source=app -m pytest -q`
   followed by `coverage report --show-missing --fail-under=100` reported 100%
   statement and branch coverage (2,873 statements, 772 branches); `interrogate`
@@ -87,8 +92,8 @@ resolved here.
   clean; `python scripts/validate_realm.py deploy/keycloak/realm-cwl.json`,
   `make test`, `make validate-realm`, and
   `tests/test_documentation_contract.py` all passed.
-- **Not claimed:** this is not a standards-compliant replacement login
-  mechanism -- naruon's password-signup surface stays unavailable (`503`)
+- **Not claimed:** this is not a standards-compliant replacement login or
+  account-recovery mechanism -- naruon's password-signup surface stays unavailable (`503`)
   until one ships. Whether an Authorization Code + PKCE in-app-browser-view
   flow or a custom Keycloak REST resource provider for headless
   passkey/WebAuthn is buildable against Keycloak's `login-actions`-bound

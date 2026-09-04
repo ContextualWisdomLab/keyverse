@@ -23,10 +23,11 @@ is off.
 
 `POST /registration/accounts/password` (`app/password_registration.py`) now fails
 closed with `503` behind the module constant `PASSWORD_CREDENTIAL_LOGIN_AVAILABLE
-= False`, rather than create accounts nothing can authenticate into. The rest of
-this ADR's Decision, Security tradeoffs, and Deferred sections are kept as the
-historical record of what was built and why; flip the constant back to `True`
-only alongside the same standards-compliant login replacement ADR-0014 calls for.
+= False`, rather than create accounts nothing can authenticate into. The shared
+runtime Keycloak client no longer allowlists or implements `reset-password`;
+therefore the unavailable route cannot leave credential-reset authority dormant
+in a reusable adapter. A future standards-compliant replacement must introduce
+and review its own least-privilege owner contract rather than flip this gate.
 
 ## Context
 

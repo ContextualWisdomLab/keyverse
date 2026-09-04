@@ -36,7 +36,6 @@ _ADMIN_PATH_PATTERNS: tuple[tuple[str | None, ...], ...] = (
     ("users", None, "groups"),
     ("users", None, "groups", None),
     ("users", None, "execute-actions-email"),
-    ("users", None, "reset-password"),
     ("identity-provider", "instances"),
     ("identity-provider", "instances", None),
     ("components",),
@@ -94,23 +93,6 @@ class ProductAdminApi(AdminApi, Protocol):
 
     def delete_user(self, user_id: str) -> None:
         """Delete one user during failed registration rollback."""
-        ...
-
-    def reset_password(self, user_id: str, password: str) -> None:
-        """Set an immediately usable (non-temporary) password credential.
-
-        Dormant as of docs/adr/0014-naruon-owned-password-form.md's
-        Correction (2026-09-03): its only caller,
-        ``password_registration.register_account_with_password``, fails
-        closed before ever reaching this method while
-        ``PASSWORD_CREDENTIAL_LOGIN_AVAILABLE`` is ``False``. This shared
-        admin client's authority to call Keycloak's reset-password endpoint
-        is therefore currently unused capability, not currently-exercised
-        behavior (Devin Review, keyverse#128, 2026-09-03) -- re-scope
-        alongside whatever replacement login mechanism the ADR's Correction
-        calls for, rather than assuming this method's mere presence on the
-        shared client is still load-bearing.
-        """
         ...
 
     def get_identity_provider(self, provider_alias: str) -> dict | None:
@@ -472,29 +454,6 @@ class ProductHttpAdminApi(HttpAdminApi):
         """Delete one user during failed registration rollback."""
         safe_user_id = self._safe_segment(user_id, "user_id")
         self._delete(f"/admin/realms/{self._realm}/users/{safe_user_id}")
-
-    def reset_password(self, user_id: str, password: str) -> None:
-        """Set an immediately usable (non-temporary) password credential.
-
-        ``password`` reaches Keycloak only as this call's JSON body over the
-        existing authenticated HTTPS transport; it is never logged, retried
-        with a captured copy, or included in any exception message here.
-
-        Dormant as of docs/adr/0014-naruon-owned-password-form.md's
-        Correction (2026-09-03) -- see the ``ProductAdminApi`` Protocol
-        declaration of this same method above for why.
-        """
-        safe_user_id = self._safe_segment(user_id, "user_id")
-        path = self._guard_path(
-            f"/admin/realms/{self._realm}/users/{safe_user_id}/reset-password"
-        )
-        self._send_with_reauth(
-            lambda: self._client.put(
-                path,
-                json={"type": "password", "value": password, "temporary": False},
-                headers=self._auth_header(),
-            )
-        )
 
     def get_identity_provider(self, provider_alias: str) -> dict | None:
         """Return an identity provider or ``None`` for a Keycloak 404."""

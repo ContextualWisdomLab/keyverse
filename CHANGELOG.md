@@ -117,9 +117,9 @@ Keep a Changelog, and releases use semantic versioning.
   2.0 Resource Owner Password Credentials grant, and disabling it in isolation
   had left password-only signups with no way to authenticate at all -- the
   bound `browser-passwordless` flow accepts only passkeys. The endpoint now
-  fails closed (`503`) behind a single flippable module constant rather than
-  create dead accounts; `scripts/validate_realm.py` now rejects a silent
-  re-enable of the grant. See
+  fails closed (`503`) rather than create dead accounts, the shared runtime
+  adapter no longer carries dormant password-reset authority, and
+  `scripts/validate_realm.py` rejects a silent re-enable of the grant. See
   `docs/doctoring/2026-09-03-naruon-password-ropc-standards-correction.md`
   for the full evidence trail.
 - Prevented relying-party inventory from silently accepting a KV key/body
