@@ -8,8 +8,8 @@ on:
 # Cancel superseded evidence for the same pull request or branch. This keeps the
 # runner queue bounded during review-fix loops while preserving the newest head.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least-privilege default token (OSSF Scorecard: Token-Permissions).
 permissions:
