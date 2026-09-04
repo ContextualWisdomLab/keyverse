@@ -99,6 +99,10 @@ class KeyvaultStore(Protocol):
         """Return metadata (never ciphertext or plaintext) for one namespace."""
         ...
 
+    def list_namespaces(self) -> list[str]:
+        """Return namespaces that currently contain at least one secret."""
+        ...
+
     def delete(self, namespace: str, secret_key: str, *, actor: str) -> bool:
         """Atomically remove one secret and append its audit event."""
         ...
@@ -147,6 +151,11 @@ class InMemoryKeyvaultStore:
                 for (ns, key), (_value, updated_at) in self._data.items()
                 if ns == namespace
             ]
+
+    def list_namespaces(self) -> list[str]:
+        """Return non-empty namespaces in stable order."""
+        with self._lock:
+            return sorted({namespace for namespace, _secret_key in self._data})
 
     def delete(self, namespace: str, secret_key: str, *, actor: str) -> bool:
         """Atomically remove one secret and append its audit event."""
@@ -262,6 +271,15 @@ class SqliteKeyvaultStore:
             for row in rows
         ]
 
+    def list_namespaces(self) -> list[str]:
+        """Return non-empty namespaces in stable order."""
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT DISTINCT secret_namespace FROM keyvault_secrets "
+                "ORDER BY secret_namespace"
+            ).fetchall()
+        return [row[0] for row in rows]
+
     def delete(self, namespace: str, secret_key: str, *, actor: str) -> bool:
         """Atomically remove one secret and append its audit event."""
         with self._lock, self._connection:
@@ -357,6 +375,10 @@ class KeyvaultService:
     def list_secrets(self, namespace: str) -> list[SecretMetadata]:
         """Return metadata (never values) for every secret in ``namespace``."""
         return self._store.list_keys(namespace)
+
+    def list_namespaces(self) -> list[str]:
+        """Return non-empty consumer namespaces without secret material."""
+        return self._store.list_namespaces()
 
     def delete_secret(self, namespace: str, secret_key: str, *, actor: str) -> None:
         """Delete one secret; record a ``secret_deleted`` audit event.

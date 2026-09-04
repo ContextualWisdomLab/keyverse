@@ -76,6 +76,22 @@ def test_list_secrets_returns_metadata_never_the_value(client):
     assert "another-secret-value" not in response.text
 
 
+def test_list_namespaces_supports_management_discovery_without_secret_values(client):
+    assert client.get("/keyvault").json() == []
+    client.put("/keyvault/noema/GITHUB_APP_KEY", json={"value": "private-value"})
+    client.put(
+        "/keyvault/contextual-orchestrator/OPENAI_API_KEY",
+        json={"value": "provider-value"},
+    )
+
+    response = client.get("/keyvault")
+
+    assert response.status_code == 200
+    assert response.json() == ["contextual-orchestrator", "noema"]
+    assert "private-value" not in response.text
+    assert "provider-value" not in response.text
+
+
 def test_secret_audit_trail_records_set_read_and_delete(client):
     client.put("/keyvault/ns/key1", json={"value": "v1"})
     client.app.state.keyvault_service.get_secret("ns", "key1", actor="workload")

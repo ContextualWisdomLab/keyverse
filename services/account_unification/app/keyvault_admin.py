@@ -55,6 +55,14 @@ def _actor(request: Request) -> str:
     return client.host if client else "unknown"
 
 
+@router.get("", response_model=list[str])
+def list_namespaces(
+    keyvault: KeyvaultService = Depends(get_keyvault),
+) -> list[str]:
+    """List non-empty consumer namespaces without exposing secret material."""
+    return keyvault.list_namespaces()
+
+
 @router.put("/{namespace}/{secret_key}", response_model=SecretMetadataOut)
 def put_secret(
     namespace: str,
