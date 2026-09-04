@@ -219,7 +219,7 @@ def _read_proposal(workspace: Path) -> tuple[str, str]:
     proposal_path = workspace / PROPOSAL_FILENAME
     default_title = "Keyverse autonomous product increment"
     default_body = (
-        "Autonomous NVIDIA NIM increment; see the bounded diff, tests, and "
+        "Autonomous product increment; see the bounded diff, tests, and "
         "CHANGELOG.md for evidence."
     )
     if not proposal_path.exists():
