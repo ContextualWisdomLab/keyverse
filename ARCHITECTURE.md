@@ -158,13 +158,27 @@ redirect/origin/logout policy, public/confidential client consistency, bounded
 token metadata, and an exact portable scope set.
 
 An optional closed `protocolMappers` profile carries exactly one self-pinned
-`oidc-audience-mapper` plus zero to three canonical hardcoded claims named
-`role`, `org`, and `workspace`. Mapper count, names, classes, destinations,
-claim values, and ordering are bounded; scripts, user attributes, groups, regex,
-arbitrary claims, unknown fields, and credential material are rejected.
-`deploy/templates/oidc-rp-naruon.json` is the reviewed public-client instance of
-that profile. Its routing claim values are deployment data and must not contain
-credentials or personal secrets.
+`oidc-audience-mapper` plus either zero to three canonical hardcoded claims or
+the ADR-0009 LineageWeave account-derived trio. The latter is limited to a
+same-client `oidc-usermodel-client-role-mapper` for multivalued `role` and two
+scalar `oidc-usermodel-attribute-mapper` entries from exact `org` and
+`workspace` account attributes. The three dynamic claims must appear together
+and cannot mix with hardcoded claims. Mapper count, names, classes,
+destinations, claim values, and ordering are bounded; scripts, other user
+attributes, groups, regex, arbitrary claims, unknown fields, and credential
+material are rejected. `deploy/templates/oidc-rp-naruon.json` is the reviewed
+public-client instance of the static profile; `deploy/templates/oidc-rp-lineageweave.json`
+is the confidential account-derived contract. The reserved `lineageweave-web`
+client cannot use the static hardcoded profile; the validator rejects that
+client-specific downgrade. Neither template contains a credential or proves a
+live account login.
+
+The post-import `org` and `workspace` account attributes remain scalar and
+administrator-managed but are optional during initial passwordless account
+creation because Keycloak validates administrator-only required fields on its
+Admin REST create path. An identity-only account cannot enter LineageWeave
+routing until an operator assigns both values and the receiving application
+accepts the resulting claims.
 
 Stateful reconciliation keys intent by validated `clientId`, classifies zero,
 one, or multiple exact Keycloak clients, and never mutates duplicates. Create or
@@ -172,12 +186,14 @@ update is re-observed before a canonical receipt is written. Delete is remote-
 first. For mapper comparison, Keyverse ignores only a valid generated mapper
 `id`, canonicalizes the known mapper order, revalidates the closed shape, and
 treats unknown, malformed, duplicate, or semantically changed mappers as drift.
+Keycloak's account-role mapper may omit an empty `rolePrefix` on read-back;
+reconciliation restores only that exact empty default for the exact `role`
+account-role mapper and continues to reject all other missing or changed fields.
 The accepted representation has no client-secret field; credential provisioning
 remains an independent secret-management responsibility.
 
 Native loopback/private-use redirects, different resource audiences, and claim
-expansion beyond `role`, `org`, and `workspace` remain separate reviewed
-profiles.
+expansion beyond the two closed profiles remain separate reviewed profiles.
 
 Each downstream RP is a separate trust boundary. The RP must validate the
 Keyverse issuer, signature/algorithm, expiry, subject, and audience, map the
@@ -221,6 +237,13 @@ explicitly documented deployment-controller responsibility.
 
 ## Automation boundaries
 
+- GitHub Actions source files and the Actions workflow registry are separate
+  control-plane state. The central `.github` lifecycle inventory binds a
+  paginated registry observation to the exact protected default-branch tree and
+  reports dynamic identities separately from repository-path identities. The
+  inventory is read-only; any registry disablement requires a separately
+  reviewed, immediately revalidated operator action and a post-action
+  reconciliation.
 - The hourly PR steward advances only trusted same-repository PRs with exact-head
   approvals and required Checks.
 - The hourly product-development workflow runs OpenCode through

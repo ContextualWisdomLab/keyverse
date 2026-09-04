@@ -45,6 +45,40 @@ def test_compose_persists_account_unification_state() -> None:
     assert "account_unification_data" in compose["volumes"]
 
 
+def test_keycloak_import_packages_realm_and_profile_contracts() -> None:
+    """Keep Compose and Helm compatible with Keycloak's separate profile API."""
+    root = _repository_root()
+    compose = yaml.safe_load((root / "docker-compose.yml").read_text(encoding="utf-8"))
+    engine = compose["services"]["idp_engine"]
+    assert engine["build"] == {"context": "./deploy/keycloak", "dockerfile": "Dockerfile"}
+    assert engine["image"] == "cwl-idp/keycloak:local"
+    dockerfile = (root / "deploy" / "keycloak" / "Dockerfile").read_text(encoding="utf-8")
+    assert "FROM quay.io/keycloak/keycloak:26.3.2@sha256:" in dockerfile
+    assert "COPY cwl-realm.json /opt/keycloak/data/import/cwl-realm.json" in dockerfile
+    assert "COPY lineageweave-user-profile.json" in dockerfile
+    assert "COPY --chmod=755 reconcile-lineageweave-user-profile.sh" in dockerfile
+    assert "\nUSER 1000\n" in dockerfile
+    bootstrap_script = (
+        root / "deploy" / "keycloak" / "reconcile-lineageweave-user-profile.sh"
+    ).read_text(encoding="utf-8")
+    assert "/opt/keycloak/bin/kcadm.sh" in bootstrap_script
+    profile = compose["services"]["idp_profile_bootstrap"]
+    assert profile["depends_on"]["idp_engine"]["condition"] == "service_healthy"
+    assert profile["entrypoint"] == ["/opt/keycloak/reconcile-lineageweave-user-profile.sh"]
+    service = compose["services"]["account_unification_service"]
+    assert (
+        service["depends_on"]["idp_profile_bootstrap"]["condition"]
+        == "service_completed_successfully"
+    )
+
+    keycloak = (
+        root / "helm" / "cwl-idp" / "templates" / "keycloak.yaml"
+    ).read_text(encoding="utf-8")
+    assert _helm_values()["keycloak"]["realmImport"]["fileName"] == "cwl-realm.json"
+    assert "key: {{ .Values.keycloak.realmImport.fileName }}" in keycloak
+    assert "path: cwl-realm.json" in keycloak
+
+
 def test_helm_can_fail_closed_on_missing_account_image_digest() -> None:
     """Production values can require an immutable account-service image."""
     image = _helm_values()["accountUnification"]["image"]

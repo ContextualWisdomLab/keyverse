@@ -127,6 +127,16 @@ def _set_unsupported_mapper_type(client: dict) -> None:
     )
 
 
+def _set_sequence_mapper_type(client: dict) -> None:
+    """Make a live mapper type unhashable and therefore invalid."""
+    _live_mappers_from_client(client)[0]["protocolMapper"] = []
+
+
+def _set_mapping_mapper_type(client: dict) -> None:
+    """Make a live mapper type an invalid object rather than a string."""
+    _live_mappers_from_client(client)[0]["protocolMapper"] = {}
+
+
 def _duplicate_mapper_identity(client: dict) -> None:
     """Make two live mappers claim the same canonical identity."""
     mappers = _live_mappers_from_client(client)
@@ -161,6 +171,8 @@ def _live_mappers_from_client(client: dict) -> list[dict]:
         _add_non_string_config_key,
         _add_non_string_config_value,
         _set_unsupported_mapper_type,
+        _set_sequence_mapper_type,
+        _set_mapping_mapper_type,
         _duplicate_mapper_identity,
         _set_policy_invalid_audience_name,
     ],

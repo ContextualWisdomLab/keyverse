@@ -81,12 +81,44 @@ _CLAIM_CONFIG_FIELDS = frozenset(
         "introspection.token.claim",
     }
 )
+_ACCOUNT_ROLE_CONFIG_FIELDS = frozenset(
+    {
+        "usermodel.clientRoleMapping.clientId",
+        "usermodel.clientRoleMapping.rolePrefix",
+        "multivalued",
+        "claim.name",
+        "jsonType.label",
+        "access.token.claim",
+        "id.token.claim",
+        "userinfo.token.claim",
+        "introspection.token.claim",
+    }
+)
+_ACCOUNT_ROLE_EMPTY_CONFIG_FIELDS = frozenset(
+    {"usermodel.clientRoleMapping.rolePrefix"}
+)
+_ACCOUNT_ATTRIBUTE_CONFIG_FIELDS = frozenset(
+    {
+        "user.attribute",
+        "claim.name",
+        "jsonType.label",
+        "multivalued",
+        "access.token.claim",
+        "id.token.claim",
+        "userinfo.token.claim",
+        "introspection.token.claim",
+    }
+)
 _REQUIRED_SCOPES = frozenset({"basic", "profile", "email"})
 _CLAIM_ORDER = ("role", "org", "workspace")
 _CLAIM_RANK = {claim_name: index + 1 for index, claim_name in enumerate(_CLAIM_ORDER)}
+_ACCOUNT_CLAIMS = frozenset(_CLAIM_ORDER)
+_ACCOUNT_ATTRIBUTE_CLAIMS = frozenset({"org", "workspace"})
 _AUDIENCE_MAPPER_NAME = "keyverse-audience"
 _AUDIENCE_MAPPER_TYPE = "oidc-audience-mapper"
 _CLAIM_MAPPER_TYPE = "oidc-hardcoded-claim-mapper"
+_ACCOUNT_ROLE_MAPPER_TYPE = "oidc-usermodel-client-role-mapper"
+_ACCOUNT_ATTRIBUTE_MAPPER_TYPE = "oidc-usermodel-attribute-mapper"
 
 
 class RelyingPartyProtocolMapper(BaseModel):
@@ -384,13 +416,16 @@ def _validate_scopes(scopes: list[str]) -> None:
 def _require_exact_config(
     mapper: RelyingPartyProtocolMapper,
     expected_fields: frozenset[str],
+    *,
+    allow_empty_fields: frozenset[str] = frozenset(),
 ) -> None:
     """Require one mapper configuration to have an exact closed key set."""
     fields = set(mapper.config)
     if fields != expected_fields:
         _client_error("protocolMappers.config", "must use the exact closed field set")
     for key, value in mapper.config.items():
-        _require_clean_text(value, f"protocolMappers.config.{key}", maximum=128)
+        if value or key not in allow_empty_fields:
+            _require_clean_text(value, f"protocolMappers.config.{key}", maximum=128)
 
 
 def _validate_audience_mapper(
@@ -465,6 +500,78 @@ def _validate_hardcoded_claim_mapper(
     return _CLAIM_RANK[claim_name], claim_name
 
 
+def _validate_account_role_mapper(
+    mapper: RelyingPartyProtocolMapper,
+    client_id: str,
+) -> tuple[int, str]:
+    """Validate the single account-derived client-role claim mapper."""
+    if mapper.name != "keyverse-account-role":
+        _client_error("protocolMappers.name", "must be keyverse-account-role")
+    _require_exact_config(
+        mapper,
+        _ACCOUNT_ROLE_CONFIG_FIELDS,
+        allow_empty_fields=_ACCOUNT_ROLE_EMPTY_CONFIG_FIELDS,
+    )
+    if mapper.config["usermodel.clientRoleMapping.clientId"] != client_id:
+        _client_error(
+            "protocolMappers.config.usermodel.clientRoleMapping.clientId",
+            "must exactly match clientId",
+        )
+    expected_values = {
+        "usermodel.clientRoleMapping.rolePrefix": "",
+        "multivalued": "true",
+        "claim.name": "role",
+        "jsonType.label": "String",
+        "access.token.claim": "true",
+        "id.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "true",
+    }
+    if any(mapper.config[key] != value for key, value in expected_values.items()):
+        _client_error(
+            "protocolMappers.config",
+            "must use the closed account-role claim destinations",
+        )
+    return _CLAIM_RANK["role"], "role"
+
+
+def _validate_account_attribute_mapper(
+    mapper: RelyingPartyProtocolMapper,
+) -> tuple[int, str]:
+    """Validate one scalar account-derived organization or workspace mapper."""
+    _require_exact_config(mapper, _ACCOUNT_ATTRIBUTE_CONFIG_FIELDS)
+    claim_name = mapper.config["claim.name"]
+    if claim_name not in _ACCOUNT_ATTRIBUTE_CLAIMS:
+        _client_error(
+            "protocolMappers.config.claim.name",
+            "must be org or workspace",
+        )
+    if mapper.name != f"keyverse-account-{claim_name}":
+        _client_error(
+            "protocolMappers.name",
+            "must be canonical for the claim name",
+        )
+    if mapper.config["user.attribute"] != claim_name:
+        _client_error(
+            "protocolMappers.config.user.attribute",
+            "must exactly match claim.name",
+        )
+    expected_values = {
+        "jsonType.label": "String",
+        "multivalued": "false",
+        "access.token.claim": "true",
+        "id.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "true",
+    }
+    if any(mapper.config[key] != value for key, value in expected_values.items()):
+        _client_error(
+            "protocolMappers.config",
+            "must use the closed account-attribute claim destinations",
+        )
+    return _CLAIM_RANK[claim_name], claim_name
+
+
 def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
     """Validate the optional closed audience and session-claim mapper profile."""
     mappers = registration.protocol_mappers
@@ -475,7 +582,8 @@ def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
 
     ranks: list[int] = []
     audience_count = 0
-    claim_names: set[str] = set()
+    hardcoded_claim_names: set[str] = set()
+    account_claim_names: set[str] = set()
     for mapper in mappers:
         _require_clean_text(
             mapper.name,
@@ -491,15 +599,50 @@ def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
             ranks.append(_validate_audience_mapper(mapper, registration.client_id))
         elif mapper.protocol_mapper == _CLAIM_MAPPER_TYPE:
             rank, claim_name = _validate_hardcoded_claim_mapper(mapper)
-            if claim_name in claim_names:
+            if claim_name in hardcoded_claim_names:
                 _client_error("protocolMappers", "must not duplicate claim names")
-            claim_names.add(claim_name)
+            hardcoded_claim_names.add(claim_name)
+            ranks.append(rank)
+        elif mapper.protocol_mapper == _ACCOUNT_ROLE_MAPPER_TYPE:
+            rank, claim_name = _validate_account_role_mapper(
+                mapper,
+                registration.client_id,
+            )
+            if claim_name in account_claim_names:
+                _client_error("protocolMappers", "must not duplicate claim names")
+            account_claim_names.add(claim_name)
+            ranks.append(rank)
+        elif mapper.protocol_mapper == _ACCOUNT_ATTRIBUTE_MAPPER_TYPE:
+            rank, claim_name = _validate_account_attribute_mapper(mapper)
+            if claim_name in account_claim_names:
+                _client_error("protocolMappers", "must not duplicate claim names")
+            account_claim_names.add(claim_name)
             ranks.append(rank)
         else:
             _client_error("protocolMappers.protocolMapper", "is not supported")
 
     if audience_count != 1:
         _client_error("protocolMappers", "must contain exactly one audience mapper")
+    if hardcoded_claim_names and account_claim_names:
+        _client_error(
+            "protocolMappers",
+            "must not mix hardcoded and account-derived claims",
+        )
+    if hardcoded_claim_names and registration.client_id == "lineageweave-web":
+        _client_error(
+            "protocolMappers",
+            "lineageweave-web must use account-derived claims",
+        )
+    if account_claim_names and registration.client_id != "lineageweave-web":
+        _client_error(
+            "protocolMappers",
+            "account-derived claims are only supported for lineageweave-web",
+        )
+    if account_claim_names and account_claim_names != _ACCOUNT_CLAIMS:
+        _client_error(
+            "protocolMappers",
+            "must contain role, org, and workspace account claims",
+        )
     if ranks != sorted(ranks) or len(set(ranks)) != len(ranks):
         _client_error("protocolMappers", "must use canonical mapper order")
 

@@ -86,6 +86,11 @@ RP registration SHALL validate exact HTTPS redirect/origin/logout and authorizat
 
 Optional claim expansion SHALL be closed and least-privilege. New audience/claim mapper profiles require explicit typed policy, no script/user-attribute/group/regex arbitrary mapper classes unless separately accepted, and downstream authorization acceptance tests before claiming application readiness.
 
+ADR-0009 is the separately accepted `lineageweave-web` exception: one
+self-pinned audience, roles from that client only, and scalar `org`/`workspace`
+account attributes. It remains deployment-restricted until real-account Keyverse
+apply and downstream tenant/resource ABAC plus role-lifecycle evidence exist.
+
 ### PRD-FR-007 Downstream authorization boundary
 
 Every RP SHALL maintain an explicit Keyverse integration profile and SHALL

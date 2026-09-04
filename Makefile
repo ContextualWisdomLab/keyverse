@@ -24,7 +24,7 @@ seed-bootstrap: ## Create a local sqlite KV bootstrap store for dev
 	python $(SERVICE_DIR)/tools/seed_config_store.py
 
 validate-realm: ## Validate the Keycloak realm config-as-code
-	python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+	python scripts/validate_realm.py deploy/keycloak/cwl-realm.json
 
 install: ## Install the admin service with dev extras
 	cd $(SERVICE_DIR) && python -m pip install -e '.[dev]'

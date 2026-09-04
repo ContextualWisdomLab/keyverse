@@ -24,6 +24,7 @@ REQUIRED_DOCUMENTS = (
     "AGENTS.md",
     "CLAUDE.md",
     "CHANGELOG.md",
+    "docs/product-technical-gap-baseline.md",
 )
 GOVERNING_ADRS = (
     "0001-keycloak-hub.md",
@@ -34,6 +35,7 @@ GOVERNING_ADRS = (
     "0006-user-operation-lock.md",
     "0007-automation-authority.md",
     "0008-keyverse-rp-authorization-boundary.md",
+    "0009-lineageweave-account-derived-rp-claims.md",
 )
 
 
@@ -147,3 +149,71 @@ def test_adr_index_contains_governing_identity_decisions() -> None:
         adr_path = ROOT / "docs" / "adr" / adr
         assert adr_path.is_file(), f"ADR file is missing: {adr}"
         assert f"]({adr})" in index, f"ADR index does not link {adr}"
+
+
+def test_lineageweave_tenant_contract_is_explicit() -> None:
+    """Keep the account-derived tenant mapping deterministic for consumers."""
+
+    adr = _read("docs/adr/0009-lineageweave-account-derived-rp-claims.md")
+    operations = _read("docs/operations/oidc-rp-reconciliation.md")
+    adr_contract = " ".join(adr.lower().split())
+    operations_contract = " ".join(operations.lower().split())
+    required_markers = (
+        "`org` is the opaque external tenant key",
+        "`workspace` is a child namespace under `org`",
+        "multiple memberships are not represented by comma-separated values",
+        "membership resolution is ambiguous",
+        "new token or session renewal",
+    )
+    for marker in required_markers:
+        assert marker in adr_contract, (
+            f"ADR-0009 is missing tenant contract marker: {marker}"
+        )
+        assert marker in operations_contract, (
+            "OIDC reconciliation operations are missing tenant contract marker: "
+            f"{marker}"
+        )
+
+
+def test_gap_baseline_documents_product_evidence_and_hourly_loop() -> None:
+    """Keep the buyer-facing gap baseline current and evidence-classified."""
+
+    baseline = _read("docs/product-technical-gap-baseline.md")
+    for heading in (
+        "## Product contract",
+        "## Evidence classification",
+        "## Current live queue snapshot",
+        "## Live PR inventory",
+        "## Open Issue inventory",
+        "## Gap register and buyer-visible order",
+        "## Hourly loop contract",
+    ):
+        assert heading in baseline, f"missing baseline heading: {heading}"
+    for classification in (
+        "implemented-main",
+        "active-PR",
+        "active-issue",
+        "accepted-contract",
+        "gap-not-claimed",
+    ):
+        assert f"`{classification}`" in baseline, (
+            f"baseline is missing evidence class {classification}"
+        )
+    lowered = baseline.lower()
+    assert "never promoted" in lowered
+    assert "queued" in lowered
+    assert "pending" in lowered
+    assert "skipped" in lowered
+    assert "review_required" in lowered
+    assert "source observation head" in lowered
+    assert "does not recursively rename" in lowered
+
+
+def test_traceability_links_gap_baseline_and_doctoring() -> None:
+    """Keep the gap baseline and its doctoring companion discoverable."""
+
+    traceability = _read("docs/TRACEABILITY.md")
+    assert "](product-technical-gap-baseline.md)" in traceability
+    assert "](doctoring/product-technical-gap-baseline.md)" in traceability
+    row = _row_with(traceability, "product and technical gap baseline")
+    assert "active-PR" in row

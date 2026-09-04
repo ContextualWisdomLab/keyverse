@@ -100,6 +100,12 @@ client secret. Confidential-client credential provisioning remains a separate
 secret-management responsibility and must not be added to this lifecycle by
 loosening the model.
 
+ADR-0009's `lineageweave-web` template follows the same boundary. Its dynamic
+claims are mapper configuration, not embedded user data or credential material:
+the role and two account attributes are resolved by Keycloak only after a real
+account authenticates. A receipt still does not prove that account provisioning,
+credential placement, or controlled login succeeded.
+
 ## Locking and failure semantics
 
 A state lock protects KV access only. A process-local keyed lock serializes

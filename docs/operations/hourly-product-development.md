@@ -120,6 +120,8 @@ and publication credentials are absent.
 The model receives a repository-specific contract requiring:
 
 - exactly one highest-impact buyer-visible product gap;
+- reading `docs/product-technical-gap-baseline.md` and the current exact-head
+  open PR/issue inventory before selecting a gap;
 - Superpowers design, test-driven development, systematic debugging, and
   verification-before-completion;
 - a real failing regression before production implementation;
@@ -182,7 +184,7 @@ uv run coverage run --branch --source=app -m pytest -q
 uv run coverage report --show-missing --fail-under=100
 uv build --out-dir dist
 cd ../..
-python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+python scripts/validate_realm.py deploy/keycloak/cwl-realm.json
 docker compose -f docker-compose.yml config
 python -m json.tool deploy/templates/<each-json-template>.json
 git diff --check
