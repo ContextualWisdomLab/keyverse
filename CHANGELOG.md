@@ -25,7 +25,7 @@ Keep a Changelog, and releases use semantic versioning.
 - Authenticated, side-effect-free LDAP and Active Directory component preflight
   with LDAPS-only transport, RFC 4514 distinguished-name validation, closed
   read-only policy, bounded timeouts, and bind-secret redaction.
-- An hourly fail-closed NVIDIA NIM OpenCode loop that isolates model credentials,
+- A centrally dispatched fail-closed OpenCode loop using the immutable contextual-orchestrator `orchestrator/free` sidecar, isolating provider credentials,
   requires a production-code/test/changelog vertical, independently verifies
   the sealed patch, and opens one draft PR through a dedicated publication
   token.

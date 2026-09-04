@@ -1,4 +1,4 @@
-"""Static contracts for the hourly NVIDIA NIM product-development workflow."""
+"""Static contracts for the centrally dispatched product-development workflow."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -75,11 +75,16 @@ def _permissions_block(source: str, marker: str, terminator: str) -> str:
     return source[block_start:block_end]
 
 
-def test_product_development_runs_hourly_without_cancelling_a_decision() -> None:
-    """The product loop is hourly, serialized, bounded, and non-cancelling."""
+def test_product_development_is_dispatched_by_the_central_cadence() -> None:
+    """Only the central organization loop decides when this workflow runs."""
     workflow = _workflow_source()
+    document = _workflow_document()
+    triggers = document.get(True)
 
-    assert 'cron: "41 * * * *"' in workflow
+    assert isinstance(triggers, dict)
+    assert set(triggers) == {"workflow_dispatch"}
+    assert "schedule:" not in workflow
+    assert "cron:" not in workflow
     assert "hourly-product-development-${{ github.repository }}" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "timeout-minutes: 180" in workflow
@@ -102,21 +107,30 @@ def test_product_development_keeps_default_repository_permissions_read_only() ->
     assert "permissions: write-all" not in workflow
 
 
-def test_product_development_uses_opencode_and_nvidia_nim_not_copilot() -> None:
-    """Scheduled implementation runs OpenCode against NVIDIA NIM only."""
+def test_product_development_uses_the_pinned_central_orchestrator_sidecar() -> None:
+    """OpenCode uses the immutable central sidecar and its free virtual model."""
     workflow = _workflow_source()
     develop_endpoints = _harden_runner_endpoints("develop-product-gap")
 
     assert "OPENCODE_VERSION" in workflow
     assert "OPENCODE_SHA256" in workflow
     assert "opencode run" in workflow
-    assert '"enabled_providers": ["nvidia-nim"]' in workflow
-    assert '"baseURL": "http://127.0.0.1:8765/v1"' in workflow
-    assert any(
-        endpoint == "integrate.api.nvidia.com:443"
-        for endpoint in develop_endpoints
-    )
-    assert "secrets.NVIDIA_NIM_API_KEY" in workflow
+    assert "dcd35b7653854edb2ea26a87bac2035f12d8d903" in workflow
+    assert "repository: ContextualWisdomLab/.github" in workflow
+    assert "contextual_orchestrator_review_sidecar.sh" in workflow
+    assert '"enabled_providers": ["contextual-orchestrator"]' in workflow
+    assert '"model": "contextual-orchestrator/orchestrator/free"' in workflow
+    assert '"small_model": "contextual-orchestrator/orchestrator/free"' in workflow
+    assert "MODEL: contextual-orchestrator/orchestrator/free" in workflow
+    assert "CONTEXTUAL_ORCHESTRATOR_BASE_URL" in workflow
+    assert "CONTEXTUAL_ORCHESTRATOR_TOKEN_FILE" in workflow
+    for endpoint in (
+        "api.bytez.com:443",
+        "api.openai.com:443",
+        "openrouter.ai:443",
+        "integrate.api.nvidia.com:443",
+    ):
+        assert endpoint in develop_endpoints
     assert "COPILOT_GITHUB_TOKEN" not in workflow
     assert "/agents/repos/" not in workflow
     assert "create_pull_request: true" not in workflow
@@ -135,16 +149,42 @@ def test_dependency_install_jobs_allow_exact_python_package_endpoints() -> None:
             assert any(endpoint == expected_endpoint for endpoint in endpoints)
 
 
-def test_nim_credential_is_brokered_outside_the_agent_environment() -> None:
-    """The model receives a placeholder while the real secret stays in the broker."""
+def test_provider_credentials_bootstrap_only_the_sidecar() -> None:
+    """Raw provider credentials never enter OpenCode's generated workspace or process."""
     workflow = _workflow_source()
+    provision = _step_by_name(
+        "develop-product-gap",
+        "Provision the pinned contextual-orchestrator sidecar",
+    )
+    agent = _step_by_name(
+        "develop-product-gap",
+        "Run OpenCode through contextual-orchestrator in a disposable workspace",
+    )
+    provision_env = provision.get("env")
+    agent_env = agent.get("env")
+    agent_run = agent.get("run")
 
-    assert "Start the loopback-only NIM credential broker" in workflow
-    assert "NIM_UPSTREAM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}" in workflow
-    assert workflow.count("${{ secrets.NVIDIA_NIM_API_KEY }}") == 1
-    assert "NVIDIA_API_KEY=keyverse-local-broker" in workflow
+    assert isinstance(provision_env, dict)
+    assert isinstance(agent_env, dict)
+    assert isinstance(agent_run, str)
+    assert set(provision_env) == {
+        "BYTEZ_API_KEY",
+        "NVIDIA_NIM_API_KEY",
+        "NVIDIA_NIM_API_KEY_SUB",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+    }
+    assert not any("secrets." in str(value) for value in agent_env.values())
     assert "env -i" in workflow
-    assert "NVIDIA_API_KEY=${{ secrets.NVIDIA_NIM_API_KEY }}" not in workflow
+    assert "load_contextual_orchestrator_token.sh" in agent_run
+    assert "CONTEXTUAL_ORCHESTRATOR_TOKEN_FILE=" in agent_run
+    assert "CONTEXTUAL_ORCHESTRATOR_TOKEN=" not in agent_run
+    assert 'source "$HOME/load_contextual_orchestrator_token.sh"' in agent_run
+    assert "NVIDIA_API_KEY=" not in agent_run
+    assert "GH_TOKEN=" not in agent_run
+    assert "GITHUB_TOKEN=" not in agent_run
+    assert "nim_proxy.py" not in workflow
+    assert "127.0.0.1:8765" not in workflow
 
 
 def test_product_development_does_not_reuse_review_agent_credentials() -> None:
@@ -160,20 +200,17 @@ def test_product_development_does_not_reuse_review_agent_credentials() -> None:
 def test_product_development_fails_closed_without_queue_ownership() -> None:
     """Unhealthy main or open work stops before entering the model-backed path."""
     workflow = _workflow_source()
-    broker = _step_by_name(
+    sidecar = _step_by_name(
         "develop-product-gap",
-        "Start the loopback-only NIM credential broker",
+        "Provision the pinned contextual-orchestrator sidecar",
     )
-    broker_env = broker.get("env")
-    broker_run = broker.get("run")
+    sidecar_env = sidecar.get("env")
+    sidecar_run = sidecar.get("run")
 
-    assert isinstance(broker_env, dict)
-    assert isinstance(broker_run, str)
-    assert broker.get("if") == "steps.gate.outputs.develop == 'true'"
-    assert broker_env.get("NIM_UPSTREAM_API_KEY") == (
-        "${{ secrets.NVIDIA_NIM_API_KEY }}"
-    )
-    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in broker_run
+    assert isinstance(sidecar_env, dict)
+    assert isinstance(sidecar_run, str)
+    assert sidecar.get("if") == "steps.gate.outputs.develop == 'true'"
+    assert "contextual_orchestrator_review_sidecar.sh" in sidecar_run
     assert "pulls?state=open&per_page=1" in workflow
     assert "An open pull request exists" in workflow
     assert "CORE_WORKFLOWS" in workflow
@@ -187,8 +224,8 @@ def test_product_development_fails_closed_without_queue_ownership() -> None:
 def test_agent_runs_in_a_disposable_credential_free_workspace() -> None:
     """The untrusted model cannot reach GitHub, task tools, or external paths."""
     workflow = _workflow_source()
-    agent_start = workflow.index("Run the NVIDIA NIM development agent")
-    agent_end = workflow.index("Stop the credential broker", agent_start)
+    agent_start = workflow.index("Run OpenCode through contextual-orchestrator")
+    agent_end = workflow.index("Stop contextual-orchestrator", agent_start)
     agent_block = workflow[agent_start:agent_end]
 
     assert "git archive HEAD | tar -x" in workflow
@@ -200,6 +237,14 @@ def test_agent_runs_in_a_disposable_credential_free_workspace() -> None:
     assert "GH_TOKEN=" not in agent_block
     assert "GITHUB_TOKEN=" not in agent_block
     assert "ACTIONS_ID_TOKEN_REQUEST_TOKEN" not in agent_block
+    for secret_name in (
+        "BYTEZ_API_KEY",
+        "NVIDIA_NIM_API_KEY",
+        "NVIDIA_NIM_API_KEY_SUB",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        assert secret_name not in agent_block
 
 
 def test_product_development_uses_generate_reverify_publish_separation() -> None:
@@ -265,7 +310,7 @@ def test_product_workflow_opens_one_draft_pr_without_merge_authority() -> None:
 
     assert workflow.count("gh pr create") == 1
     assert "--draft" in workflow
-    assert "nim-agent/product-dev-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" in workflow
+    assert "opencode-agent/product-dev-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" in workflow
     assert "secrets.OPENCODE_PRODUCT_DEVELOPMENT_TOKEN" in workflow
     assert "gh pr merge" not in workflow
     assert "--admin" not in workflow

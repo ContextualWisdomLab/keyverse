@@ -83,7 +83,7 @@ Readiness is component/lifecycle specific. Preflight success does not imply Keyc
 
 ## 12. Automation boundary
 
-Autonomous development uses NVIDIA NIM/OpenCode through an isolated model phase. Model execution has no publication/reviewer/release authority. PR #74 is integrated in protected main; its operational boundary must still be proven by a protected-main scheduled or manual run.
+Autonomous development uses OpenCode through the central contextual-orchestrator `orchestrator/free` sidecar in an isolated model phase. Model execution has no publication/reviewer/release authority. PR #74 is integrated in protected main; its operational boundary must still be proven by a protected-main centrally dispatched or manual run.
 
 ## 13. Change control
 

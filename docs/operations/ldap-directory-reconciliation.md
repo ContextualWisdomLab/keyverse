@@ -97,8 +97,8 @@ mutations remain serialized by the convergence lock.
   redacted values.
 - Never enable cleartext LDAP, writable/unsynced mode, Kerberos, or trusted email
   as an incident workaround.
-- Existing review-agent tokens and the hourly NVIDIA NIM OpenCode development
-  credential are unrelated to runtime directory operations.
+- Existing review-agent tokens and centrally dispatched OpenCode development
+  credentials are unrelated to runtime directory operations.
 
 ## Escalation evidence
 
