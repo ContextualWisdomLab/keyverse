@@ -66,6 +66,27 @@ must test the **Naruon** product login/token/authorization journey using the
 `naruon-web` RP client ID and verify the expected audience and bounded claims.
 Mapper unit tests alone do not prove Naruon product authorization readiness.
 
+## naruon password-signup 503 (expected, not an incident)
+
+`POST /registration/accounts/password` (ADR-0015) currently returns `503` on
+every call, unconditionally, before any Keycloak work happens. This is
+deliberate, not a live-dependency failure: `naruon-web`'s Direct Access
+Grants was disabled (ADR-0014's Correction, RFC 9700 §2.4 / RFC 10017 §7.3),
+and a password-only account created without it has no way to authenticate --
+the bound `browser-passwordless` flow accepts only passkeys. The endpoint is
+gated behind `services/account_unification/app/password_registration.py`'s
+module constant `PASSWORD_CREDENTIAL_LOGIN_AVAILABLE = False`.
+
+On-call triage: if this 503 is the *only* symptom (health checks, other RP
+clients, and the passwordless registration/login endpoints are otherwise
+green), no incident response is needed -- confirm the constant is still
+`False` in the deployed image and close as expected behavior. Re-enabling
+requires a standards-compliant replacement login mechanism (Authorization
+Code + PKCE or passkey/WebAuthn-capable headless contract), tracked against
+ADR-0014; flipping the constant back to `True` without that replacement
+reintroduces the original RFC violation. Full evidence trail:
+`docs/doctoring/2026-09-03-naruon-password-ropc-standards-correction.md`.
+
 ## Account merge recovery
 
 The active PR implementation makes merge, SCIM full replacement (`PUT`),

@@ -1,10 +1,19 @@
-"""Static deployment contract tests for Compose and Helm packaging."""
+"""Static and executable deployment contract tests for Compose and Helm packaging."""
 from __future__ import annotations
 
+import sys
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
+
+from app.config import (
+    KEY_PASSWORD_REGISTRATION_API_TOKEN,
+    KEY_REGISTRATION_API_TOKEN,
+)
+from app.kv_store import SqliteKvStore
+from tools import seed_config_store
 
 
 def _repository_root() -> Path:
@@ -102,3 +111,63 @@ def test_local_seed_keeps_registration_disabled_by_default() -> None:
     assert '"--registration-token"' in seed_tool
     assert 'default=""' in seed_tool
     assert "if not args.registration_token" in seed_tool
+
+
+@pytest.mark.parametrize(
+    ("token_option", "entry_key"),
+    [
+        ("--registration-token", KEY_REGISTRATION_API_TOKEN),
+        ("--password-registration-token", KEY_PASSWORD_REGISTRATION_API_TOKEN),
+    ],
+    ids=["passwordless-registration", "password-registration"],
+)
+def test_local_reseed_revokes_omitted_signup_token(
+    tmp_path: Path,
+    monkeypatch,
+    token_option: str,
+    entry_key: str,
+) -> None:
+    """Omitting a signup token on a later seed revokes stale endpoint authority."""
+    database_path = tmp_path / f"{entry_key}.db"
+    namespace = "account_unification"
+    stale_token = f"old-{entry_key}-token"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "seed_config_store.py",
+            "--db",
+            str(database_path),
+            "--namespace",
+            namespace,
+            token_option,
+            stale_token,
+        ],
+    )
+    assert seed_config_store.main() == 0
+
+    store = SqliteKvStore(str(database_path))
+    try:
+        assert store.get(namespace, entry_key) == stale_token
+    finally:
+        store.close()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "seed_config_store.py",
+            "--db",
+            str(database_path),
+            "--namespace",
+            namespace,
+        ],
+    )
+    assert seed_config_store.main() == 0
+
+    store = SqliteKvStore(str(database_path))
+    try:
+        assert store.get(namespace, entry_key) is None
+    finally:
+        store.close()

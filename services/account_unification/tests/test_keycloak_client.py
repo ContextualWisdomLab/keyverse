@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.identifiers import InvalidIdentifierError
-from app.keycloak_client import AdminApi, HttpAdminApi
+from app.keycloak_client import AdminApi, HttpAdminApi, _to_keycloak_user
 from app.models import (
     FederatedIdentity,
     GroupMembership,
@@ -137,7 +137,7 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
         return httpx.Response(204)
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "account-unification-svc",
         "secret",
@@ -257,6 +257,20 @@ def test_product_http_admin_api_maps_keycloak_calls() -> None:
     ]
 
 
+def test_product_adapter_rejects_password_reset_admin_path() -> None:
+    """A dormant signup implementation cannot widen the shared runtime client."""
+    api = ProductHttpAdminApi(
+        "https://keycloak.test",
+        "cwl",
+        "account-unification-svc",
+        "secret",
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={})),
+    )
+    with pytest.raises(InvalidIdentifierError, match="allowed Keycloak Admin REST route"):
+        api._guard_path("/admin/realms/cwl/users/u1/reset-password")
+    api.close()
+
+
 def test_product_adapter_reauthenticates_get_once() -> None:
     """An expired token is refreshed once before a GET succeeds."""
     token_requests = 0
@@ -279,7 +293,7 @@ def test_product_adapter_reauthenticates_get_once() -> None:
         )
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -312,7 +326,7 @@ def test_product_adapter_reauthenticates_create_once() -> None:
         )
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -350,7 +364,7 @@ def test_product_adapter_rejects_unsafe_paths(unsafe_user_id: str) -> None:
         raise AssertionError("unsafe path must not reach the transport")
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -383,7 +397,7 @@ def test_action_email_rejects_unsafe_configuration(
         raise AssertionError("invalid enrollment input reached transport")
 
     api = ProductHttpAdminApi(
-        "http://keycloak.test",
+        "https://keycloak.test",
         "cwl",
         "svc",
         "secret",
@@ -399,3 +413,32 @@ def test_action_email_rejects_unsafe_configuration(
             redirect_uri=redirect_uri,
             lifespan_seconds=lifespan_seconds,
         )
+
+
+def test_to_keycloak_user_omits_required_actions_by_default() -> None:
+    """``required_actions=None`` leaves Keycloak's realm default untouched."""
+    payload = _to_keycloak_user(UserAccount(user_id="", user_name="jane"))
+
+    assert "requiredActions" not in payload
+
+
+def test_to_keycloak_user_sends_empty_required_actions_list() -> None:
+    """An explicit empty list overrides the realm default with no action."""
+    payload = _to_keycloak_user(
+        UserAccount(user_id="", user_name="jane", required_actions=[])
+    )
+
+    assert payload["requiredActions"] == []
+
+
+def test_to_keycloak_user_sends_explicit_required_actions() -> None:
+    """A non-empty override list is forwarded to Keycloak verbatim."""
+    payload = _to_keycloak_user(
+        UserAccount(
+            user_id="",
+            user_name="jane",
+            required_actions=["UPDATE_PASSWORD"],
+        )
+    )
+
+    assert payload["requiredActions"] == ["UPDATE_PASSWORD"]

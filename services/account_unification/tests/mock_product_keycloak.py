@@ -16,6 +16,9 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
         self._directory_component_sequence = 0
         self._relying_party_sequence = 0
         self.action_emails: dict[str, dict] = {}
+        # Test-only credential store, mirroring the shape of a real
+        # Keycloak reset — never printed or otherwise surfaced by any test.
+        self.password_credentials: dict[str, str] = {}
 
     @staticmethod
     def _clone_component(component: dict) -> dict:
@@ -62,6 +65,13 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
             "lifespan_seconds": lifespan_seconds,
         }
 
+    def reset_password(self, user_id: str, password: str) -> None:
+        """Record one non-temporary password credential set."""
+        self.calls.append(f"reset_password:{user_id}")
+        if user_id not in self.users:
+            raise KeyError(user_id)
+        self.password_credentials[user_id] = password
+
     def delete_user(self, user_id: str) -> None:
         """Delete a newly created account during rollback."""
         self.calls.append(f"delete_user:{user_id}")
@@ -70,6 +80,7 @@ class MockProductKeycloakAdminApi(MockKeycloakAdminApi):
         self.roles.pop(user_id, None)
         self.groups.pop(user_id, None)
         self.action_emails.pop(user_id, None)
+        self.password_credentials.pop(user_id, None)
         self.deactivated.discard(user_id)
         for attribute in [
             key for key in self.attributes if key[0] == user_id

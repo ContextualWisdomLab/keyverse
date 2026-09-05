@@ -42,6 +42,30 @@ def test_validate_path_segment_accepts_uuid_and_slug():
     assert validate_path_segment("employer-adfs") == "employer-adfs"
 
 
+@pytest.mark.parametrize(
+    "server_url",
+    [
+        "http://keycloak.test",
+        "https://",
+        "https://admin:secret@keycloak.test",
+        "https://keycloak.test/#fragment",
+    ],
+    ids=["cleartext", "missing-host", "userinfo", "fragment"],
+)
+def test_product_admin_client_rejects_unsafe_server_url(server_url: str):
+    """Product credentials are bound only to an absolute credential-free TLS origin."""
+    with pytest.raises(ValueError, match="server_url must be an absolute HTTPS URI"):
+        ProductHttpAdminApi(
+            server_url=server_url,
+            realm="cwl",
+            client_id="account-unification-svc",
+            client_secret="secret",
+            transport=httpx.MockTransport(
+                lambda request: pytest.fail(f"unexpected request: {request.url}")
+            ),
+        )
+
+
 def test_product_admin_client_rejects_route_confusion_before_request():
     """An extra path segment cannot change the intended Admin REST operation."""
     seen: list[str] = []
@@ -53,7 +77,7 @@ def test_product_admin_client_rejects_route_confusion_before_request():
         return httpx.Response(200, json={"id": "x"})
 
     api = ProductHttpAdminApi(
-        server_url="http://keycloak.test",
+        server_url="https://keycloak.test",
         realm="cwl",
         client_id="account-unification-svc",
         client_secret="secret",
@@ -78,7 +102,7 @@ def test_product_admin_client_allows_safe_id():
         )
 
     api = ProductHttpAdminApi(
-        server_url="http://keycloak.test",
+        server_url="https://keycloak.test",
         realm="cwl",
         client_id="account-unification-svc",
         client_secret="secret",

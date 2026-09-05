@@ -417,4 +417,6 @@ def _to_keycloak_user(user: UserAccount) -> dict:
         payload["lastName"] = user.last_name
     if user.external_id is not None:
         payload["attributes"] = {"scim_external_id": [user.external_id]}
+    if user.required_actions is not None:
+        payload["requiredActions"] = user.required_actions
     return payload

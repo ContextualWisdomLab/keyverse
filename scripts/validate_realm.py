@@ -11,7 +11,9 @@ broken realm export is caught in CI before it ever reaches Keycloak:
 * RP and service-account clients exist without committed real secrets;
 * Keycloak 26 import compatibility excludes ``$`` annotation keys;
 * the ``basic`` scope provides ``sub`` and is a realm default;
-* ``naruon-web`` is a bounded-token public PKCE client with required claims.
+* ``naruon-web`` is a bounded-token public PKCE client with required claims;
+* ``naruon-web`` does not enable Direct Access Grants (blocked pending a
+  standards-compliant replacement -- docs/adr/0014-naruon-owned-password-form.md).
 
 Usage: python scripts/validate_realm.py [path-to-realm.json]
 Exit 0 = valid, 1 = invalid (prints the failing checks).
@@ -186,6 +188,13 @@ def validate(realm: dict) -> list[str]:
             errors.append("naruon-web must be a public (PKCE) client")
         if naruon.get("implicitFlowEnabled", False):
             errors.append("naruon-web must not enable the implicit flow")
+        if naruon.get("directAccessGrantsEnabled", False):
+            errors.append(
+                "naruon-web must not enable Direct Access Grants -- blocked by "
+                "docs/adr/0014-naruon-owned-password-form.md's Correction "
+                "(RFC 9700 SS2.4 / RFC 10017 SS7.3) pending a standards-compliant "
+                "replacement"
+            )
         if naruon.get("attributes", {}).get("pkce.code.challenge.method") != "S256":
             errors.append("naruon-web must require PKCE S256")
         token_lifespan = _public_token_lifespan(naruon)

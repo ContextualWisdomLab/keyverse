@@ -3,6 +3,7 @@
   "displayName": "ContextualWisdom IdP",
   "enabled": true,
   "sslRequired": "external",
+  "passwordPolicy": "length(12) and notUsername and notEmail",
   "registrationAllowed": false,
   "registrationEmailAsUsername": true,
   "resetPasswordAllowed": false,
