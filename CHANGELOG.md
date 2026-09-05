@@ -25,10 +25,11 @@ Keep a Changelog, and releases use semantic versioning.
 - Authenticated, side-effect-free LDAP and Active Directory component preflight
   with LDAPS-only transport, RFC 4514 distinguished-name validation, closed
   read-only policy, bounded timeouts, and bind-secret redaction.
-- An hourly fail-closed NVIDIA NIM OpenCode loop that isolates model credentials,
-  requires a production-code/test/changelog vertical, independently verifies
-  the sealed patch, and opens one draft PR through a dedicated publication
-  token.
+- An hourly fail-closed OpenCode loop, routed through the org's vendored,
+  pinned-SHA `contextual-orchestrator` gateway and its fail-closed zero-cost
+  `orchestrator/free` pool, that isolates model credentials, requires a
+  production-code/test/changelog vertical, independently verifies the sealed
+  patch, and opens one draft PR through a dedicated publication token.
 - Fail-closed OIDC and Keycloak-OIDC federation preflight with pinned HTTPS
   endpoints, JWKS signature validation, PKCE `S256`, confidential-client
   authentication, and RFC 6749 scope validation before desired-state writes.

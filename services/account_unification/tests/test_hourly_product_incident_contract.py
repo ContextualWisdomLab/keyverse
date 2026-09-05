@@ -8,12 +8,16 @@ import yaml
 
 EXPECTED_ENDPOINTS = {
     "develop-product-gap": (
+        "api.bytez.com:443",
         "api.github.com:443",
+        "api.openai.com:443",
         "cafe.github.com:443",
         "codeload.github.com:443",
         "github.com:443",
         "integrate.api.nvidia.com:443",
+        "models.dev:443",
         "objects.githubusercontent.com:443",
+        "openrouter.ai:443",
         "raw.githubusercontent.com:443",
         "registry.npmjs.org:443",
         "release-assets.githubusercontent.com:443",
@@ -160,9 +164,15 @@ def test_deterministic_repository_gates_precede_optional_model_credential() -> N
     )
     positions = tuple(gate_run.index(marker) for marker in ordered_markers)
     assert positions == tuple(sorted(positions))
-    assert "NIM_UPSTREAM_API_KEY" not in gate_env
-    assert "NIM_UPSTREAM_API_KEY" not in gate_run
-    assert "NVIDIA_NIM_API_KEY" not in gate_run
+    for credential_name in (
+        "BYTEZ_API_KEY",
+        "NVIDIA_NIM_API_KEY",
+        "NVIDIA_NIM_API_KEY_SUB",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        assert credential_name not in gate_env
+        assert credential_name not in gate_run
 
 
 def test_github_inventory_transport_failures_are_not_false_green() -> None:
@@ -230,77 +240,108 @@ def test_default_branch_check_evidence_requires_success() -> None:
     assert '"skipped"' not in accepted_block
 
 
-def test_model_fallback_budget_fits_outer_job_timeout() -> None:
-    """All sequential model candidates plus setup reserve fit the job deadline."""
+def test_single_gateway_attempt_budget_fits_outer_job_timeout() -> None:
+    """The one orchestrator/free attempt plus setup reserve fits the job deadline.
+
+    Unlike the retired per-model retry loop, `orchestrator/free` is a single
+    virtual pool id: the gateway's own routing picks a live candidate from
+    whichever provider secrets are registered, so only one `opencode run`
+    attempt budget needs to fit, not N sequential model attempts.
+    """
     document = _workflow_document()
     env = document.get("env")
     assert isinstance(env, dict)
-    candidates = str(env.get("OPENCODE_MODEL_CANDIDATES", "")).split()
-    per_model_seconds = int(str(env.get("OPENCODE_RUN_TIMEOUT_SECONDS", "0")))
+    assert env.get("OPENCODE_MODEL") == "contextual_orchestrator_gateway/orchestrator/free"
+    run_seconds = int(str(env.get("OPENCODE_RUN_TIMEOUT_SECONDS", "0")))
     timeout_minutes = int(str(_job("develop-product-gap").get("timeout-minutes", 0)))
+    agent_run = _step_by_id("develop-product-gap", "agent").get("run")
+    assert isinstance(agent_run, str)
 
-    assert candidates
+    assert run_seconds > 0
+    assert agent_run.count("opencode run") == 1
+    assert 'timeout --kill-after=30s "${OPENCODE_RUN_TIMEOUT_SECONDS}s"' in agent_run
     setup_and_packaging_reserve_seconds = 15 * 60
     assert timeout_minutes * 60 >= (
-        len(candidates) * per_model_seconds + setup_and_packaging_reserve_seconds
+        run_seconds + setup_and_packaging_reserve_seconds
     )
 
 
-def test_nvidia_secret_is_materialized_only_by_broker() -> None:
-    """The raw NVIDIA secret exists only in the conditional loopback broker step."""
-    secret_expression = "${{ secrets.NVIDIA_NIM_API_KEY }}"
-    materializing_steps: list[str] = []
-    for step in _steps("develop-product-gap"):
-        env = step.get("env")
-        if not isinstance(env, dict) or secret_expression not in env.values():
-            continue
-        name = step.get("name")
-        assert isinstance(name, str)
-        materializing_steps.append(name)
+def test_provider_secrets_are_materialized_only_by_the_gateway_step() -> None:
+    """Each raw provider secret exists only in the conditional gateway step."""
+    gateway_step_name = "Vendor and start the contextual-orchestrator gateway"
+    for credential_name in (
+        "BYTEZ_API_KEY",
+        "NVIDIA_NIM_API_KEY",
+        "NVIDIA_NIM_API_KEY_SUB",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        secret_expression = f"${{{{ secrets.{credential_name} }}}}"
+        materializing_steps: list[str] = []
+        for step in _steps("develop-product-gap"):
+            env = step.get("env")
+            if not isinstance(env, dict) or secret_expression not in env.values():
+                continue
+            name = step.get("name")
+            assert isinstance(name, str)
+            materializing_steps.append(name)
+        assert materializing_steps == [gateway_step_name]
 
-    assert materializing_steps == ["Start the loopback-only NIM credential broker"]
 
-
-def test_nvidia_secret_fingerprint_crosses_the_broker_boundary() -> None:
-    """Packaging receives only broker-derived fingerprints for leak scanning."""
-    broker = _step_by_name(
+def test_provider_secret_fingerprints_cross_the_gateway_boundary() -> None:
+    """Packaging receives only gateway-derived fingerprints for leak scanning."""
+    gateway = _step_by_name(
         "develop-product-gap",
-        "Start the loopback-only NIM credential broker",
+        "Vendor and start the contextual-orchestrator gateway",
     )
     package = _step_by_name(
         "develop-product-gap",
         "Capture the bounded credential-free patch",
     )
-    broker_run = broker.get("run")
+    gateway_run = gateway.get("run")
     package_env = package.get("env")
-    assert isinstance(broker_run, str)
+    assert isinstance(gateway_run, str)
     assert isinstance(package_env, dict)
-    assert broker.get("id") == "nim_broker"
-    assert "sha256" in broker_run
-    assert "GITHUB_OUTPUT" in broker_run
-    assert broker_run.index("unset NIM_UPSTREAM_API_KEY") > broker_run.index(
-        "python scripts/ci/nim_proxy.py"
+    assert gateway.get("id") == "orchestrator_gateway"
+    assert "sha256" in gateway_run
+    assert "GITHUB_OUTPUT" in gateway_run
+    assert gateway_run.index("unset gateway_token") > gateway_run.index(
+        "scripts.ci.serve_seeded_gateway"
     )
     assert package_env.get("KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT") == (
-        "${{ steps.nim_broker.outputs.secret_fingerprint }}"
+        "${{ steps.orchestrator_gateway.outputs.secret_fingerprint }}"
     )
-    assert "KEYVERSE_FORBIDDEN_SECRET: ${{ secrets.NVIDIA_NIM_API_KEY }}" not in (
-        _workflow_source()
-    )
+    for credential_name in (
+        "BYTEZ_API_KEY",
+        "NVIDIA_NIM_API_KEY",
+        "NVIDIA_NIM_API_KEY_SUB",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        assert f"KEYVERSE_FORBIDDEN_SECRET: ${{{{ secrets.{credential_name} }}}}" not in (
+            _workflow_source()
+        )
 
 
-def test_nvidia_secret_is_required_only_on_the_model_backed_path() -> None:
-    """The NVIDIA secret is checked only after deterministic gates select development."""
-    broker = _step_by_name(
+def test_provider_secrets_are_required_only_on_the_model_backed_path() -> None:
+    """Provider secrets are checked only after deterministic gates select development."""
+    gateway = _step_by_name(
         "develop-product-gap",
-        "Start the loopback-only NIM credential broker",
+        "Vendor and start the contextual-orchestrator gateway",
     )
-    broker_env = broker.get("env")
-    broker_run = broker.get("run")
-    assert isinstance(broker_env, dict)
-    assert isinstance(broker_run, str)
+    gateway_env = gateway.get("env")
+    gateway_run = gateway.get("run")
+    assert isinstance(gateway_env, dict)
+    assert isinstance(gateway_run, str)
 
-    assert broker_env.get("NIM_UPSTREAM_API_KEY") == "${{ secrets.NVIDIA_NIM_API_KEY }}"
-    assert 'if [ -z "${NIM_UPSTREAM_API_KEY:-}" ]; then' in broker_run
-    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in broker_run
-    assert "exit 1" in broker_run
+    for credential_name in (
+        "BYTEZ_API_KEY",
+        "NVIDIA_NIM_API_KEY",
+        "NVIDIA_NIM_API_KEY_SUB",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        assert gateway_env.get(credential_name) == f"${{{{ secrets.{credential_name} }}}}"
+    assert 'if [ "$provider_secret_count" -lt 1 ]; then' in gateway_run
+    assert "is required only for model-backed development" in gateway_run
+    assert "exit 1" in gateway_run

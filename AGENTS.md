@@ -73,8 +73,10 @@ ablation evidence. Never use `COPILOT_GITHUB_TOKEN`.
 
 ## Automation trust boundary
 
-- The hourly development scheduler uses OpenCode through
-  `NVIDIA_NIM_API_KEY`; it does not use Copilot Agent Tasks.
+- The hourly development scheduler uses OpenCode through a vendored,
+  pinned-SHA `contextual-orchestrator` gateway pointed at the fail-closed
+  `orchestrator/free` pool (not a direct provider call); it does not use
+  Copilot Agent Tasks.
 - Existing review agents keep their current credential system. Do not repurpose,
   rename, or broaden those credentials while changing product-development
   automation.

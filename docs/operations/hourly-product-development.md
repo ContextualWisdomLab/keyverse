@@ -1,13 +1,16 @@
 # Hourly product-development loop
 
 Keyverse separates protected pull-request maintenance from autonomous product
-development. The schedules are offset so the merge loop has time to settle the
-repository before a new product slice is considered.
+development. Protected PR maintenance (updating trusted PR branches, requiring
+approval and required Checks, then arming exact-head auto-merge) is owned by
+the organization's central `pr-review-merge-scheduler.yml`, which dispatches
+in real time on every PR event rather than on an hourly schedule — Keyverse's
+own former hourly steward workflow provided no security boundary beyond that
+already-required central scheduler and was removed (#140).
 
 | Minute (UTC) | Workflow | Responsibility |
 | --- | --- | --- |
-| `17 * * * *` | `hourly-pr-steward.yml` | Update trusted PR branches, require approval and required Checks, then arm exact-head auto-merge. |
-| `41 * * * *` | `hourly-product-development.yml` | When the PR queue is empty and exact `main` is healthy, use OpenCode with NVIDIA NIM to produce one bounded buyer-visible draft PR. |
+| `41 * * * *` | `hourly-product-development.yml` | When the PR queue is empty and exact `main` is healthy, use OpenCode through the vendored contextual-orchestrator gateway (`orchestrator/free`) to produce one bounded buyer-visible draft PR. |
 
 The development scheduler never approves or merges its own work and never
 publishes a release. The existing review-agent workflows and their credentials
@@ -20,8 +23,11 @@ The workflow uses three jobs with different trust levels.
 
 1. **Discover and package.** A model runs as an unprivileged Unix user inside a
    disposable, credential-free archive of `main`. It may edit only the bounded
-   product paths. A local broker injects the real NVIDIA credential into a fixed
-   upstream host; OpenCode receives only a non-secret placeholder key.
+   product paths. A vendored, pinned-SHA `contextual-orchestrator` gateway holds
+   the org's five provider credentials in its own process-local KV and serves
+   the fail-closed zero-cost `orchestrator/free` pool over loopback; OpenCode
+   receives only an ephemeral, job-scoped local bearer token, never a real
+   upstream provider key.
 2. **Independently reverify.** A fresh checkout validates the textual patch,
    applies it to the exact base SHA, and runs the complete Keyverse quality,
    coverage, package, realm, Compose, and template gates without a model.
@@ -31,38 +37,50 @@ The workflow uses three jobs with different trust levels.
 
 Only a sanitized text patch and bounded PR metadata cross job boundaries. The
 model workspace has no `.git` directory, GitHub token, Actions OIDC token,
-publication token, or upstream NVIDIA key.
+publication token, or upstream model-provider key.
 
 ## Credentials
 
-### `NVIDIA_NIM_API_KEY`
+### The five org provider secrets
 
-This repository secret is available only to the local credential broker. The
-broker derives one-way fingerprints for the raw and common encoded forms,
-publishes only those fingerprints to the later patch scanner, and then removes
-the raw value from its process environment. It is not placed in the OpenCode
-process environment. The model process receives
-`NVIDIA_API_KEY=keyverse-local-broker` and sends requests to
-`http://127.0.0.1:8765/v1`.
+`BYTEZ_API_KEY`, `NVIDIA_NIM_API_KEY`, `NVIDIA_NIM_API_KEY_SUB`,
+`OPENROUTER_API_KEY`, and `OPENAI_API_KEY` are available only to the vendored
+gateway process, matching the same vendoring pattern already landed in
+`ContextualWisdomLab/.github`'s central review workflows and
+`ContextualWisdomLab/contextual-orchestrator`'s own hourly maintenance loop. At
+least one of the five is required; a missing individual secret is not an
+error, and the gateway's own auto-discovery simply skips that provider. The
+workflow derives one-way fingerprints for the raw and common encoded forms of
+whichever secrets are present, publishes only those fingerprints to the later
+patch scanner, and never places any of the five in the OpenCode process
+environment. The model process receives only a fresh, job-scoped
+`CONTEXTUAL_ORCHESTRATOR_TOKEN` bearer and sends requests to
+`http://127.0.0.1:8765/v1`; that bearer authenticates only to this one local
+gateway instance for the lifetime of the job and cannot reach any upstream
+provider directly.
 
-The broker:
+The gateway step:
 
-- binds only to IPv4 loopback;
-- forwards only bounded GET and POST requests under `/v1`;
-- rejects absolute URLs, traversal, nested encoding, encoded separators, and
-  controls;
-- uses a fixed upstream host, `integrate.api.nvidia.com`;
-- creates a verified TLS client with TLS 1.2 or newer;
-- strips caller-controlled authorization and injects the real key itself;
-- suppresses request logging so prompts and responses do not enter Actions
-  logs;
-- limits request size, response size, and concurrent upstream requests.
+- clones `contextual-orchestrator` at a pinned commit SHA (the same one
+  `ContextualWisdomLab/.github`'s central review sidecar already vendors and
+  trusts) and verifies the checked-out `HEAD` against that pin before
+  installing anything;
+- installs its dependencies with `pip install --require-hashes --no-deps`;
+- registers each present provider secret into the gateway's process-local KV
+  as bootstrap transport only, never read back from the environment again;
+- serves the OpenAI-compatible gateway on IPv4 loopback, auto-discovering
+  live model candidates for the `orchestrator/free` fail-closed zero-cost
+  pool;
+- requires a fresh, per-run bearer token to authenticate any caller, written
+  to a `chmod 600` file and never exported through `$GITHUB_ENV` directly
+  (only its file path is), so the raw token cannot land in the workflow's
+  rendered environment before it is masked.
 
-The patch guard rejects the raw key and common Base64, URL-safe Base64, and hex
-representations from changed files, the generated patch, and PR metadata when
-the trusted broker can hold the raw key. The post-model scanner receives only
-the broker-derived `length:sha256` fingerprints and hashes candidate
-non-whitespace tokens; it never receives the raw key.
+The patch guard rejects the raw value and common Base64, URL-safe Base64, and
+hex representations of every present provider secret from changed files, the
+generated patch, and PR metadata. The post-model scanner receives only the
+gateway-derived `length:sha256` fingerprints for each present secret and
+hashes candidate non-whitespace tokens; it never receives any raw key.
 
 ### `OPENCODE_PRODUCT_DEVELOPMENT_TOKEN`
 
@@ -86,7 +104,7 @@ embedded in a remote URL or written to the repository.
 
 A run proceeds only when all of these statements are true.
 
-- `NVIDIA_NIM_API_KEY` is configured.
+- At least one of the five org provider secrets is configured.
 - No open pull request exists, including drafts and dependency updates.
 - The current `main` SHA can be resolved unambiguously.
 - The exact `main` SHA has completed successful `ci` and `CodeQL` push runs.
@@ -106,16 +124,19 @@ commit, so the scheduler does not fabricate nonexistent post-merge evidence.
 ## OpenCode isolation
 
 OpenCode is installed from a versioned release archive whose SHA-256 digest is
-pinned in the workflow. The configured model pool is limited to NVIDIA NIM
-models. The project-local `opencode.json` allows reading, editing, searching,
-and bounded shell use while denying subagents, web search, web fetch, LSP, and
+pinned in the workflow. The configured model is the single fail-closed
+zero-cost `contextual_orchestrator_gateway/orchestrator/free` virtual pool,
+not a fixed provider model list; the gateway's own auto-discovery and routing
+select a live candidate from whichever provider secrets are registered. The
+project-local `opencode.json` allows reading, editing, searching, and bounded
+shell use while denying subagents, web search, web fetch, LSP, and
 external-directory access.
 
 The agent runs under UID and GID `65532` with `env -i`. Its environment contains
 only a minimal executable path, an isolated home and temporary directory, the
-workspace-local Python import path, deterministic locale settings, the local
-broker placeholder key, and OpenCode update suppression. GitHub, Actions OIDC,
-and publication credentials are absent.
+workspace-local Python import path, deterministic locale settings, the
+ephemeral local gateway bearer token, and OpenCode update suppression. GitHub,
+Actions OIDC, and publication credentials are absent.
 
 The model receives a repository-specific contract requiring:
 
@@ -160,7 +181,8 @@ The guard rejects:
   unsafe paths;
 - more than 12 files, 1,500 changed lines, 512 KiB per file, or 2 MiB in total;
 - malformed or duplicate patch paths;
-- a patch or PR message containing the NVIDIA credential or common encodings.
+- a patch or PR message containing a present provider credential or common
+  encodings.
 
 The patch receipt records the exact base SHA, changed paths, title, body, and
 SHA-256 digest. The verification and publication jobs compare this receipt to
@@ -195,7 +217,7 @@ No model credential or publication credential is present in this job.
 Immediately before publication, the workflow repeats the exact-base and
 zero-open-PR checks, validates the sealed patch digest, and applies the patch to
 a fresh checkout. It creates one run-unique branch named
-`nim-agent/product-dev-<run>-<attempt>` and one draft PR.
+`orchestrator-agent/product-dev-<run>-<attempt>` and one draft PR.
 
 Workflow concurrency serializes scheduled runs, but GitHub does not provide an
 atomic compare-base-and-create-PR operation. If another actor opens a PR in the
@@ -208,7 +230,9 @@ restore the token.
 ## First activation
 
 1. Merge the workflow through the normal protected PR path.
-2. Configure `NVIDIA_NIM_API_KEY` and the dedicated
+2. Configure at least one of the five org provider secrets
+   (`BYTEZ_API_KEY`, `NVIDIA_NIM_API_KEY`, `NVIDIA_NIM_API_KEY_SUB`,
+   `OPENROUTER_API_KEY`, `OPENAI_API_KEY`) and the dedicated
    `OPENCODE_PRODUCT_DEVELOPMENT_TOKEN`.
 3. While a PR is open, manually dispatch the workflow and confirm that it exits
    at the queue gate without starting OpenCode.
@@ -223,16 +247,19 @@ branch.
 
 ## Rotation, revocation, and incident response
 
-Rotate both credentials according to the organization policy and never rotate
-review-agent credentials as part of this workflow. A missing or revoked NIM key
-stops before authoring. A missing publication token allows no branch or PR
-creation and fails the publication step visibly.
+Rotate credentials according to the organization policy and never rotate
+review-agent credentials as part of this workflow. Losing every one of the
+five provider secrets stops development before authoring (at least one is
+required); revoking or rotating a single provider secret only narrows the
+`orchestrator/free` pool's candidates. A missing publication token allows no
+branch or PR creation and fails the publication step visibly.
 
-If the NIM broker, OpenCode provider integration, patch guard, or independent
-verification behaves unexpectedly, disable this workflow only; do not weaken
-branch protection or the existing review system. Preserve the failed run,
-identify the trust boundary where the invariant broke, add a regression, and
-restore the schedule after exact-head verification.
+If the contextual-orchestrator gateway, OpenCode provider integration, patch
+guard, or independent verification behaves unexpectedly, disable this
+workflow only; do not weaken branch protection or the existing review system.
+Preserve the failed run, identify the trust boundary where the invariant
+broke, add a regression, and restore the schedule after exact-head
+verification.
 
 ## Release boundary
 
