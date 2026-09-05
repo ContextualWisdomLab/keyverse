@@ -55,6 +55,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- The portable Keycloak realm no longer embeds `ecosystem-rp-template` or
+  `naruon-web`; application RPs now exist only as validated runtime desired
+  state. Realm validation rejects application clients, and clean-realm recovery
+  is covered through the committed Naruon template and reconciliation path.
 - Federation PUT and apply now report `applied_to_keycloak: true` only after a
   fresh live Keycloak identity-provider observation matches the desired
   observable representation. Keycloak's fixed mask for the known
