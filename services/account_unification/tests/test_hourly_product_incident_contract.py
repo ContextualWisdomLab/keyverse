@@ -254,8 +254,12 @@ def test_single_gateway_attempt_budget_fits_outer_job_timeout() -> None:
     assert env.get("OPENCODE_MODEL") == "contextual_orchestrator_gateway/orchestrator/free"
     run_seconds = int(str(env.get("OPENCODE_RUN_TIMEOUT_SECONDS", "0")))
     timeout_minutes = int(str(_job("develop-product-gap").get("timeout-minutes", 0)))
+    agent_run = _step_by_id("develop-product-gap", "agent").get("run")
+    assert isinstance(agent_run, str)
 
     assert run_seconds > 0
+    assert agent_run.count("opencode run") == 1
+    assert 'timeout --kill-after=30s "${OPENCODE_RUN_TIMEOUT_SECONDS}s"' in agent_run
     setup_and_packaging_reserve_seconds = 15 * 60
     assert timeout_minutes * 60 >= (
         run_seconds + setup_and_packaging_reserve_seconds
