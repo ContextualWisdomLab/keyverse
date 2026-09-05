@@ -18,13 +18,22 @@ authorization boundary and is not rewritten by that expansion.
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
+| [0014](0014-scim-oidc-saml-context-membership-exchange.md) | Keyverse owns the SCIM/OIDC/SAML adapters for `context-graph-contracts`' org-hierarchy/membership contract | Proposed |
 
 ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
 proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
 ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
-the next intended number without renumbering parallel work; it must be
-reconciled after those PRs land, and none of the absent records is accepted
-architecture on protected `main` yet.
+the next intended number without renumbering parallel work. ADR-0014 (this
+record) collides with two other open PRs that independently also claim
+`0014` (`#128` `naruon-owned-password-form`, `#129` `keyverse-keyvault-bounded-context`
+— confirmed 2026-09-02 via `git ls-tree` against every open PR head, not just
+`main`; `0015`/`0016` are contested the same way) — an expected consequence of
+concurrent agent work at this repository's current PR volume, not a defect in
+any of the three; whichever of the three merges first keeps `0014` and the
+other two are renumbered at merge time, per this repository's own established
+practice for the 0009-0012 range above. None of the four absent numbers
+(0009-0012) or the contested ones (0014-0016) is accepted architecture on
+protected `main` yet.
 
 ## ADR triggers
 
