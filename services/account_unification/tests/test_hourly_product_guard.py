@@ -116,7 +116,7 @@ def test_guard_rejects_deletion_binary_mode_and_control_plane_patches(tmp_path) 
 def test_guard_rejects_model_secret_in_raw_and_encoded_forms(
     monkeypatch, tmp_path
 ) -> None:
-    """The generated patch and PR metadata cannot exfiltrate the NIM credential."""
+    """The generated patch and PR metadata cannot exfiltrate a provider credential."""
     guard = _load_guard()
     monkeypatch.setenv("KEYVERSE_FORBIDDEN_SECRET", "nim-sensitive-value")
 

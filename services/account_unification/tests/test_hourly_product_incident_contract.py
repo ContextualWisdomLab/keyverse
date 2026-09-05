@@ -9,11 +9,14 @@ import yaml
 EXPECTED_ENDPOINTS = {
     "develop-product-gap": (
         "api.github.com:443",
+        "api.bytez.com:443",
+        "api.openai.com:443",
         "cafe.github.com:443",
         "codeload.github.com:443",
         "github.com:443",
         "integrate.api.nvidia.com:443",
         "objects.githubusercontent.com:443",
+        "openrouter.ai:443",
         "raw.githubusercontent.com:443",
         "registry.npmjs.org:443",
         "release-assets.githubusercontent.com:443",
@@ -230,77 +233,80 @@ def test_default_branch_check_evidence_requires_success() -> None:
     assert '"skipped"' not in accepted_block
 
 
-def test_model_fallback_budget_fits_outer_job_timeout() -> None:
-    """All sequential model candidates plus setup reserve fit the job deadline."""
-    document = _workflow_document()
-    env = document.get("env")
-    assert isinstance(env, dict)
-    candidates = str(env.get("OPENCODE_MODEL_CANDIDATES", "")).split()
-    per_model_seconds = int(str(env.get("OPENCODE_RUN_TIMEOUT_SECONDS", "0")))
-    timeout_minutes = int(str(_job("develop-product-gap").get("timeout-minutes", 0)))
+def test_opencode_uses_one_unbounded_orchestrator_free_route() -> None:
+    """The workflow delegates discovery and fallback without a local model loop."""
+    workflow = _workflow_source()
 
-    assert candidates
-    setup_and_packaging_reserve_seconds = 15 * 60
-    assert timeout_minutes * 60 >= (
-        len(candidates) * per_model_seconds + setup_and_packaging_reserve_seconds
+    assert "OPENCODE_MODEL_CANDIDATES" not in workflow
+    assert "OPENCODE_RUN_TIMEOUT_SECONDS" not in workflow
+    assert "for model in" not in workflow
+    assert "timeout --kill-after" not in workflow
+    assert "contextual-orchestrator/orchestrator/free" in workflow
+
+
+def test_provider_secrets_are_materialized_only_by_sidecar_bootstrap() -> None:
+    """Every raw provider secret is scoped to the central sidecar bootstrap step."""
+    materializing_steps: dict[str, list[str]] = {}
+    secret_expressions = (
+        "${{ secrets.BYTEZ_API_KEY }}",
+        "${{ secrets.NVIDIA_NIM_API_KEY }}",
+        "${{ secrets.NVIDIA_NIM_API_KEY_SUB }}",
+        "${{ secrets.OPENROUTER_API_KEY }}",
+        "${{ secrets.OPENAI_API_KEY }}",
     )
-
-
-def test_nvidia_secret_is_materialized_only_by_broker() -> None:
-    """The raw NVIDIA secret exists only in the conditional loopback broker step."""
-    secret_expression = "${{ secrets.NVIDIA_NIM_API_KEY }}"
-    materializing_steps: list[str] = []
+    for secret_expression in secret_expressions:
+        materializing_steps[secret_expression] = []
     for step in _steps("develop-product-gap"):
         env = step.get("env")
-        if not isinstance(env, dict) or secret_expression not in env.values():
+        if not isinstance(env, dict):
             continue
         name = step.get("name")
         assert isinstance(name, str)
-        materializing_steps.append(name)
+        for secret_expression in secret_expressions:
+            if secret_expression in env.values():
+                materializing_steps[secret_expression].append(name)
 
-    assert materializing_steps == ["Start the loopback-only NIM credential broker"]
+    assert all(
+        steps == ["Provision the pinned contextual-orchestrator sidecar"]
+        for steps in materializing_steps.values()
+    )
 
 
-def test_nvidia_secret_fingerprint_crosses_the_broker_boundary() -> None:
-    """Packaging receives only broker-derived fingerprints for leak scanning."""
-    broker = _step_by_name(
+def test_provider_secret_fingerprints_cross_the_sidecar_boundary() -> None:
+    """Packaging receives only one-way fingerprints for leak scanning."""
+    sidecar = _step_by_name(
         "develop-product-gap",
-        "Start the loopback-only NIM credential broker",
+        "Provision the pinned contextual-orchestrator sidecar",
     )
     package = _step_by_name(
         "develop-product-gap",
         "Capture the bounded credential-free patch",
     )
-    broker_run = broker.get("run")
+    sidecar_run = sidecar.get("run")
     package_env = package.get("env")
-    assert isinstance(broker_run, str)
+    assert isinstance(sidecar_run, str)
     assert isinstance(package_env, dict)
-    assert broker.get("id") == "nim_broker"
-    assert "sha256" in broker_run
-    assert "GITHUB_OUTPUT" in broker_run
-    assert broker_run.index("unset NIM_UPSTREAM_API_KEY") > broker_run.index(
-        "python scripts/ci/nim_proxy.py"
-    )
+    assert sidecar.get("id") == "orchestrator"
+    assert "sha256" in sidecar_run
+    assert "GITHUB_OUTPUT" in sidecar_run
     assert package_env.get("KEYVERSE_FORBIDDEN_SECRET_FINGERPRINT") == (
-        "${{ steps.nim_broker.outputs.secret_fingerprint }}"
+        "${{ steps.orchestrator.outputs.secret_fingerprint }}"
     )
     assert "KEYVERSE_FORBIDDEN_SECRET: ${{ secrets.NVIDIA_NIM_API_KEY }}" not in (
         _workflow_source()
     )
 
 
-def test_nvidia_secret_is_required_only_on_the_model_backed_path() -> None:
-    """The NVIDIA secret is checked only after deterministic gates select development."""
-    broker = _step_by_name(
+def test_sidecar_bootstrap_runs_only_on_the_model_backed_path() -> None:
+    """Provider bootstrap happens only after deterministic gates select development."""
+    sidecar = _step_by_name(
         "develop-product-gap",
-        "Start the loopback-only NIM credential broker",
+        "Provision the pinned contextual-orchestrator sidecar",
     )
-    broker_env = broker.get("env")
-    broker_run = broker.get("run")
-    assert isinstance(broker_env, dict)
-    assert isinstance(broker_run, str)
+    sidecar_env = sidecar.get("env")
+    sidecar_run = sidecar.get("run")
+    assert isinstance(sidecar_env, dict)
+    assert isinstance(sidecar_run, str)
 
-    assert broker_env.get("NIM_UPSTREAM_API_KEY") == "${{ secrets.NVIDIA_NIM_API_KEY }}"
-    assert 'if [ -z "${NIM_UPSTREAM_API_KEY:-}" ]; then' in broker_run
-    assert "NVIDIA_NIM_API_KEY is required only for model-backed development" in broker_run
-    assert "exit 1" in broker_run
+    assert sidecar.get("if") == "steps.gate.outputs.develop == 'true'"
+    assert "contextual_orchestrator_review_sidecar.sh" in sidecar_run
