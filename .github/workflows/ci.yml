@@ -34,6 +34,36 @@ jobs:
           prune-cache: true
       - name: Install locked dependencies
         run: uv sync --locked --extra dev
+      - name: Verify uv lock dependency metadata
+        run: uv pip check
+      - name: Verify exported hash lock
+        run: |
+          exported_requirements="${RUNNER_TEMP}/keyverse-requirements-dev.txt"
+          tracked_requirements_body="${RUNNER_TEMP}/keyverse-tracked-requirements-body.txt"
+          exported_requirements_body="${RUNNER_TEMP}/keyverse-exported-requirements-body.txt"
+          uv export \
+            --locked \
+            --format requirements.txt \
+            --extra dev \
+            --no-emit-project \
+            --output-file "${exported_requirements}"
+
+          # uv records the chosen output path in its two-line generated-file
+          # header. Compare the package graph and hashes while ignoring only
+          # that environment-specific provenance text.
+          tail -n +3 requirements-dev.txt > "${tracked_requirements_body}"
+          tail -n +3 "${exported_requirements}" > "${exported_requirements_body}"
+          cmp --silent "${tracked_requirements_body}" "${exported_requirements_body}" || {
+            diff --unified "${tracked_requirements_body}" "${exported_requirements_body}"
+            exit 1
+          }
+
+          export_lock_venv="${RUNNER_TEMP}/keyverse-export-lock"
+          uv venv "${export_lock_venv}"
+          VIRTUAL_ENV="${export_lock_venv}" uv pip install \
+            --require-hashes \
+            -r requirements-dev.txt
+          VIRTUAL_ENV="${export_lock_venv}" uv pip check
       - name: Lint
         run: uv run ruff check app tests tools
       - name: Docstrings
