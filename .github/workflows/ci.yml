@@ -4,12 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, closed]
 
 # Cancel superseded evidence for the same pull request or branch. This keeps the
 # runner queue bounded during review-fix loops while preserving the newest head.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least-privilege default token (OSSF Scorecard: Token-Permissions).
 permissions:
@@ -17,6 +18,7 @@ permissions:
 
 jobs:
   account-unification-tests:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false) }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,6 +51,7 @@ jobs:
         run: uv build --out-dir dist
 
   realm-config-validates:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,6 +71,7 @@ jobs:
           PY
 
   compose-config-validates:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
