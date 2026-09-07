@@ -21,6 +21,7 @@ from .identifiers import InvalidIdentifierError, validate_path_segment
 from .kv_store import KvStore
 from .relying_party import (
     RelyingPartyRegistration,
+    _CLIENT_ID,
     _parse_registration,
     validate_relying_party_registration,
 )
@@ -390,38 +391,11 @@ def parse_relying_party_registration(payload: Any) -> RelyingPartyRegistration:
 
 def _validate_client_id(client_id: str) -> None:
     """Require the same bounded lowercase slug accepted by preflight."""
-    try:
-        registration = _parse_registration(
-            {
-                "clientId": client_id,
-                "name": client_id,
-                "enabled": True,
-                "protocol": "openid-connect",
-                "publicClient": True,
-                "clientAuthenticatorType": "none",
-                "standardFlowEnabled": True,
-                "implicitFlowEnabled": False,
-                "directAccessGrantsEnabled": False,
-                "serviceAccountsEnabled": False,
-                "redirectUris": ["https://path-validation.invalid/callback"],
-                "webOrigins": ["https://path-validation.invalid"],
-                "attributes": {
-                    "pkce.code.challenge.method": "S256",
-                    "post.logout.redirect.uris": "https://path-validation.invalid/logout",
-                    "access.token.lifespan": "300",
-                    "backchannel.logout.session.required": "true",
-                    "require.pushed.authorization.requests": "false",
-                },
-                "fullScopeAllowed": False,
-                "defaultClientScopes": ["basic", "profile", "email"],
-            }
-        )
-        validate_relying_party_registration(registration)
-    except HTTPException:
+    if not isinstance(client_id, str) or _CLIENT_ID.fullmatch(client_id) is None:
         raise HTTPException(
             status_code=400,
             detail="client_id must be a lowercase ASCII slug",
-        ) from None
+        )
 
 
 def _desired_digest(registration: RelyingPartyRegistration) -> str:
@@ -464,9 +438,15 @@ _OBSERVED_CLAIM_RANKS: Final = {"role": 1, "org": 2, "workspace": 3}
 def _observed_mapper_rank(mapper: dict) -> int | None:
     """Return the canonical rank for one structurally valid live mapper."""
     mapper_type = mapper.get("protocolMapper")
+    if not isinstance(mapper_type, str):
+        return None
     if mapper_type == "oidc-audience-mapper":
         return 0
-    if mapper_type != "oidc-hardcoded-claim-mapper":
+    if mapper_type not in {
+        "oidc-hardcoded-claim-mapper",
+        "oidc-usermodel-client-role-mapper",
+        "oidc-usermodel-attribute-mapper",
+    }:
         return None
     config = mapper["config"]
     claim_name = config.get("claim.name")
@@ -509,6 +489,12 @@ def _normalized_observed_mappers(
         rank = _observed_mapper_rank(mapper)
         if rank is None or rank in seen_ranks:
             return None
+        if (
+            mapper["protocolMapper"] == "oidc-usermodel-client-role-mapper"
+            and mapper["config"].get("claim.name") == "role"
+            and "usermodel.clientRoleMapping.rolePrefix" not in mapper["config"]
+        ):
+            mapper["config"]["usermodel.clientRoleMapping.rolePrefix"] = ""
         seen_ranks.add(rank)
         ranked_mappers.append((rank, mapper))
 

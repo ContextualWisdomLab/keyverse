@@ -240,6 +240,7 @@ def test_product_prompt_preserves_commercial_and_engineering_invariants() -> Non
 
     required_prompt_fragments = (
         "Select exactly one highest-impact buyer-visible product gap",
+        "Read docs/product-technical-gap-baseline.md and the current exact-head open PR/issue inventory",
         "Superpowers design, test-driven development, systematic debugging",
         "realistic identity-control-plane",
         "100% production docstring coverage",

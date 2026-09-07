@@ -46,7 +46,7 @@ def test_guard_allows_product_files_and_rejects_control_plane_files() -> None:
         "services/account_unification/uv.lock",
         "docker-compose.yml",
         "helm/cwl-idp/values.yaml",
-        "deploy/keycloak/realm-cwl.json",
+        "deploy/keycloak/cwl-realm.json",
         "../outside.txt",
     ):
         assert not guard._path_allowed(forbidden_path)

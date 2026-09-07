@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cwl-idp — Keycloak post-import bootstrap (config-as-code, secrets from KV).
 #
-# The realm SHAPE lives in realm-cwl.json and is imported at container start.
+# The realm SHAPE lives in cwl-realm.json and is imported at container start.
 # This script patches the pieces that must NOT be committed (secrets, env URLs)
 # by reading them from the KV store and applying them with Keycloak's admin CLI
 # (`kcadm.sh`, shipped in the Keycloak image, Apache-2.0). Run it after the realm

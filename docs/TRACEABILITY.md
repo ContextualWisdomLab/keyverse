@@ -1,11 +1,12 @@
 # Keyverse Requirements and Evidence Traceability
 
 **Status:** Accepted cross-cutting baseline  
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-31
 
 | Requirement / decision | Standards / authoritative basis | Source/evidence boundary | Maturity |
 |---|---|---|---|
 | passwordless local accounts | WebAuthn/FIDO2 + Keycloak supported flow; research/standards records | realm validator + deployment tests | implemented-main |
+| Keycloak portable realm import | Keycloak 26 directory import naming contract | Compose/Helm filename mapping contract plus realm-discovery acceptance | implemented-main |
 | exact subject then verified-email match | OIDC federation / NIST federation guidance; merge documentation | account-unification matching/merge tests | implemented-main |
 | unverified email never auto-links | security/product invariant | merge/federation tests | implemented-main |
 | SCIM inbound lifecycle | RFC 7643/7644; protocol documentation | SCIM service/lifecycle tests | implemented-main |
@@ -13,7 +14,9 @@
 | LDAPS directory profile | LDAP RFC 4511–4515 + Keycloak component docs | directory preflight/reconciliation tests | implemented-main |
 | secret-free RP desired state | OAuth/OIDC/PKCE/Keycloak client docs | RP preflight/reconciliation/integrity tests | implemented-main |
 | RP audience/role/org/workspace mapper profile | OIDC/JWT audience + Keycloak mapper docs | PR #72 protected-main source/tests; downstream RP acceptance remains required | implemented-main |
+| LineageWeave account-derived RP claims | ADR-0009; Keycloak Protocol Mappers and post-import declarative user profile | scalar, administrator-managed account attributes optional at initial creation; exact validator statement/branch coverage; Compose profile reconciliation/template tests; real account, Keyverse apply, and downstream ABAC/RBAC acceptance remain required | accepted-contract |
 | merge/SCIM PUT/PATCH shared operation lock | concurrency/data-integrity decision; ADR-0006 | merge + full-replacement + active=false PATCH lock/concurrency tests | active-PR |
+
 | intent before mutation, receipt after re-observation | desired-state/recovery decision | federation/directory/RP reconciliation tests | implemented-main |
 | receipt bound to exact desired-state version/hash | threat/recovery contract; ERD | persistence/migration/idempotency evidence required | accepted-contract |
 | remote-first deletion | consistency/recovery decision | delete/reconciliation tests | implemented-main |
@@ -28,6 +31,7 @@
 | sidecar anonymous-access boundary | ADR-0008; private service-boundary and least-privilege policy | newsdom-api protected `develop` `3d0426b` (PR #595) fail-closed token gate, startup credential registry, explicit anonymous opt-in, review-fixed authenticated examples/healthcheck/401 contract, and pypdf Trivy remediation; Keyverse-aware gateway evidence remains required for exposure | implemented-main |
 | 100% production statement/branch/docstring | CWL quality contract | CI/pytest/interrogate | implemented-main |
 | product and technical gap baseline | PRD/TRD/ADR/operability and live exact-head evidence | [`docs/product-technical-gap-baseline.md`](product-technical-gap-baseline.md) plus [`docs/doctoring/product-technical-gap-baseline.md`](doctoring/product-technical-gap-baseline.md) | active-PR |
+
 
 ## Research, standards, and operations records
 

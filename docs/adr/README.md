@@ -17,6 +17,7 @@ authorization boundary and is not rewritten by that expansion.
 | [0006](0006-user-operation-lock.md) | Merge/link, SCIM full replacement, and supported `PATCH active=false` share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
+| [0009](0009-lineageweave-account-derived-rp-claims.md) | Bind LineageWeave claims to explicit, administrator-managed Keyverse account attributes | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
 
 ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
@@ -25,6 +26,7 @@ ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
 the next intended number without renumbering parallel work; it must be
 reconciled after those PRs land, and none of the absent records is accepted
 architecture on protected `main` yet.
+
 
 ## ADR triggers
 

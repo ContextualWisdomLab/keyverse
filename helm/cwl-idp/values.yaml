@@ -50,7 +50,8 @@ keycloak:
   existingSecret: cwl-idp-keycloak
   realmImport:
     configMapName: cwl-idp-realm
-    fileName: realm-cwl.json
+    # Source ConfigMap key; the chart mounts it as cwl-realm.json for Keycloak.
+    fileName: cwl-realm.json
   resources:
     requests:
       cpu: 500m

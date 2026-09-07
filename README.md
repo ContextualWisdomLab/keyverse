@@ -79,10 +79,21 @@ docker compose up -d          # or: podman compose up -d
 - Keycloak console: `http://localhost:8080`
 - Admin service health: `http://localhost:8099/healthz`
 
+The Compose account service waits for the post-import LineageWeave account
+profile bootstrap. If Keycloak admin credentials or profile reconciliation fail,
+the account service stays stopped rather than serving with an incomplete issuer
+authorization contract; inspect `docker compose ps` and the one-shot bootstrap
+logs before retrying.
+
 The stack imports the **passwordless-first** realm at first start
-(`deploy/keycloak/realm-cwl.json`): a `browser-passwordless` flow with a
+(`deploy/keycloak/cwl-realm.json`): a `browser-passwordless` flow with a
 WebAuthn passwordless authenticator and **no password authenticator**, plus
 `registrationAllowed:false` / `resetPasswordAllowed:false`.
+
+For Helm installations created with the former `realm-cwl.json` ConfigMap key,
+perform the zero-gap key migration in
+[`deploy/keycloak/README.md`](deploy/keycloak/README.md#helm-configmap-key-migration)
+before upgrading the chart.
 
 Production-shaped clusters use [`helm/cwl-idp/`](helm/cwl-idp/).
 
@@ -132,10 +143,28 @@ as the apply payload; apply the original private file only. The first
 directory profile is LDAPS-only, read-only, Kerberos-disabled, and
 `trustEmail=false`.
 
-See [`docs/federation-onboarding.md`](docs/federation-onboarding.md) and
-[`docs/ldap-directory-onboarding.md`](docs/ldap-directory-onboarding.md).
+See [`docs/federation-onboarding.md`](docs/federation-onboarding.md),
+[`docs/ldap-directory-onboarding.md`](docs/ldap-directory-onboarding.md),
+[`deploy/keycloak/README.md`](deploy/keycloak/README.md), and
+[`deploy/templates/README.md`](deploy/templates/README.md).
 
-## Account unification
+### Onboard a relying party
+
+See [`docs/rp-onboarding.md`](docs/rp-onboarding.md).
+The ADR-0009 LineageWeave profile uses real account-derived `role`, `org`
+(company), and `workspace` (PU) claims; it is not enabled until private Keyverse
+apply and controlled
+downstream authorization evidence are recorded.
+
+## Account unification & merge
+
+```bash
+cd services/account_unification
+python -m venv .venv && . .venv/bin/activate
+pip install -e '.[dev]'
+pytest -q
+```
+
 
 Matching precedence is **exact `(identity_provider, subject)` → verified
 email → explicit operator link**. The engine **never merges on an unverified

@@ -36,8 +36,10 @@ queue owner.
 - SAML/OIDC preflight performs no metadata/discovery fetch. LDAP preflight
   performs no DNS, socket, bind, search, storage, or Keycloak call.
 - OIDC relying-party mapper support stays closed: one self-pinned audience plus
-  only canonical `role`, `org`, and `workspace` hardcoded claims. Do not add
-  scripts, user attributes, groups, regex, arbitrary claims, new audiences, or
+  only canonical `role`, `org`, and `workspace` hardcoded claims, except the
+  ADR-0009 `lineageweave-web` profile which maps only a same-client account role
+  and the exact `org`/`workspace` account attributes. Do not add scripts,
+  other user attributes, groups, regex, arbitrary claims, new audiences, or
   extra token destinations without a separately reviewed profile and RED test.
 - Treat generated Keycloak mapper IDs and vendor ordering as normalization-only
   metadata. Unknown, malformed, duplicate, or semantically changed live mappers

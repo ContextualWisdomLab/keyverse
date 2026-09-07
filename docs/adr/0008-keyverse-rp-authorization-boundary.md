@@ -123,7 +123,10 @@ downstream application authorization:
    `role`, `org`, and `workspace` values may identify the reviewed deployment
    profile, but they must not be used as an unverified privilege escalation
    channel. Moving them to user/tenant-derived Keycloak roles or groups requires
-   a separate mapper and downstream authorization design with tests.
+   a separate mapper and downstream authorization design with tests. ADR-0009
+   is the sole accepted exception: its `lineageweave-web` profile maps only
+   same-client roles and exact scalar `org`/`workspace` account attributes; it
+   does not authorize generic mapper expansion or downstream privilege bypass.
 5. The account-unification operator token remains deployment-only and
    coarse-grained until per-operation RBAC/ABAC is implemented. No downstream
    application receives Keycloak Admin credentials to compensate for that gap.

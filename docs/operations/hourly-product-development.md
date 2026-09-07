@@ -1,13 +1,19 @@
 # Hourly product-development loop
 
 Keyverse separates protected pull-request maintenance from autonomous product
-development. The schedules are offset so the merge loop has time to settle the
-repository before a new product slice is considered.
+development. The central required workflow handles PR events; the repository
+retains one hourly product-development schedule.
 
-| Minute (UTC) | Workflow | Responsibility |
+| Trigger (UTC) | Workflow | Responsibility |
 | --- | --- | --- |
-| `17 * * * *` | `hourly-pr-steward.yml` | Update trusted PR branches, require approval and required Checks, then arm exact-head auto-merge. |
+| PR events | Central `pr-review-merge-scheduler.yml` | Advance PRs only through the protected review and required-Check path. |
 | `41 * * * *` | `hourly-product-development.yml` | When the PR queue is empty and exact `main` is healthy, use OpenCode with NVIDIA NIM to produce one bounded buyer-visible draft PR. |
+
+[PR #140](https://github.com/ContextualWisdomLab/keyverse/pull/140) removed
+the redundant local PR steward in protected-main commit
+`d8ff4eded4f82ad5e72deec940cd73e1583b4640`. Its old minute-17 schedule and
+source-specific tests are retired; central review, approval, and Check gates
+remain required. The local absence contract prevents reintroducing that duplicate.
 
 The development scheduler never approves or merges its own work and never
 publishes a release. The existing review-agent workflows and their credentials
@@ -120,6 +126,8 @@ and publication credentials are absent.
 The model receives a repository-specific contract requiring:
 
 - exactly one highest-impact buyer-visible product gap;
+- reading `docs/product-technical-gap-baseline.md` and the current exact-head
+  open PR/issue inventory before selecting a gap;
 - Superpowers design, test-driven development, systematic debugging, and
   verification-before-completion;
 - a real failing regression before production implementation;
@@ -182,7 +190,7 @@ uv run coverage run --branch --source=app -m pytest -q
 uv run coverage report --show-missing --fail-under=100
 uv build --out-dir dist
 cd ../..
-python scripts/validate_realm.py deploy/keycloak/realm-cwl.json
+python scripts/validate_realm.py deploy/keycloak/cwl-realm.json
 docker compose -f docker-compose.yml config
 python -m json.tool deploy/templates/<each-json-template>.json
 git diff --check

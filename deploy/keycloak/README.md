@@ -6,7 +6,7 @@ providers are converged afterwards from the KV/DB source of truth.
 
 | File | Responsibility |
 | --- | --- |
-| `realm-cwl.json` | Portable passwordless realm, shared client scopes, RP template, concrete `naruon-web` PKCE client, and account-unification service client |
+| `cwl-realm.json` | Portable passwordless realm, shared client scopes, RP template, concrete `naruon-web` PKCE client, and account-unification service client |
 | `kcadm-bootstrap.sh` | Idempotently inject the service-client secret, grant least-privilege realm-management roles, and reconcile the role mapper |
 | `../templates/` | Reference payloads for runtime federation and additional relying-party registrations |
 
@@ -57,6 +57,45 @@ URLs or invalid placeholder LDAP distinguished names.
 - public `naruon-web` requires PKCE S256 and an access-token lifespan no greater
   than 900 seconds;
 - committed client secrets are placeholders only.
+
+## Helm ConfigMap key migration
+
+Older Helm installations used the ConfigMap data key `realm-cwl.json`. The
+current chart requires the source key `cwl-realm.json` and mounts it at the
+Keycloak-required target filename of the same name. Add the new key **before**
+upgrading the StatefulSet so an existing Pod never references a missing
+ConfigMap item.
+
+```bash
+NAMESPACE=identity
+RELEASE=cwl-idp
+CONFIG_MAP=cwl-idp-realm
+
+# Keep a rollback copy of the dedicated realm-import ConfigMap.
+kubectl -n "$NAMESPACE" get configmap "$CONFIG_MAP" -o yaml \
+  > "${CONFIG_MAP}.before-cwl-realm.yaml"
+
+# Server-side apply adds the new data key without deleting the legacy key first.
+kubectl -n "$NAMESPACE" create configmap "$CONFIG_MAP" \
+  --from-file=cwl-realm.json=deploy/keycloak/cwl-realm.json \
+  --dry-run=client -o yaml \
+  | kubectl -n "$NAMESPACE" apply --server-side \
+      --field-manager=cwl-idp-realm-migration -f -
+
+helm upgrade "$RELEASE" helm/cwl-idp -n "$NAMESPACE" \
+  --set keycloak.realmImport.configMapName="$CONFIG_MAP" \
+  --set keycloak.realmImport.fileName=cwl-realm.json
+kubectl -n "$NAMESPACE" rollout status statefulset/"${RELEASE}-keycloak"
+
+# Only after the new StatefulSet is healthy may the obsolete source key go.
+kubectl -n "$NAMESPACE" patch configmap "$CONFIG_MAP" --type=json \
+  --patch='[{"op":"remove","path":"/data/realm-cwl.json"}]'
+```
+
+This ConfigMap is dedicated to realm import. If a deployment added unrelated
+keys, preserve or relocate them under its own ownership before the migration.
+Verify the `cwl` realm discovery endpoint after rollout; container health alone
+does not prove import succeeded.
 
 ## RP clients
 

@@ -51,6 +51,12 @@ The PR #72 claim mapper profile is integrated in protected main. Downstream
 authorization acceptance remains deployment-specific and is not implied by
 Keycloak client reconciliation.
 
+ADR-0009 defines a separate `lineageweave-web` account-derived profile: one
+self-pinned audience, same-client role assignments, and scalar `org`/`workspace`
+account attributes. It is an accepted contract on its implementation branch,
+not protected-main or live-login evidence; controlled Keyverse and downstream
+authorization acceptance remain required.
+
 The per-application authorization matrix and remediation directions are governed
 by ADR-0008. Keyverse client reconciliation does not imply downstream
 authorization readiness.

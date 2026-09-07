@@ -31,7 +31,7 @@ REST API, pytest, Ruff, Interrogate, Helm, Docker Compose.
 ### Task 1: Passwordless registration enrollment
 
 **Files:**
-- Modify: `deploy/keycloak/realm-cwl.json`
+- Modify: `deploy/keycloak/cwl-realm.json`
 - Modify: `scripts/validate_realm.py`
 - Modify: `services/account_unification/app/registration.py`
 - Modify: `services/account_unification/app/product_keycloak_client.py`

@@ -32,5 +32,7 @@ def test_ci_skips_draft_and_closed_pull_requests() -> None:
     assert workflow.count(admission) == 3
 
 
-def test_central_codeql_is_not_duplicated_locally() -> None:
+def test_central_pr_workflows_are_not_duplicated_locally() -> None:
+    """Keep retired local copies of central required workflows absent."""
     assert not (WORKFLOWS / "codeql.yml").exists()
+    assert not (WORKFLOWS / "hourly-pr-steward.yml").exists()
