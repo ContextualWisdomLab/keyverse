@@ -5,6 +5,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ## [Unreleased]
 
+- Documented the work required for products to present their own passkey
+  login, signup, and recovery forms. These forms remain proposed, and the
+  existing password-signup route remains unavailable.
+
 ### Added
 
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
@@ -111,9 +115,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
-- Disabled `naruon-web`'s Direct Access Grants (ADR-0014) and the
+- Disabled `naruon-web`'s Direct Access Grants (ADR-0017) and the
   `POST /registration/accounts/password` signup endpoint that depended on it
-  (ADR-0015): RFC 9700 §2.4 (BCP 240) and RFC 10017 §7.3 prohibit the OAuth
+  (ADR-0018): RFC 9700 §2.4 (BCP 240) and RFC 10017 §7.3 prohibit the OAuth
   2.0 Resource Owner Password Credentials grant, and disabling it in isolation
   had left password-only signups with no way to authenticate at all -- the
   bound `browser-passwordless` flow accepts only passkeys. The endpoint now

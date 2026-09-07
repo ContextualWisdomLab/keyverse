@@ -7,14 +7,14 @@ protected-main or live Keycloak acceptance
 ## Scope
 
 This record documents disabling `naruon-web`'s Direct Access Grants
-(ADR-0014) and the `POST /registration/accounts/password` signup endpoint
-that depended on it (ADR-0015), and the cascading fix once disabling the
+(ADR-0017) and the `POST /registration/accounts/password` signup endpoint
+that depended on it (ADR-0018), and the cascading fix once disabling the
 grant alone left password-only signups unable to authenticate. It adds no
 new authentication mechanism -- the underlying "naruon renders its own
 login/signup UI, Keyverse stays the identity backend" product requirement is
 unchanged and remains a real, open successor-design question (Authorization
 Code + PKCE in an in-app browser view, or a custom Keycloak REST resource
-provider for headless passkey/WebAuthn), tracked against ADR-0014, not
+provider for headless passkey/WebAuthn), tracked against ADR-0017, not
 resolved here.
 
 ## Interpretation
@@ -26,7 +26,7 @@ resolved here.
   redirect-based flow such as Authorization Code + PKCE instead. Both
   post-date RFC 6749 (which merely defined the ROPC grant in 2012, before the
   subsequent decade of threat-model findings that led to its deprecation).
-- **Why the earlier acceptance didn't settle it:** ADR-0014's original
+- **Why the earlier acceptance didn't settle it:** ADR-0017's original
   Decision treated the naruon product owner's explicit risk acceptance as
   satisfying ADR-0002's "explicit security/product review" amendment clause.
   A documented risk acceptance can record an organizational deviation from a
@@ -62,12 +62,12 @@ resolved here.
 ## Evidence
 
 - **RED (conceptual, pre-fix state):** `directAccessGrantsEnabled: true` in
-  the committed realm export, `docs/adr/README.md`'s index showing ADR-0014
+  the committed realm export, `docs/adr/README.md`'s index showing ADR-0017
   as a bare "Accepted", and `POST /registration/accounts/password` creating
   `required_actions=[]` accounts -- all present simultaneously, together
   describing a live ROPC grant plus a signup path that assumed it worked.
 - **GREEN, pass 1 (`79fe43d`):** `directAccessGrantsEnabled` set to `false`;
-  ADR-0014's index row and `deploy/keycloak/README.md` updated to match the
+  ADR-0017's index row and `deploy/keycloak/README.md` updated to match the
   ADR's own status line.
 - **GREEN, pass 2 (`44f0cb9`):** `PASSWORD_CREDENTIAL_LOGIN_AVAILABLE = False`
   added, gating `register_account_with_password` before any account-creation
@@ -78,8 +78,8 @@ resolved here.
   `scripts/validate_realm.py` gained a `directAccessGrantsEnabled` check for
   `naruon-web`, covered by
   `test_naruon_direct_access_grants_stays_disabled`
-  (`services/account_unification/tests/test_realm_policy.py`); ADR-0015
-  gained a Correction section mirroring ADR-0014's.
+  (`services/account_unification/tests/test_realm_policy.py`); ADR-0018
+  gained a Correction section mirroring ADR-0017's.
 - **GREEN, owner-boundary repair:** the shared production adapter no longer
   allowlists or implements Keycloak's `reset-password` Admin REST path. A focused
   regression proves that path is rejected, while the unavailable registration
@@ -98,7 +98,7 @@ resolved here.
   flow or a custom Keycloak REST resource provider for headless
   passkey/WebAuthn is buildable against Keycloak's `login-actions`-bound
   ceremony (which has no public REST pair for the login ceremony specifically,
-  per ADR-0014's own Context section) is a real, separately-scoped design
+  per ADR-0017's own Context section) is a real, separately-scoped design
   question this record does not resolve.
 
 ## References

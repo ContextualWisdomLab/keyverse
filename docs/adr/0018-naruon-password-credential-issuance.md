@@ -1,7 +1,11 @@
-# ADR-0015: Scoped password-credential issuance so naruon's signup form actually logs in
+# ADR-0018: Scoped password-credential issuance so naruon's signup form actually logs in
 
-**Status:** Accepted, endpoint fails closed pending RFC-compliant redesign — see
-**Correction (2026-09-03)** below before implementing anything against this ADR.
+**Status:** Proposed; historical password mechanism blocked.
+**Review boundary (2026-09-07):** This is unmerged PR #128 work, not
+accepted protected-main policy. The product-owned forms requirement is
+retained; [ADR 0019](0019-product-owned-passkey-ceremonies.md) proposes
+its passwordless replacement. Historical mechanism and tradeoff text below
+does not authorize enabling the password route.
 **Date:** 2026-09-02
 **Decision owner:** Keyverse maintainers
 **Scope:** A new, narrowly scoped account-unification endpoint that creates a
@@ -12,7 +16,7 @@ verification, or CAPTCHA-equivalent abuse hardening — see "Deferred."
 
 ## Correction (2026-09-03)
 
-[ADR-0014](0014-naruon-owned-password-form.md)'s Correction disabled `naruon-web`'s
+[ADR-0017](0017-naruon-owned-password-form.md)'s Correction disabled `naruon-web`'s
 `directAccessGrantsEnabled` (RFC 9700 §2.4 / RFC 10017 §7.3: the Resource Owner
 Password Credentials grant this ADR's "immediately usable password credential" was
 built for). That leaves the account this endpoint creates with no way to log in at
@@ -31,7 +35,7 @@ and review its own least-privilege owner contract rather than flip this gate.
 
 ## Context
 
-[ADR-0014](0014-naruon-owned-password-form.md) enabled `directAccessGrantsEnabled`
+[ADR-0017](0017-naruon-owned-password-form.md) enabled `directAccessGrantsEnabled`
 for `naruon-web` so naruon's own login form could authenticate against
 Keycloak's token endpoint without ever showing Keycloak-rendered HTML. That
 ADR left a gap open deliberately: flipping the client flag does not, by
@@ -47,7 +51,7 @@ original product ask.
 
 Naruon's own signup form must be able to create an account with a password
 credential, server-side, with zero Keycloak-rendered HTML — the same
-constraint ADR-0014 already established for login. The two realistic
+constraint ADR-0017 already established for login. The two realistic
 mechanisms:
 
 ### Rejected as naruon's own integration: raw Keycloak Admin REST from naruon
@@ -61,7 +65,7 @@ Keycloak client secret would let it create, modify, or delete *any* user or
 realm object — a blast radius wildly out of proportion to "let a user sign
 up with a password." Rejected outright, not reconsidered here.
 
-### Accepted: extend account-unification, keyverse's existing narrow-scope admin proxy
+### Historical choice: extend the account-unification admin proxy
 
 `services/account_unification` already exists precisely to give product
 backends narrow, purpose-built admin capabilities without an admin
@@ -93,7 +97,7 @@ introducing an invite system here would be new product surface this ADR has
 no mandate to design. The tradeoff is an open signup-abuse surface, which
 this ADR does not fully close (see "Deferred").
 
-## Decision
+## Historical mechanism proposal (disabled)
 
 1. `POST /registration/accounts/password` (`app/password_registration.py`),
    authenticated by a **third**, independent bearer token
@@ -186,9 +190,9 @@ extending several other accepted decisions (self-service password reset,
 verified-email merge policy) without the review those decisions themselves
 require.
 
-## Consequences
+## Historical expected consequences (not delivered)
 
-- naruon's login (ADR-0014) and signup (this ADR) are now both real and
+- naruon's login (ADR-0017) and signup (this ADR) are now both real and
   connected end-to-end: an account created through
   `POST /registration/accounts/password` can immediately authenticate
   through `naruon-web`'s Direct Access Grants.

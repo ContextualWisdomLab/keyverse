@@ -1,6 +1,11 @@
-# ADR-0014: Scoped Direct Access Grants exception so naruon can render its own login form
+# ADR-0017: Scoped Direct Access Grants exception so naruon can render its own login form
 
-**Status:** Accepted, mechanism superseded pending RFC-compliant redesign — see **Correction (2026-09-03)** below before implementing anything against this ADR.
+**Status:** Proposed; historical password mechanism blocked.
+**Review boundary (2026-09-07):** This is unmerged PR #128 work, not
+accepted protected-main policy. The product-owned forms requirement is
+retained; [ADR 0019](0019-product-owned-passkey-ceremonies.md) proposes
+its passwordless replacement. Historical mechanism and tradeoff text below
+does not authorize enabling the password route.
 **Date:** 2026-09-02
 **Decision owner:** Keyverse maintainers, with explicit product direction from
 the naruon product owner (see Context).
@@ -38,11 +43,9 @@ comment thread (2026-09-03T02:59:17Z) for the original citation. Primary referen
 [RFC 9700 §2.4](https://www.rfc-editor.org/rfc/rfc9700.html#section-2.4),
 [RFC 10017 §7.3](https://www.rfc-editor.org/rfc/rfc10017.html#section-7.3).
 
-**What remains valid, unchanged:** every section below this one — the Context, what was ruled out and
-why (Keycloak-theme reskin fails by construction; a naruon-rendered WebAuthn ceremony against Keycloak
-is currently unachievable without a custom Keycloak REST resource provider) — is still accurate. Read
-the rest of this ADR as the record of *why the product requirement exists and what does not solve it*,
-not as license to ship the specific mechanism in point 1 of the Decision below.
+**What remains valid:** the product-rendered forms requirement and the rejection
+of issuer-rendered replacements. The mechanism and expected outcomes below are
+historical proposals; they are not current behavior or permission to ship ROPC.
 
 **What needs repair before `naruon-web`'s `directAccessGrantsEnabled: true`
 (`deploy/keycloak/realm-cwl.json`) and the companion naruon-side password route
@@ -61,16 +64,13 @@ ceremony, so this investment may resolve both gaps (password AND passkey) at onc
 mechanism this ADR's Decision (point 1, below) turned on must not ship per the RFC 9700/10017
 finding above, and this PR was not yet merged/deployed, so nothing live depended on it staying
 `true`. Decision point 1 is left unedited below as the historical record of what was originally
-decided; it no longer describes the current config value. Re-enable only alongside a
-standards-compliant replacement mechanism (see the candidates above), tracked in the new ADR
-called for below.
+decided; it no longer describes the current config value. Keep Direct Access Grants
+disabled. The replacement in ADR 0019 must not re-enable ROPC.
 
-**Status intentionally left as Accepted, not Rejected/Superseded**, because the product goal stands and
-the Context/ruled-out-alternatives sections remain load-bearing evidence — only the grant-type mechanism
-in the Decision needs a successor. Per this org's repair-not-close convention for findings against an
-already-Accepted decision with real, still-valid product intent behind it: open a new ADR once a
-replacement mechanism is chosen and cross-reference it here, rather than silently rewriting this one's
-history or treating this correction as grounds to abandon the underlying naruon-owned-login-form goal.
+**Status correction (2026-09-07):** The earlier Accepted label was premature.
+The original proposal and corrections remain here as history. The
+replacement stays Proposed until protected acceptance; retaining the
+product goal does not accept the disabled mechanism.
 
 ## Context
 
@@ -129,7 +129,7 @@ integration: naruon's process may transiently hold a plaintext password in
 memory for the single request that forwards it to Keycloak's token endpoint,
 provided it is never logged, cached, or persisted.
 
-## Decision
+## Historical mechanism proposal (disabled)
 
 1. `naruon-web`'s `directAccessGrantsEnabled` is `true` in
    `deploy/keycloak/realm-cwl.json`. This is *this* ADR's "explicit
@@ -155,13 +155,13 @@ provided it is never logged, cached, or persisted.
    reason string, never with the credential) and never written to a cookie,
    session, or datastore naruon controls.
 
-## What this does *not* yet deliver
+## Historical delivery discussion (superseded by the correction above)
 
 **Update (2026-09-02):** the credential-issuance gap this section describes
-is now closed by [ADR-0015](0015-naruon-password-credential-issuance.md)
+is now closed by [ADR-0018](0018-naruon-password-credential-issuance.md)
 (`POST /registration/accounts/password`, gated by its own third bearer
 token). The rest of this section is kept as written for the historical
-record of what ADR-0014 alone did and did not deliver.
+record of what ADR-0017 alone did and did not deliver.
 
 Flipping `directAccessGrantsEnabled` does not, by itself, let any real user
 sign in. **No account in the `cwl` realm has a password credential today.**
@@ -182,7 +182,7 @@ local accounts at all, which is the exact boundary ADR-0002 protects) and is
 explicitly **out of scope for this slice**. It is recorded here as the
 tracked blocker for the next iteration, not implemented.
 
-## Consequences
+## Historical expected consequences (not delivered)
 
 - naruon's login form and backend route are real and correctly built against
   the standard OAuth2 ROPC contract; they will start authenticating real

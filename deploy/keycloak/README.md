@@ -72,7 +72,7 @@ through normal token refresh/reissue rather than a twelve-hour bearer token.
 
 `naruon-web`'s `directAccessGrantsEnabled` is currently `false`. It was
 briefly `true` as a scoped, reviewed exception
-([ADR-0014](../../docs/adr/0014-naruon-owned-password-form.md)) so naruon
+([ADR-0017](../../docs/adr/0017-naruon-owned-password-form.md)) so naruon
 could render its own login form with zero Keycloak-rendered HTML in the
 loop, but that ADR's Correction (2026-09-03) found the grant type itself
 (OAuth2 ROPC) violates RFC 9700 §2.4 / RFC 10017 §7.3, so the flag was set
@@ -82,7 +82,7 @@ still hard-rejects `directAccessGrantsEnabled: true` for everyone else.
 
 A real password credential to authenticate with comes from
 `POST /registration/accounts/password`
-([ADR-0015](../../docs/adr/0015-naruon-password-credential-issuance.md)),
+([ADR-0018](../../docs/adr/0018-naruon-password-credential-issuance.md)),
 gated by its own `password_registration_api_token` — a third bearer
 credential, distinct from `operator_api_token` and `registration_api_token`.
 Without it configured, naruon's signup surface stays unavailable (503)
