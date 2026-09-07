@@ -7,13 +7,18 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from app.kv_store import InMemoryKvStore
 from app.main import create_app
 from app.relying_party import (
     RelyingPartyRegistration,
     _parse_registration,
     validate_relying_party_registration,
 )
-from app.relying_party_state import _normalized_observed_mappers
+from app.relying_party_state import (
+    RELYING_PARTY_NAMESPACE,
+    RelyingPartyService,
+    _normalized_observed_mappers,
+)
 
 from .test_relying_party_preflight import _confidential_web_client
 
@@ -204,8 +209,8 @@ def test_audience_only_mapper_profile_is_accepted() -> None:
     assert len(result.registration.protocol_mappers) == 1
 
 
-def test_account_derived_claim_mapper_profile_is_accepted() -> None:
-    """Per-account role and tenant attributes may replace static RP claims."""
+def test_account_derived_claim_mapper_profile_is_accepted(api) -> None:
+    """The complete account profile passes preflight and desired-state persistence."""
     payload = _lineageweave_registration_with_account_claims()
 
     result = validate_relying_party_registration(_parse_registration(payload))
@@ -220,6 +225,12 @@ def test_account_derived_claim_mapper_profile_is_accepted() -> None:
         "oidc-usermodel-attribute-mapper",
     ]
     assert all("claim.value" not in mapper["config"] for mapper in mappers[1:])
+
+    store = InMemoryKvStore()
+    service = RelyingPartyService(store, api)
+    status = service.put_registration("lineageweave-web", result.registration)
+    assert status.convergence_state.value == "in_sync"
+    assert store.get(RELYING_PARTY_NAMESPACE, "lineageweave-web") is not None
 
 
 def test_account_derived_claim_mapper_observation_is_reconciled() -> None:
@@ -345,14 +356,29 @@ def test_account_attribute_mapper_policy_rejects_unsafe_values(
     _assert_policy_error(payload, field)
 
 
-def test_account_claim_profile_requires_every_dynamic_claim() -> None:
-    """A partial dynamic profile cannot silently fall back to static routing."""
+@pytest.mark.parametrize(
+    "mapper_count", (None, 0, 1, 3), ids=("omitted", "empty", "audience-only", "partial")
+)
+def test_account_claim_profile_requires_every_dynamic_claim(mapper_count, api) -> None:
+    """Incomplete reserved-client profiles fail before readiness or persistence."""
     payload = _lineageweave_registration_with_account_claims()
     mappers = payload["protocolMappers"]
     assert isinstance(mappers, list)
-    payload["protocolMappers"] = mappers[:-1]
+    if mapper_count is None:
+        payload.pop("protocolMappers")
+    else:
+        payload["protocolMappers"] = mappers[:mapper_count]
 
     _assert_policy_error(payload, "protocolMappers")
+
+    store = InMemoryKvStore()
+    service = RelyingPartyService(store, api)
+    with pytest.raises(HTTPException) as raised:
+        service.put_registration("lineageweave-web", _parse_registration(payload))
+    assert raised.value.status_code == 400
+    assert str(raised.value.detail).startswith("protocolMappers")
+    assert store.get_all(RELYING_PARTY_NAMESPACE) == {}
+    assert api.calls == []
 
 
 def test_account_claim_profile_rejects_duplicate_dynamic_claim() -> None:

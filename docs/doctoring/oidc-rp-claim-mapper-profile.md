@@ -119,6 +119,19 @@ reviewed authorization model and token-validation policy.
 
 ## Measured repository evidence
 
+The September 7, 2026 owner repair enforces the existing
+[ADR-0009](../adr/0009-lineageweave-account-derived-rp-claims.md) policy; it adds
+no mapper, credential, or authentication mechanism. Synthetic omitted, empty,
+and audience-only `lineageweave-web` cases each failed before the fix because
+validation returned readiness. The shared validation boundary now rejects
+these cases before readiness or desired-state persistence. Regressions also
+assert no store write or Keycloak call, preserve valid full-profile acceptance,
+and retain other clients' audience-only behavior. Path validation reuses the
+existing bounded client-ID pattern rather than constructing a mapper-free
+dummy registration, so valid reserved-client persistence remains reachable.
+This is local contract evidence, not hosted review or authenticated runtime
+acceptance.
+
 The implementation is covered by production-shaped tests that exercise:
 
 - the first Naruon mapper payload being rejected before mapper support existed;

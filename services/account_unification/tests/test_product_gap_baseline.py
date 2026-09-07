@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 
-_OPEN_ISSUES = (114, 102, 99, 71, 2)
+_HISTORICAL_OPEN_ISSUES = (114, 102, 99, 71, 2)
 _CURRENT_QUEUE_MARKER = "## Current live queue snapshot"
 
 
@@ -23,22 +23,13 @@ def _read(relative_path: str) -> str:
 
 
 def _current_refresh(baseline: str) -> str:
-    """Return the explicitly designated current queue snapshot."""
+    """Return only the latest recorded snapshot, excluding historical sections."""
 
     start = baseline.find(_CURRENT_QUEUE_MARKER)
     if start < 0:
         raise AssertionError("missing explicit current live queue snapshot")
     rest = baseline[start:]
-    for stop in (
-        "## Live queue refresh — 2026-08-23",
-        "## Historical queue snapshot",
-        "## Current capability map",
-        "## Live PR inventory",
-    ):
-        index = rest.find(stop, len(_CURRENT_QUEUE_MARKER))
-        if index > 0:
-            return rest[:index]
-    return rest
+    return rest.split("\n## ", 1)[0]
 
 
 def _gap_section(baseline: str, heading: str, terminator: str) -> str:
@@ -76,8 +67,8 @@ def test_gap_baseline_keeps_required_product_and_loop_headings() -> None:
         assert f"`{classification}`" in baseline
 
 
-def test_live_queue_uses_explicit_current_snapshot_without_promoting_pending_checks() -> None:
-    """Current evidence stays explicit while nonterminal or stale results stay unverified."""
+def test_recorded_queue_snapshot_does_not_promote_pending_or_stale_checks() -> None:
+    """A dated observation cannot claim that a later local head passed hosted checks."""
 
     baseline = _read("docs/product-technical-gap-baseline.md")
     refresh = " ".join(_current_refresh(baseline).split())
@@ -85,6 +76,9 @@ def test_live_queue_uses_explicit_current_snapshot_without_promoting_pending_che
 
     assert "[#100](" in refresh
     assert "source observation head" in lowered
+    assert "observed at" in lowered
+    assert "historical" in lowered
+    assert "later head" in lowered
     assert len(re.findall(r"`[0-9a-f]{40}`", refresh)) >= 2
     assert "1 approving review" in lowered
     assert "dismiss stale reviews" in lowered
@@ -102,16 +96,17 @@ def test_live_queue_uses_explicit_current_snapshot_without_promoting_pending_che
     assert "does not recursively rename" in lowered
 
 
-def test_open_issue_inventory_and_gap_order_match_the_live_queue() -> None:
-    """Issues stay inventoried; G1/G8 no longer treat closed PRs as open work."""
+def test_historical_issue_inventory_and_gap_order_remain_traceable() -> None:
+    """Retain the earlier inventory without presenting it as a new live audit."""
 
     baseline = _read("docs/product-technical-gap-baseline.md")
+    assert "Inventories and gap states below are historical" in baseline
     issues = _gap_section(
         baseline,
         "## Open Issue inventory",
         "## Gap register and buyer-visible order",
     )
-    for number in _OPEN_ISSUES:
+    for number in _HISTORICAL_OPEN_ISSUES:
         assert f"[#{number}](" in issues, f"missing open issue #{number}"
     gap_g1 = " ".join(_gap_section(baseline, "### G1 —", "### G2 —").split())
     assert "#112" in gap_g1

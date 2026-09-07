@@ -573,9 +573,9 @@ def _validate_account_attribute_mapper(
 
 
 def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
-    """Validate the optional closed audience and session-claim mapper profile."""
+    """Require the reserved account profile; keep other clients' mappers optional."""
     mappers = registration.protocol_mappers
-    if not mappers:
+    if not mappers and registration.client_id != "lineageweave-web":
         return
     if len(mappers) > _MAX_MAPPER_COUNT:
         _client_error("protocolMappers", "must contain at most 4 entries")
@@ -628,7 +628,10 @@ def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
             "protocolMappers",
             "must not mix hardcoded and account-derived claims",
         )
-    if hardcoded_claim_names and registration.client_id == "lineageweave-web":
+    if (
+        registration.client_id == "lineageweave-web"
+        and account_claim_names != _ACCOUNT_CLAIMS
+    ):
         _client_error(
             "protocolMappers",
             "lineageweave-web must use account-derived claims",
@@ -637,11 +640,6 @@ def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
         _client_error(
             "protocolMappers",
             "account-derived claims are only supported for lineageweave-web",
-        )
-    if account_claim_names and account_claim_names != _ACCOUNT_CLAIMS:
-        _client_error(
-            "protocolMappers",
-            "must contain role, org, and workspace account claims",
         )
     if ranks != sorted(ranks) or len(set(ranks)) != len(ranks):
         _client_error("protocolMappers", "must use canonical mapper order")

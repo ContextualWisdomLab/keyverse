@@ -176,7 +176,7 @@ def test_lineageweave_tenant_contract_is_explicit() -> None:
 
 
 def test_gap_baseline_documents_product_evidence_and_hourly_loop() -> None:
-    """Keep the buyer-facing gap baseline current and evidence-classified."""
+    """Keep the latest recorded snapshot distinct from retained historical evidence."""
 
     baseline = _read("docs/product-technical-gap-baseline.md")
     for heading in (
@@ -199,12 +199,16 @@ def test_gap_baseline_documents_product_evidence_and_hourly_loop() -> None:
         assert f"`{classification}`" in baseline, (
             f"baseline is missing evidence class {classification}"
         )
-    lowered = baseline.lower()
+    snapshot = baseline.split("## Current live queue snapshot\n", 1)[1]
+    lowered = snapshot.split("\n## ", 1)[0].lower()
+    assert "observed at" in lowered
+    assert "historical" in lowered
+    assert "later head" in lowered
     assert "never promoted" in lowered
     assert "queued" in lowered
     assert "pending" in lowered
     assert "skipped" in lowered
-    assert "review_required" in lowered
+    assert "review-thread resolution" in lowered
     assert "source observation head" in lowered
     assert "does not recursively rename" in lowered
 

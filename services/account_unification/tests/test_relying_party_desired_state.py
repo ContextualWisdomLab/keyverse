@@ -421,7 +421,8 @@ def test_missing_or_malformed_live_uuid_fails_closed(api) -> None:
     assert error.value.detail == "keycloak client omitted its identifier"
 
 
-def test_path_body_mismatch_and_invalid_path_are_rejected_before_storage(api) -> None:
+@pytest.mark.parametrize("client_id", ("Bad Client!", "", "a" * 64, "client\n", "café", None))
+def test_path_body_mismatch_and_invalid_path_are_rejected_before_storage(api, client_id) -> None:
     """A path cannot redirect desired state or contain unsafe client syntax."""
     store = InMemoryKvStore()
     service = RelyingPartyService(store, api)
@@ -432,8 +433,11 @@ def test_path_body_mismatch_and_invalid_path_are_rejected_before_storage(api) ->
     assert store.get(RELYING_PARTY_NAMESPACE, "other-web") is None
 
     with pytest.raises(HTTPException) as invalid:
-        service.get_registration("Bad Client!")
+        service.get_registration(client_id)
     assert invalid.value.status_code == 400
+    assert invalid.value.detail == "client_id must be a lowercase ASCII slug"
+    assert store.get_all(RELYING_PARTY_NAMESPACE) == {}
+    assert api.calls == []
 
 
 def test_blocked_network_call_does_not_hold_desired_state_lock(

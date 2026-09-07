@@ -168,6 +168,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Reject incomplete LineageWeave account-claim profiles before readiness or
+  persistence, including omitted, empty, and audience-only mapper submissions.
+- Separate the dated PR #100 owner observation from historical gap inventories
+  and bind documentation checks to that explicitly designated snapshot.
 - Prevented Keycloak's omitted empty account-role `rolePrefix` read-back from
   causing perpetual relying-party drift, while retaining fail-closed handling
   for all other missing or changed mapper configuration.

@@ -79,7 +79,10 @@ resource ABAC denial, role downgrade, logout, and rollback. A compose-only IdP
 or preflight receipt does not satisfy that evidence.
 
 The reserved client ID is rejected if it is submitted with the generic static
-claim profile. This prevents an operator from silently replacing account-derived
+claim profile, omitted or empty mappers, or an audience-only profile. Preflight
+and desired-state PUT both require the complete four-mapper account profile
+before any persistence or Keycloak call. This prevents an operator from
+silently replacing account-derived
 authorization attributes with visible constants while retaining the same
 LineageWeave audience. In the standalone Compose path, the post-import profile
 bootstrap is a required one-shot prerequisite for the account service; a failed

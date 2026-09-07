@@ -21,6 +21,7 @@ from .identifiers import InvalidIdentifierError, validate_path_segment
 from .kv_store import KvStore
 from .relying_party import (
     RelyingPartyRegistration,
+    _CLIENT_ID,
     _parse_registration,
     validate_relying_party_registration,
 )
@@ -390,38 +391,11 @@ def parse_relying_party_registration(payload: Any) -> RelyingPartyRegistration:
 
 def _validate_client_id(client_id: str) -> None:
     """Require the same bounded lowercase slug accepted by preflight."""
-    try:
-        registration = _parse_registration(
-            {
-                "clientId": client_id,
-                "name": client_id,
-                "enabled": True,
-                "protocol": "openid-connect",
-                "publicClient": True,
-                "clientAuthenticatorType": "none",
-                "standardFlowEnabled": True,
-                "implicitFlowEnabled": False,
-                "directAccessGrantsEnabled": False,
-                "serviceAccountsEnabled": False,
-                "redirectUris": ["https://path-validation.invalid/callback"],
-                "webOrigins": ["https://path-validation.invalid"],
-                "attributes": {
-                    "pkce.code.challenge.method": "S256",
-                    "post.logout.redirect.uris": "https://path-validation.invalid/logout",
-                    "access.token.lifespan": "300",
-                    "backchannel.logout.session.required": "true",
-                    "require.pushed.authorization.requests": "false",
-                },
-                "fullScopeAllowed": False,
-                "defaultClientScopes": ["basic", "profile", "email"],
-            }
-        )
-        validate_relying_party_registration(registration)
-    except HTTPException:
+    if not isinstance(client_id, str) or _CLIENT_ID.fullmatch(client_id) is None:
         raise HTTPException(
             status_code=400,
             detail="client_id must be a lowercase ASCII slug",
-        ) from None
+        )
 
 
 def _desired_digest(registration: RelyingPartyRegistration) -> str:

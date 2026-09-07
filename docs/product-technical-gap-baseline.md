@@ -1,9 +1,9 @@
 # Keyverse product and technical gap baseline
 
-**Evidence snapshot:** 2026-08-31 (merge of main `2e00633e` into PR #100)
+**Evidence snapshot:** 2026-09-07T01:25:45+00:00 (bounded PR #100 owner audit)
 **Repository:** `ContextualWisdomLab/keyverse`
-**Protected-main head observed:** `ce207dfd42975db61c82a5963e206fc1db14ac2b`
-**Status:** live inventory and gap register; not a release acceptance record
+**Protected-main head observed:** `7d9151cd2da260e118020c938c7358e2ee75d541`
+**Status:** dated observation with retained historical inventories; not release acceptance
 
 This document turns the accepted PRD, TRD, architecture, ADRs, doctoring
 records, and current GitHub state into an executable buyer-facing backlog.
@@ -12,7 +12,7 @@ contracts, and evidence that is still absent. A green unit or preflight check
 does not promote a lower-level result into login, token, authorization, or
 release acceptance.
 
-## 2026-08-31 merge of protected main `2e00633e` into PR #100
+## Historical merge — 2026-08-31 main `2e00633e` into PR #100
 
 This merge brings protected main (PR #112 uv lockfile plus ADR-0013 MCP OAuth / SCIM lock / Helm notes already present on that history) onto the live LineageWeave ADR-0009 RP-profile branch without force-push. Predecessor-head Checks on `d978e9a` are non-passing for the merge commit. Docs-only SHA rebinds from `a1a65b2` / `655aaad` / `84e0c75` stay historical; they do not transfer evidence onto this merge commit.
 
@@ -52,10 +52,60 @@ tenant, or resource ownership.
 | `accepted-contract` | An ADR/specification defines the policy, but runtime or buyer acceptance may still be absent. |
 | `gap-not-claimed` | The repository deliberately makes no success claim until stronger evidence exists. |
 
-## Live queue refresh — 2026-08-23T21:56:27+09:00
+## Current live queue snapshot
 
-This section supersedes the older queue snapshots below for current-state
-decisions. The protected `main` head is
+Observed at `2026-09-07T01:25:45+00:00` through read-only GitHub REST and
+GraphQL queries. "Current" designates this document's latest recorded
+observation; it is not a continuously refreshed claim. This bounded audit
+covers [#100](https://github.com/ContextualWisdomLab/keyverse/pull/100), its
+protected base, and adjacent owner PRs. The full historical PR/issue inventories
+below were not re-audited. Source observation head:
+`29a78ed8397f583479e9b81a985c1274865c0853`. Live protected `main`:
+`7d9151cd2da260e118020c938c7358e2ee75d541`. GitHub's PR base/merge-base snapshot
+remains `2e00633e5485905ecc608708eb9f57e2779ea5e2`; comparison with live main
+reports 130 commits ahead and five behind.
+
+PR #100 is open, non-draft, mechanically mergeable, and `BLOCKED`. Its 31
+exact-head check runs comprise 19 successful, eight skipped, three failed, and
+one cancelled. Four review threads remain unresolved. The only reviews on
+this source observation head are two `COMMENTED` reviews; predecessor approval
+does not establish independent current-head acceptance.
+
+- `account-unification-tests` fails its documentation step because
+  `## Current live queue snapshot` is absent at the observed source head
+  (job `99531496280`, one failed and nine passed). Service tests, coverage,
+  and the distribution build were skipped after that failure.
+- `strix` reports provider/backend unavailability (job `99545303857`), not a
+  completed authoritative vulnerability assessment.
+- `noema-review` terminates with a timeout (job `99531483277`).
+- `opencode-review` was cancelled (job `99941036943`).
+
+Ruleset `18156473` requires 1 approving review, dismiss stale reviews on push,
+review-thread resolution, and the central required workflows. Last-push and
+code-owner approval requirements are false in this observation. Organization
+admin bypass must not be used. Failed, cancelled, skipped, queued, or pending
+checks are never promoted to successful acceptance. These gates remain a
+blocker; a local fix is not a merge license.
+
+There are 23 open Keyverse PRs. The claims owner remains #100. Adjacent #128
+at `e1cf0807d6b15e8d8300eb252533aa05b20b93c9` is Draft and owns Naruon's
+unimplemented replacement authentication contract, stacked on Draft #146 at
+`e6da5dd3762b45acf4e0a70b672327f38f4ba04b`. Draft #103 at
+`5ac33256229321e9fccbb14a460c7d6de984444a` owns the proposed start-login helper.
+None supplies released product-owned login, enrollment, or recovery ceremonies
+for this claims repair; #100 adds no issuer or authentication ceremony.
+
+The owner repair starts from the recorded source observation head in an
+isolated worktree. Its later local commit has not been pushed by this audit.
+This dated observation does not recursively rename itself to the commit that
+records it, and its checks/reviews never transfer to a later head. Before any
+normal push or protected integration, recheck the remote head, protected main,
+required checks, independent review, and unresolved threads.
+
+## Historical queue snapshot — 2026-08-23T21:56:27+09:00
+
+This section was the current-state observation on August 23 and is retained
+as historical evidence only. The protected `main` head observed then was
 `ce207dfd42975db61c82a5963e206fc1db14ac2b`. Counts are exact-head GitHub REST
 check-runs; pending, queued, skipped, and failed results are never promoted to
 green. The current exact-head review audit reports `REVIEW_REQUIRED` for every
@@ -199,6 +249,10 @@ fails closed on partial workflow inventories; its hosted Checks remain queued
 and the PR remains pending until #1198 and all current hosted gates settle.
 
 ## Current capability map
+
+Inventories and gap states below are historical, retained from the August 2026
+audit. They are not the September 7 live queue or a new runtime acceptance
+claim. Use the bounded snapshot above for the #100 owner repair.
 
 | Capability | Current state | Evidence boundary |
 |---|---|---|
