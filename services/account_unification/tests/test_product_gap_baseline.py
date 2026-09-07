@@ -144,13 +144,11 @@ def test_hourly_loop_keeps_github_workflows_separate_from_copilot_token() -> Non
         "## Hourly loop contract",
         "## Standards interpretation and design tooling boundary",
     )
-    assert "Hourly PR steward" in loop
+    assert "Central required PR scheduler" in loop
+    assert "pr-review-merge-scheduler.yml" in loop
     assert "Hourly product development" in loop
     assert "COPILOT_GITHUB_TOKEN" in loop
     assert "must not use `COPILOT_GITHUB_TOKEN`" in loop
-    steward = _read(".github/workflows/hourly-pr-steward.yml")
     product = _read(".github/workflows/hourly-product-development.yml")
-    assert "COPILOT_GITHUB_TOKEN" not in steward
     assert "COPILOT_GITHUB_TOKEN" not in product
-    assert 'cron: "17 * * * *"' in steward
     assert 'cron: "41 * * * *"' in product

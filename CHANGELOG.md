@@ -168,6 +168,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Align workflow tests and current scheduler documentation with PR #140's
+  removal of the duplicate local PR steward; retain the central required
+  review and Check gates and prevent the retired workflow from returning.
 - Reject incomplete LineageWeave account-claim profiles before readiness or
   persistence, including omitted, empty, and audience-only mapper submissions.
 - Separate the dated PR #100 owner observation from historical gap inventories

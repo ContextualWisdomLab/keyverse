@@ -507,6 +507,38 @@ https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28
   pre-mutation record for Keyverse issue #99; no credential, private payload, or
   PII is recorded here.
 
+## 2026-09-07 current-main integration and retired steward contracts
+
+PR #100's claims repair was integrated normally with protected `main`
+`7d9151cd2da260e118020c938c7358e2ee75d541` at merge commit
+`16e903db229e60a24cfde5cc2697819582104713`. The production application tree
+remained `9f7cda504b0de7ccc46badea95dbb95e6d573714`, identical to the repair
+verified by 831 service tests and 100% statement/branch coverage before merging.
+
+The integration exposed six obsolete contracts: five tests tried to inspect
+the local PR steward removed by PR #140, and the gap-baseline test and current
+operations text still promised its minute-17 schedule. All six failed on the
+missing file; restoring the duplicate workflow would contradict protected main.
+The source-specific tests were retired, the existing central-workflow absence
+contract now also guards the removed steward path, and current loop text points
+to the central required PR scheduler. Historical lifecycle evidence below is
+retained as dated evidence, not rewritten into a current runtime claim.
+
+This integration changes workflow contracts and documentation only. It does
+not relax the independent approval or required-Check rules, alter the remaining
+product-development schedule, or establish protected merge/release acceptance.
+
+Post-repair local verification passed 829 service tests and all 10 root
+documentation contracts. The count reconciles the earlier 831 tests with
+three current-main workflow contracts and five retired source-specific tests.
+Production coverage remained 100% across 2,813 statements and 778 branches,
+with zero missed statements or partial branches; Ruff, 100% docstring coverage,
+and Actionlint also passed. The full run used
+`uv run --locked --extra dev coverage run --branch --source=app -m pytest -o addopts= -q`;
+the coverage report used `--show-missing --fail-under=100`. These results
+describe local integration evidence; fresh hosted checks and independent
+approval are still required on the pushed head.
+
 ## 2026-08-21 workflow registry lifecycle remediation
 
 - The protected-main ref was re-fetched immediately before mutation and

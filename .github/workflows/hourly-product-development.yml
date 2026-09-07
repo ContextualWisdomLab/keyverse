@@ -9,7 +9,7 @@ on:
         default: false
         type: boolean
   schedule:
-    # Offset from the PR steward at minute 17 so protected merge evidence settles.
+    # Avoid the top-of-hour congestion window.
     - cron: "41 * * * *"
 
 concurrency:

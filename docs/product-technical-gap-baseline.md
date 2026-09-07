@@ -701,12 +701,13 @@ private Keycloak internals into sibling repositories.
 
 ## Hourly loop contract
 
-The repository currently schedules:
+The current maintenance paths are:
 
-- **Hourly PR steward:** UTC minute `17`, inventory and advance only trusted
-  same-repository PRs with exact-head independent approval and required Checks.
-- **Hourly product development:** UTC minute `41`, after the steward's evidence
-  settles; create at most one bounded draft product-gap PR only when the open
+- **Central required PR scheduler:** `pr-review-merge-scheduler.yml` handles PR
+  events under independent approval and required Checks. PR #140 removed the
+  redundant local hourly steward; there is no local minute-17 schedule.
+- **Hourly product development:** UTC minute `41`; create at most one bounded
+  draft product-gap PR only when the open
   PR queue is empty and protected-main evidence is healthy.
 - **Grok hourly product loop:** interval `1h`, inventory, steward, and baseline
   refresh even while Keyverse PRs remain open. It must not open a competing
@@ -714,10 +715,10 @@ The repository currently schedules:
   protected gates, and must not use `COPILOT_GITHUB_TOKEN`. Existing GitHub
   hourly workflows and review-agent credentials stay separate.
 
-The current live run inventory showed a successful product-development run at
-the protected-main head and a queued PR-steward run. Queued or delayed runs are
-not blockers for independent documentation, review analysis, standards work,
-or test design, but they are not evidence of a merge or release.
+The older run inventory below the historical snapshot headings records the
+retired PR steward. It does not describe the current scheduler. On 2026-09-07,
+ruleset `18156473` still required the central PR scheduler; queued or delayed
+runs permit independent work but do not establish a merge or release.
 
 ## Standards interpretation and design tooling boundary
 
