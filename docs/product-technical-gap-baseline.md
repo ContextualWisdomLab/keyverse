@@ -1,5 +1,17 @@
 # Keyverse product and technical gap baseline
 
+> Owner ceremony proposal snapshot, 2026-09-07: protected `main` was
+> `7d9151cd2da260e118020c938c7358e2ee75d541`; draft PR #128 was
+> `e1cf0807d6b15e8d8300eb252533aa05b20b93c9`. Login/signup/recovery rendered
+> by the product remain unimplemented. [ADR 0019](adr/0019-product-owned-passkey-ceremonies.md)
+> specifies the next engine experiment, credential-scope migration, recovery
+> proofs, negative tests, and release boundary. PR #128's conflicting 0014/0015
+> proposal numbers move to 0017/0018 and remain Proposed. The dated evidence
+> [record](doctoring/2026-09-07-product-passkey-ceremonies.md) distinguishes
+> the observed 26.3.2 owner engine from the separate 26.0.8 LineageWeave engine.
+> No consolidation, authentication, release, or protected-merge acceptance is
+> claimed. The older inventory below remains historical.
+
 **Evidence snapshot:** 2026-08-21T16:47:10Z (UTC)
 **Repository:** `ContextualWisdomLab/keyverse`
 **Protected-main head observed:** `ce207dfd42975db61c82a5963e206fc1db14ac2b`

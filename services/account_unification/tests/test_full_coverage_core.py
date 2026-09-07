@@ -358,6 +358,7 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
         registration_client_id="naruon-web",
         registration_redirect_uri="https://naruon.example/auth/callback",
         registration_action_lifespan_seconds=900,
+        password_registration_api_token="password-registration",
     )
     lock_path = str(Path.cwd() / "coverage-lock.sqlite3")
 
@@ -400,6 +401,7 @@ def test_build_service_wires_all_state(monkeypatch) -> None:
     assert app.state.federation_service is federation
     assert app.state.operator_api_token == "operator"
     assert app.state.registration_api_token == "registration"
+    assert app.state.password_registration_api_token == "password-registration"
     assert app.state.ready is True
     assert app.state.temporary_user_operation_lock_database is True
 

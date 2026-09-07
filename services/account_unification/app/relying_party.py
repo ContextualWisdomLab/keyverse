@@ -507,7 +507,52 @@ def _validate_protocol_mappers(registration: RelyingPartyRegistration) -> None:
 def validate_relying_party_registration(
     registration: RelyingPartyRegistration,
 ) -> RelyingPartyValidationResult:
-    """Validate one client registration without persistence or network access."""
+    """Validate one dynamically-registered OIDC relying party (RP) against this
+    org's fixed client-security profile before Keyverse creates or updates the
+    corresponding Keycloak client. This function is pure and side-effect-free
+    -- it neither persists anything nor makes a network call; a caller may
+    apply the change only after this returns without raising.
+
+    Every check below enforces one property of that fixed profile, and none
+    of them are configurable per-caller -- a client that needs a different
+    property does not qualify for dynamic registration through this path:
+
+    - `clientId` must be a clean, lowercase ASCII slug, and `name` must
+      exactly match it -- dynamically-registered clients get no separate
+      free-text display identity.
+    - The client must be `enabled` and speak the `openid-connect` protocol.
+    - A public client (SPA/native, no client secret) must set
+      `clientAuthenticatorType` to `none`; a confidential client must set it
+      to `client-secret` -- the two client types cannot be conflated.
+    - Only the OAuth2 Authorization Code flow (`standardFlowEnabled`) may be
+      used. The OAuth2 Implicit flow (`implicitFlowEnabled`) is rejected as
+      deprecated. The Resource Owner Password Credentials grant, Keycloak's
+      "Direct Access Grants" (`directAccessGrantsEnabled`), is rejected
+      because RFC 9700 §2.4 (BCP 240, Jan 2025) and RFC 10017 §7.3 (OAuth 2.0
+      for Browser-Based Applications, BCP, Aug 2026) both state it MUST NOT
+      be used by browser-based OAuth/OIDC clients -- see
+      docs/adr/0014-naruon-owned-password-form.md's Correction section for
+      the one hand-authored (not dynamically-registered) exception this
+      function deliberately does not need to know about, since it never
+      sees `naruon-web`'s registration.
+    - `serviceAccountsEnabled` (the client-credentials machine-to-machine
+      grant) and `fullScopeAllowed` (implicit access to every realm role and
+      scope) are both rejected, because a dynamically-registered RP is
+      expected to act only on behalf of an interactive human user with an
+      explicitly-granted scope -- never as a standing machine identity with
+      unrestricted realm access.
+    - `redirectUris` and `webOrigins` must resolve to exactly the same set of
+      origins (an RP cannot receive callbacks at an origin it never declared
+      as trusted for CORS), and the client's post-logout redirect URI must
+      itself be one of those registered web origins.
+
+    Raises `HTTPException(400)` via `_client_error` on the first violation
+    found, with a message naming only the violated field and requirement --
+    never the submitted value, so a rejected registration attempt cannot be
+    used to probe or leak configuration. Returns a `RelyingPartyValidationResult`
+    wrapping the validated registration, with `ready_to_apply=True`, once every
+    check above has passed.
+    """
     _require_clean_text(
         registration.client_id,
         "clientId",

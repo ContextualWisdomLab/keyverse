@@ -18,6 +18,9 @@ authorization boundary and is not rewritten by that expansion.
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
+| [0017](0017-naruon-owned-password-form.md) | Historical naruon password-form proposal; product-owned rendering requirement retained | Proposed; password mechanism blocked |
+| [0018](0018-naruon-password-credential-issuance.md) | Historical naruon password-issuance proposal; endpoint remains unavailable | Proposed; no issuance authority enabled |
+| [0019](0019-product-owned-passkey-ceremonies.md) | Product-rendered passkey login, signup and recovery with Keyverse verification | Proposed; pinned-engine experiment and release required |
 
 ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
 proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
@@ -25,6 +28,14 @@ ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
 the next intended number without renumbering parallel work; it must be
 reconciled after those PRs land, and none of the absent records is accepted
 architecture on protected `main` yet.
+
+On 2026-09-07, the complete open-PR file inventory also showed 0014–0016
+reserved by PR #129 and another 0014 in PR #130. This PR's original 0014/0015
+records are therefore renumbered to 0017/0018; their histories remain in those
+files and in PR #128's immutable prior commits. ADR 0019 uses the next observed
+unclaimed number. The separate #129/#130 collision still needs owner repair.
+Recheck live reservations before integration; no open proposal is promoted
+to Accepted by this numbering correction.
 
 ## ADR triggers
 

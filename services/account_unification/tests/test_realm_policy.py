@@ -81,6 +81,17 @@ def test_public_client_token_lifespan_is_bounded() -> None:
     assert any("access.token.lifespan" in error for error in errors)
 
 
+def test_naruon_direct_access_grants_stays_disabled() -> None:
+    """A later realm edit cannot silently restore the blocked ROPC grant."""
+    validator = _validator_module()
+    realm = deepcopy(_realm())
+    _client(realm, "naruon-web")["directAccessGrantsEnabled"] = True
+
+    errors = validator.validate(realm)
+
+    assert any("Direct Access Grants" in error for error in errors)
+
+
 def test_reusable_client_template_does_not_name_naruon_host() -> None:
     """The generic RP template stays portable across ecosystem products."""
     template = _client(_realm(), "ecosystem-rp-template")

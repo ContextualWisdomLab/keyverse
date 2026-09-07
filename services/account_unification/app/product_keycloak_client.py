@@ -145,13 +145,23 @@ class ProductHttpAdminApi(HttpAdminApi):
         timeout_seconds: float = 10.0,
         transport=None,
     ) -> None:
-        """Create a product adapter after validating all configured realms."""
+        """Create a product adapter bound to one credential-free TLS origin."""
+        candidate_server_url = server_url.strip()
+        parsed_server_url = urlsplit(candidate_server_url)
+        if (
+            parsed_server_url.scheme != "https"
+            or not parsed_server_url.hostname
+            or parsed_server_url.username is not None
+            or parsed_server_url.password is not None
+            or parsed_server_url.fragment
+        ):
+            raise ValueError("server_url must be an absolute HTTPS URI")
         validate_path_segment(realm, field_name="keycloak_realm")
-        self._server_url = server_url.rstrip("/")
+        self._server_url = candidate_server_url.rstrip("/")
         if token_realm is not None:
             validate_path_segment(token_realm, field_name="token_realm")
         super().__init__(
-            server_url=server_url,
+            server_url=candidate_server_url,
             realm=realm,
             client_id=client_id,
             client_secret=client_secret,
@@ -485,7 +495,6 @@ class ProductHttpAdminApi(HttpAdminApi):
             f"/admin/realms/{self._realm}/identity-provider/instances/"
             f"{safe_alias}"
         )
-
 
     def _absolute_admin_url(self, path: str) -> str:
         """Return one guarded absolute Admin REST URL for direct response access."""

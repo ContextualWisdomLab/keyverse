@@ -28,6 +28,7 @@ KEY_REGISTRATION_REDIRECT_URI = "registration_redirect_uri"
 KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS = (
     "registration_action_lifespan_seconds"
 )
+KEY_PASSWORD_REGISTRATION_API_TOKEN = "password_registration_api_token"
 KEY_AUDIT_DATABASE_PATH = "audit_database_path"
 
 MAX_REGISTRATION_ACTION_LIFESPAN_SECONDS = 3600
@@ -50,6 +51,11 @@ class ServiceConfig:
     registration_client_id: str | None = None
     registration_redirect_uri: str | None = None
     registration_action_lifespan_seconds: int = 900
+    # A third, independent bearer credential: naruon's own signup form calls
+    # POST /registration/accounts/password through this token only. It grants
+    # no other capability and is never accepted as an operator or passwordless-
+    # registration token (see docs/adr/0015-naruon-password-credential-issuance.md).
+    password_registration_api_token: str | None = None
     audit_database_path: str = "/var/lib/account-unification/audit.db"
     merge_conflict_policy: str = "survivor_wins"
     # This is an invariant, not a deployer-selectable feature. The field remains
@@ -189,6 +195,17 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
             "config 'registration_api_token' must differ from "
             "'operator_api_token'"
         )
+    password_registration_api_token = (
+        store.get(namespace, KEY_PASSWORD_REGISTRATION_API_TOKEN) or None
+    )
+    if password_registration_api_token is not None and password_registration_api_token in (
+        operator_api_token,
+        registration_api_token,
+    ):
+        raise RuntimeError(
+            "config 'password_registration_api_token' must differ from "
+            "'operator_api_token' and 'registration_api_token'"
+        )
     (
         registration_client_id,
         registration_redirect_uri,
@@ -231,6 +248,7 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
         registration_action_lifespan_seconds=(
             registration_action_lifespan_seconds
         ),
+        password_registration_api_token=password_registration_api_token,
         audit_database_path=(
             store.get(namespace, KEY_AUDIT_DATABASE_PATH)
             or "/var/lib/account-unification/audit.db"

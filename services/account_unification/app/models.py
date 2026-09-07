@@ -67,6 +67,10 @@ class UserAccount(BaseModel):
     last_name: str | None = None
     # SCIM provisioning source id, kept as a Keycloak user attribute.
     external_id: str | None = None
+    # ``None`` omits the field so Keycloak applies the realm's configured
+    # default required actions (e.g. passwordless enrollment). An explicit
+    # list, including ``[]``, overrides that default for this user.
+    required_actions: list[str] | None = None
     federated_identities: list[FederatedIdentity] = Field(default_factory=list)
 
 

@@ -71,6 +71,14 @@ Product extensions are isolated behind `ProductAdminApi`; relying-party client
 CRUD is further narrowed behind `RelyingPartyAdminApi`. Deterministic preflight
 modules require neither protocol nor any network client.
 
+### Proposed product-rendered ceremonies
+
+Product-rendered login, signup, and recovery remain a proposed owner extension
+in [ADR 0019](docs/adr/0019-product-owned-passkey-ceremonies.md), not a current
+service capability. It keeps credential verification and token issuance in
+Keyverse and requires a pinned-engine experiment and origin/RP-ID migration
+before any product consumes the released ceremony contract.
+
 ### Deployment controller
 
 - resolves every `{{placeholder}}` from KV or a secret manager;
