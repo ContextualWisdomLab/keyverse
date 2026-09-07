@@ -1,7 +1,15 @@
 # ADR-0009: Bind LineageWeave relying-party claims to Keyverse accounts
 
-**Status:** Accepted
+**Status:** Proposed
 **Date:** 2026-08-13
+
+**Review boundary (2026-09-07):** This unmerged owner proposal belongs to
+[PR #100](https://github.com/ContextualWisdomLab/keyverse/pull/100). It is absent
+from observed protected `main` at
+`7d9151cd2da260e118020c938c7358e2ee75d541`; PR #100 at
+`29a78ed8397f583479e9b81a985c1274865c0853` lacks qualifying current-head
+acceptance. Local verification does not establish protected integration,
+release, or authenticated runtime acceptance.
 
 ## Context
 
@@ -106,7 +114,7 @@ flowchart LR
 2. Permit generic Keycloak user/role/group mappers. Rejected because arbitrary
    issuer-side mappings expand authorization authority and cannot be reviewed
    from a stable desired-state contract.
-3. Use the exact four-mapper account-derived profile. Accepted because it binds
+3. Use the exact four-mapper account-derived profile. Proposed because it binds
    the needed claims to one Keyverse account and one client while retaining
    deterministic validation and reconciliation.
 
@@ -135,7 +143,7 @@ omits `unmanagedAttributePolicy` after reconciliation. Before production use,
 record authenticated Keyverse preflight and reconciliation receipts, private
 credential placement, a real account authorization-code/PKCE exchange, token
 claim shape, cross-tenant denial, role downgrade, logout, and rollback
-evidence. Until then the profile is an accepted contract, not a deployed-login
+evidence. Until then the profile is a proposed contract, not a deployed-login
 claim.
 
 ## References
