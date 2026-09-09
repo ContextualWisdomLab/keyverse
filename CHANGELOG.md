@@ -7,6 +7,10 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- An opt-in namespaced Keyvault foundation with encrypted-at-rest values,
+  atomic secret-change audit records, metadata-only administrator APIs, and a
+  fail-closed boundary for future workload-scoped reads.
+
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.

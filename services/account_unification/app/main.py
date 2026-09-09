@@ -21,6 +21,8 @@ from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .directory_federation import directory_federation_router
 from .federation import FederationService, federation_router
+from .keyvault import KeyvaultService, SqliteKeyvaultStore, derive_fernet_key
+from .keyvault_admin import router as keyvault_router
 from .path_security import (
     ScimPathValidationError,
     admin_path_security_dependency,
@@ -61,6 +63,30 @@ def _user_operation_lock_path(audit_database_path: str) -> tuple[str, bool]:
     return temporary_path, True
 
 
+def _build_keyvault_service(config) -> KeyvaultService | None:
+    """Build the Keyvault service from its durable per-vault KDF parameters.
+
+    A deployment with no root passphrase remains explicitly unconfigured. For a
+    configured vault, startup loads or initializes the vault-local KDF metadata
+    before deriving the Fernet key. Existing ciphertext without KDF metadata
+    fails closed and requires the explicit legacy rewrap operation rather than
+    silently deriving with the historical organization-wide fixed salt.
+    """
+    if not config.keyvault_passphrase:
+        return None
+    _ensure_parent_directory(config.keyvault_database_path)
+    keyvault_store = SqliteKeyvaultStore(config.keyvault_database_path)
+    try:
+        kdf_parameters = keyvault_store.load_or_create_kdf_parameters()
+        return KeyvaultService(
+            keyvault_store,
+            derive_fernet_key(config.keyvault_passphrase, kdf_parameters),
+        )
+    except Exception:
+        keyvault_store.close()
+        raise
+
+
 def build_service(app: FastAPI) -> None:
     """Wire all live service dependencies from the bootstrap configuration."""
     descriptor = load_bootstrap_descriptor()
@@ -95,6 +121,7 @@ def build_service(app: FastAPI) -> None:
     app.state.temporary_user_operation_lock_database = temporary_lock_database
     app.state.federation_service = FederationService(store, api)
     app.state.relying_party_service = RelyingPartyService(store, api)
+    app.state.keyvault_service = _build_keyvault_service(config)
     app.state.operator_api_token = config.operator_api_token
     app.state.registration_api_token = config.registration_api_token
     app.state.registration_client_id = config.registration_client_id
@@ -136,6 +163,7 @@ async def lifespan(app: FastAPI):
         app.state.ready = False
         _close_resource(getattr(app.state, "keycloak_api", None))
         _close_resource(getattr(app.state, "audit_logger", None))
+        _close_resource(getattr(app.state, "keyvault_service", None))
         _close_resource(getattr(app.state, "config_store", None))
         _remove_temporary_lock_database(app)
 
@@ -211,6 +239,13 @@ def create_app(*, wire: bool = True) -> FastAPI:
     app.include_router(
         registration_router,
         dependencies=[registration_auth_dependency],
+    )
+    app.include_router(
+        keyvault_router,
+        dependencies=[
+            operator_auth_dependency,
+            admin_path_security_dependency,
+        ],
     )
     return app
 
