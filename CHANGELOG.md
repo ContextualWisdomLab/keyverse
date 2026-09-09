@@ -7,6 +7,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- A protected root-bootstrap credential transport, rejecting plaintext vault
+  roots in the ordinary config DB, unsafe file objects and dotenv fallback;
+  42 focused regression cases cover the compatibility boundary.
+- A scoped CWL Key Vault migration baseline, preserving the historical snapshot
+  and separating proposed workload-resolution/release gates from implemented
+  bootstrap repair.
 - An opt-in namespaced Keyvault foundation with encrypted-at-rest values,
   atomic secret-change audit records, metadata-only administrator APIs, and a
   fail-closed boundary for future workload-scoped reads.
@@ -59,6 +65,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Keyvault bootstrap accepts a supervisor-owned file locator instead of a
+  plaintext passphrase entry. ADR-0014 now remains Proposed until independently
+  accepted, and operations document controlled migration and residual risks.
 - Federation PUT and apply now report `applied_to_keycloak: true` only after a
   fresh live Keycloak identity-provider observation matches the desired
   observable representation. Keycloak's fixed mask for the known
@@ -115,6 +124,8 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Excluded client, operator, registration and vault-root credentials from the
+  typed configuration's repr; arbitrary settings serialization remains unsafe.
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented

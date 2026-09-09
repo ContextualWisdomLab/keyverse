@@ -1,152 +1,184 @@
-# ADR-0014: Keyvault as a separate bounded context from IdP identity/config
+# ADR-0014: Keyverse Key Vault authority and separate secret-lifecycle context
 
-**Status:** Accepted (first slice implemented)
-**Date:** 2026-09-02
+**Status:** Proposed; foundation and bootstrap repair are unmerged PR work.
+**Original date:** 2026-09-02. **Updated:** 2026-09-09.
+**Owner line:** PR #129. **Organization rollout:** ContextualWisdomLab/.github#2063.
 
-## Context
+## Problem and observed implementation
 
-The owner asked that Keyverse stop being only a Keycloak-fronting Identity
-Provider and also become usable as a Keyvault: a namespaced,
-encrypted-at-rest secrets store analogous to Azure Key Vault or HashiCorp
-Vault's KV secrets engine, with write/read/delete APIs and audit logging.
+The owner requested both a namespaced Key Vault and, on 2026-09-09, removal of
+CWL code's dependence on `.env`. Keyverse must provide secret custody and
+lifecycle without confusing identity, authorization, ordinary configuration and
+product-specific credential meaning.
 
-Keyverse already runs one seam that looks superficially similar:
-`services/account_unification/app/kv_store.py`'s `idp_config_entries` table
-(`KvStore` protocol; `InMemoryKvStore`/`SqliteKvStore`), which
-`config.py` reads at startup for this service's *own* operational
-configuration (Keycloak URLs, operator tokens, timeouts). Values there are
-stored as plain SQLite text, never encrypted — appropriate for
-`config.py`'s stated invariant ("nothing here reads process environment";
-everything is this service's own internal, operator-set configuration), but
-not a safe foundation for a general-purpose secrets product surface other
-CWL services would write arbitrary customer/provider secrets into.
+PR #129 at `0f10ac556a318c3c3f5ce7eab0802573ecce0c4c` adds
+`app/keyvault.py`, `app/keyvault_admin.py`, encrypted SQLite values and atomic
+mutation/audit records. Administrator routes expose metadata and write/delete
+outcomes, not plaintext reads. The vault is opt-in; absent configuration means
+unavailable, not an apparently empty vault.
 
-Identity/authentication and secrets storage are historically separate
-concerns even inside mature platforms — Keycloak (an OpenID Connect
-Provider) is architecturally distinct from HashiCorp Vault (a secrets
-manager), and the two are typically deployed and operated independently.
-Domain-Driven Design treats this as a Bounded Context question: two models
-that use similar words ("store a value under a key") but serve different
-Aggregates, different invariants, and different consumers should not be
-collapsed into one undifferentiated model merely because they could share a
-table (Evans, 2003, ch. 14; Vernon, 2013, ch. 2–3).
+The earlier ADR called this Accepted while it was still an open PR. It also
+called plaintext internal configuration suitable merely because it was not
+read from process environment. Both statements are corrected here: changing
+transport does not establish confidentiality, and an unmerged implementation is
+not accepted production evidence.
 
-A genuine motivating first consumer already exists in this ecosystem:
-`contextual-orchestrator`'s `credentials.py` documents the exact same "KV,
-not env" principle for its own provider API keys (`CredentialBackend`
-Protocol; `InMemoryCredentialBackend` default; pgcrypto-encrypted
-`PostgresCredentialBackend`). That module's docstring explicitly names
-Keyverse-style KV-backed secret resolution as the org reference pattern.
-A Keyverse Keyvault is not a feature built for its own sake — it is the
-natural next step for that pattern to be centrally operated rather than
-reimplemented per repository, and `contextual-orchestrator` could later
-swap in a `KeyverseCredentialBackend` implementing its existing
-`CredentialBackend` Protocol with no call-site change, exactly as its
-pluggable-backend design already anticipates.
+`idp_config_entries` currently stores ordinary configuration and some legacy
+service credentials as text. It is not a general-purpose credential vault. In
+particular, the root unlocking credential must not be stored there alongside
+configuration backups. Other legacy credentials require their own controlled
+migration; this bootstrap repair does not falsely claim to have removed them.
 
-NIST SP 800-57 Part 1 Rev. 5 sets general key-management expectations
-(key separation, controlled key lifetime, protecting keys distinct from the
-data they protect) that a from-scratch secrets store should satisfy rather
-than inventing ad hoc practice (Barker, 2020). OWASP's Application Security
-Verification Standard requires application-layer secrets to be encrypted
-at rest with keys that are not co-located with the ciphertext under the
-same trust boundary (OWASP Foundation, 2021, V6 Cryptography at rest).
+CO already exposes a `CredentialBackend` port in `credentials.py`. That is a
+consumer seam, not justification to copy CO's storage implementation into
+Keyverse or to give CO an administrator token. Authorization-plane PR #103 and
+ADRs 0015/0016 remain separate owner work.
 
-## Decision
+## Alternatives
 
-Keyvault is a **separate bounded context** from Keyverse's IdP-facing
-modules (Keycloak realm/client management, `relying_party_admin.py`, the
-in-flight `authorization_plane.py`/`org_authorization.py` line — see
-ADR-0015). It does **not** extend `idp_config_entries` or `kv_store.py`.
+### Retain dotenv or rename it to a plaintext KV table
 
-What is shared (deliberately minimal Shared Kernel, per this org's
-DDD convention of keeping Shared Kernels small):
+Rejected. Neither a filename nor avoiding `os.getenv` provides workload
+identity, narrow authority, rotation, revocation or encryption-key separation.
 
-- The **pattern** already proven twice in this service (`kv_store.py`,
-  `audit.py`): a small `Protocol` plus in-memory and SQLite backends, WAL
-  journal mode, a 10-second `busy_timeout`, and an append-only trail.
-  Keyvault keeps each mutation and its audit event in one transaction.
-- The `operator_auth_dependency` / `admin_path_security_dependency`
-  router-level authentication and opaque-path-segment validation already
-  required for every privileged router in `main.py`.
-- The "KV, not env" bootstrap discipline: `keyvault_passphrase` is read
-  from the *existing* `idp_config_entries` config store (never a raw
-  environment variable at request time), exactly like every other
-  `ServiceConfig` field.
+### Give every application a direct cloud-vault integration
 
-What is genuinely new (Capability #1 of the owner's three-capability
-request; #2 service ABAC/RBAC and #3 login credential store are ADR-0015
-and ADR-0016):
+Rejected as the default CWL product contract. It duplicates lifecycle and
+access semantics across consumers. Deployment-specific KMS/HSM and external
+vault providers belong behind Keyverse-owned ports and anti-corruption layers;
+consumer business data and provider selection remain in their owning domains.
 
-- `app/keyvault.py` — `SqliteKeyvaultStore`/`InMemoryKeyvaultStore` over a
-  dedicated `keyvault_secrets` table (`secret_namespace`, `secret_key`,
-  `encrypted_value`, `updated_at`) and a dedicated `keyvault_audit_log` table
-  (namespace/key/action/actor/`created_at` — deliberately not
-  `AuditEvent`'s survivor/duplicate-user shape, since a Keyvault write has
-  no survivor and forcing one schema onto the other would blur two
-  different Aggregates); `KeyvaultService`, which is the only collaborator
-  that ever holds plaintext (encryption/decryption happens at this service
-  boundary with `cryptography.fernet.Fernet`, keyed by PBKDF2-HMAC-SHA256 of
-  the configured passphrase — the store never sees plaintext and audit events
-  never contain ciphertext or plaintext).
-- `app/keyvault_admin.py` — `PUT`/`DELETE /keyvault/{namespace}/{key}`,
-  `GET /keyvault/{namespace}` (metadata only: namespace, key, `updated_at`
-  — **never** a value, so an admin UI can render an inventory without ever
-  holding plaintext it does not need), and
-  `GET /keyvault/{namespace}/{key}/audit`.
-- Opt-in by construction: `config.py`'s `keyvault_passphrase` defaults to
-  `None`. `main.py`'s `_build_keyvault_service` returns `None` when unset,
-  and `keyvault_admin.get_keyvault` then fails closed with **503** ("not
-  configured"), never a misleading 404 that would suggest the feature
-  exists but is empty. A namespace here identifies the *consumer* of a
-  secret (one CWL service or deployment-scoped concern), never an end user
-  or a Keycloak realm object.
+### Extend Keycloak's internal credential store as a generic secret database
 
-A dedicated admin *page* for Keyvault (distinct from any general "3
-admin webs" work — see the sibling multi-repo research this ADR's PR
-accompanies) is designed but not built in this slice; the API above is the
-complete, tested surface it will consume.
+Rejected. Keycloak's supported vault integration resolves selected Keycloak
+credentials. It does not supply the versioned CWL-wide workload API requested
+here. Identity records, password authenticators and application secret values
+have different invariants and must not share an undifferentiated model.
 
-The branch briefly used a bare SHA-256 derivation before this feature reached
-protected main. No released database used that pre-release format, so there is
-no ciphertext to migrate and no legacy weak-key fallback is admitted. If live
-deployment evidence later contradicts that premise, migration must be a
-separate recovery change that identifies legacy rows explicitly and rewrites
-them once; new rows must never try the legacy derivation.
+### Keyverse-owned secret context with separate identity/authorization contexts
 
-## Consequences
+Selected direction, pending implementation and independent acceptance. The
+existing foundation is preserved, repaired and evolved rather than discarded.
+New secret-service/security runtime is Rust; the Python change in this child
+is limited to the already-existing bootstrap/config adapter. It does not add a
+new Python cryptographic engine or duplicate the future Rust data plane.
 
-- `idp_config_entries` stays exactly what its own docstring says it is:
-  this service's internal configuration, never a place other services'
-  secrets land.
-- A wrong `keyvault_passphrase` cannot silently produce garbage: Fernet
-  authenticates ciphertext (`cryptography.fernet.InvalidToken` on
-  mismatch), so a passphrase rotation without re-encrypting existing rows
-  fails loudly rather than returning corrupted plaintext.
-- `contextual-orchestrator`'s `CredentialBackend`/`kv_config.ConfigStore`
-  Protocols are the natural adapter target for a future
-  `KeyverseCredentialBackend` — noted here as the motivating consumer, not
-  implemented in this PR (see the "what's left" note in the accompanying
-  PR description).
-- Plaintext retrieval is intentionally absent from the administrator surface.
-  A consumer adapter cannot ship until Keyverse can verify a signed workload
-  identity and bind its read scope to exactly one namespace.
-- 100% branch coverage and 100% docstring coverage on `app/keyvault.py`
-  and `app/keyvault_admin.py` (verified: `uv run coverage run --branch
-  --source=app -m pytest -q && uv run coverage report --fail-under=100`;
-  `uv run interrogate -v app`), and `uv run ruff check app tests` passes
-  clean, matching this service's existing gates.
+## Decision and responsibility boundary
 
-## References
+Keyverse owns secret references, encrypted custody, secret versions, authorized
+resolution, rotation/revocation, leases and access audit. Identity establishes
+who a human/workload is; authorization grants narrowly scoped operations;
+secret custody performs them. Product consumers retain their domain truth and
+what a credential is used for. Billing, ontology, configuration, and LLM
+provider/model routing are not moved into the vault.
 
-Barker, E. (2020). *Recommendation for key management: Part 1 – General*
-(NIST SP 800-57 Part 1, Rev. 5). National Institute of Standards and
-Technology. https://doi.org/10.6028/NIST.SP.800-57pt1r5
+The minimal shared kernel consists of value-free reference and verified-context
+contracts. Separate persistence and public API boundaries are required. The
+foundation's `keyvault_secrets`/`keyvault_audit_log` are not extensions of
+`idp_config_entries`, account-merge audit, or Keycloak realm records.
 
-Evans, E. (2003). *Domain-driven design: Tackling complexity in the heart
-of software*. Addison-Wesley.
+The administrator surface remains metadata-only on reads. A consumer may not
+use an operator session/token, set its own trusted namespace, query another
+service's DB, import an open PR's source, or obtain all secrets in a catalog.
+A namespace must be bound by verified policy to tenant, environment and workload;
+its name alone is not authorization.
 
-OWASP Foundation. (2021). *OWASP application security verification
-standard 4.0.3*. https://owasp.org/www-project-application-security-verification-standard/
+## Implemented bootstrap repair
+
+The existing configuration loader rejects any plaintext `keyvault_passphrase`
+entry. It accepts only `keyvault_passphrase_file`, a non-secret locator resolved
+by the existing bootstrap boundary. There is no process-environment, dotenv,
+home-directory or plaintext-DB fallback.
+
+The POSIX reader validates every path component with descriptor-relative,
+no-follow opens. The actual opened object must be a root/service-owned regular
+file, mode 0400 or 0600, one link, bounded to 4096 bytes, valid UTF-8 and nonempty.
+It rejects FIFOs, directories, symlinks, dot segments, invalid ownership and
+unsafe permissions, detects changes during reading, and closes all descriptors.
+It removes one terminal newline only. OS/decoder failures are converted to a
+value-free error. Configuration repr excludes all declared credential fields;
+this does not make arbitrary dataclass serialization safe.
+
+This root-only supervisor transport is an explicit bootstrap exception: the
+vault cannot call its own locked service to retrieve its unlock credential.
+The locator belongs in configuration, the credential in an independently
+protected supervisor mount. A regular private file is not an HSM and does not
+protect against host/root compromise or Python string retention.
+
+Production native runtime must support managed workload identity and external
+KMS/HSM envelope-key custody. Standard Kubernetes projected Secret symlinks are
+not silently accepted by the compatibility reader; a trusted controller must
+provide a private regular-file snapshot or a separately reviewed adapter.
+
+## Required workload-resolution contract — not yet implemented
+
+- Verify signature, allowed algorithm, exact issuer/audience, subject, time
+  claims and workload profile before accepting identity. Do not trust decoded
+  JWT claims or caller-provided tenant headers.
+- Bind secret resolution to tenant/environment, namespace, key, version,
+  operation and bounded lease. Deny unknown/missing/ambiguous scope.
+- GitHub OIDC integrations bind repository/owner IDs, event/ref/environment,
+  trusted workflow identity and immutable workflow revision. PR/fork source
+  never receives general provider or administrator credentials.
+- Store encrypted values with authenticated context binding; separate wrapping
+  keys from ciphertext. Parent PBKDF2 fixed salt/value-only encryption is not
+  the final multi-tenant cryptographic contract.
+- Publish durable immutable versions, audited rotation/revocation, idempotent
+  updates, concurrency control and recoverable migrations. Preserve ciphertext
+  and key-version relationships through backup/restore and rollback.
+- Return no-store responses. Audit denial and permitted access without secret
+  values; audit-store failure cannot silently become successful resolution.
+- A consumer may use a still-valid lease only under its explicit revocation
+  policy. Expired cache and dotenv fallback are not allowed during outages.
+- Emit no credentials into frontend bundles, event buses, logs, traces,
+  screenshots, command arguments, generated artifacts or model context.
+
+CO consumes only an immutable owner API release through its existing port.
+Provider keys stay inside CO's approved execution boundary; other CWL products
+use CO rather than holding those keys. Model-backed Actions retain
+`orchestrator/free`; routing and provider discovery stay in CO.
+
+## Migration and consequences
+
+The child preserves canonical PR #129 and never force-pushes over another writer.
+No consumer is switched before owner release. A private operator must transfer
+the existing root value unchanged to the supervisor before removing the legacy
+DB entry. Replacing its value without rewrap would break old ciphertext.
+Deleting the row is not secure erasure of SQLite pages, WAL or backups. Retire
+those copies and rotate/rewrap only under tested recovery procedures.
+
+No prior bare-SHA key derivation fallback is introduced. The parent's premise
+that that format never reached a release must be checked against actual private
+deployment evidence before any legacy migration is needed.
+
+Standalone operation remains an explicit deployment profile, not an invisible
+fallback. Failure modes and risk are visible: unavailable authority, expired
+lease, wrong key, missing audit store and unsupported bootstrap platform are
+errors, not empty inventories or synthetic success. The result adds operational
+complexity but avoids a hidden second authority and uncontrolled key fan-out.
+
+## Verification and acceptance
+
+The child has observed RED tests and 42 passing focused bootstrap/config tests.
+Changed executable-line coverage is 61/61 with no missing changed-line arcs.
+Full service coverage, docstrings, locked dependencies, security review and
+hosted Checks remain independent gates. These results do not validate the
+unimplemented remote API, KMS/HSM, deployment or organization-wide migration.
+See the gap baseline and operations guide for exact source blobs and limitations.
+
+Before promotion: full exact-head suite and 100% production coverage/docstrings,
+independent review, protected merge, immutable release, recovery and consumer
+contract tests. No claim of SOC 2/CSAP certification or vault completeness is
+made from this ADR or from tests of a single bootstrap component.
+
+## References — APA 7th
+
+Evans, E. (2003). *Domain-driven design: Tackling complexity in the heart of software*. Addison-Wesley.
 
 Vernon, V. (2013). *Implementing domain-driven design*. Addison-Wesley.
+
+OWASP Foundation. (n.d.). *Secrets management cheat sheet*. https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+
+GitHub. (n.d.). *OpenID Connect reference*. https://docs.github.com/en/actions/reference/security/oidc
+
+Keycloak. (n.d.). *Using a vault*. https://www.keycloak.org/server/vault
