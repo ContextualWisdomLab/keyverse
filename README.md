@@ -34,16 +34,16 @@ account-unification admin service, the product:
 
 > Employer ADFS and corporate directories are **external compatibility
 > targets**, not peer hubs. Customer-specific federation stays in the
-> deployment controller and KV store.
+> deployment controller and Keyverse-owned secret/configuration boundaries.
 
 OAuth 2.0 ([RFC 6749](https://www.rfc-editor.org/rfc/rfc6749)) is the official
 authorization-framework record. [OAuth 2.1](https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/)
 is an IETF Internet-Draft (`draft-ietf-oauth-v2-1-15`, work in progress) and
 is not cited here as a final RFC.
 
-RP client registrations and confidential values live in the **IdP DB / KV**,
-never in an RP's environment. Authorized identity data stays usable under
-purpose-bound access control, encryption, and audit.
+RP client registrations and confidential values live in the **IdP / Keyverse
+secret boundary**, never in an RP's dotenv file. Authorized identity data stays
+usable under purpose-bound access control, encryption, and audit.
 
 ## Architecture
 
@@ -65,16 +65,38 @@ Trust boundaries: [`ARCHITECTURE.md`](ARCHITECTURE.md). Network diagram:
 
 ## Run this repository alone
 
-No sibling repository checkout is required. Docker or Podman with the compose
-plugin is enough:
+No sibling repository checkout is required. Docker or Podman with the Compose
+plugin is enough, but Keyverse deliberately does not bootstrap itself from a
+repository-local `.env` file. A trusted supervisor, host credential agent, or
+KMS/HSM adapter must first materialize the three **root-bootstrap-only** values
+below as private files outside the repository:
+
+```text
+/run/keyverse-bootstrap/idp_database_password
+/run/keyverse-bootstrap/idp_bootstrap_admin_username
+/run/keyverse-bootstrap/idp_bootstrap_admin_password
+```
+
+These files exist only to break Keyverse's own bootstrap cycle. They are not the
+credential distribution mechanism for other CWL products. Do not commit them,
+copy them into a bootstrap YAML, or expose them in shell arguments, logs,
+artifacts, screenshots, or model context.
+
+Then create the non-secret account-service bootstrap descriptor and start the
+stack:
 
 ```bash
-cp .env.example .env          # populate values from your KV (bootstrap transport)
 cp deploy/bootstrap/bootstrap.example.yaml deploy/bootstrap/bootstrap.yaml
 
 docker compose up -d          # or: podman compose up -d
 ./deploy/scripts/healthz.sh   # waits for Keycloak realm + admin service to be READY
 ```
+
+PostgreSQL receives its password through the image's `_FILE` contract. Keycloak
+requires the database and one-time bootstrap-admin values in its native process
+environment, so `deploy/keycloak/secret-entrypoint.sh` reads the mounted files at
+the final container boundary and immediately `exec`s Keycloak. There is no
+dotenv discovery or fallback.
 
 - Keycloak console: `http://localhost:8080`
 - Admin service health: `http://localhost:8099/healthz`
@@ -84,7 +106,12 @@ The stack imports the **passwordless-first** realm at first start
 WebAuthn passwordless authenticator and **no password authenticator**, plus
 `registrationAllowed:false` / `resetPasswordAllowed:false`.
 
-Production-shaped clusters use [`helm/cwl-idp/`](helm/cwl-idp/).
+Production-shaped clusters use [`helm/cwl-idp/`](helm/cwl-idp/). Their bootstrap
+secret objects must likewise be populated by a deployment secret controller or
+KMS integration, not hand-maintained dotenv files. The longer-term Key Vault
+roadmap moves the root encryption key to managed workload identity plus external
+KMS/HSM custody; ordinary application credentials resolve through the released
+Keyverse workload API.
 
 ### Optional parent include
 
@@ -124,11 +151,11 @@ returned in ordinary Keyverse responses. See
 ### Register external federation
 
 The portable realm contains no employer ADFS, LDAP/AD source, or other
-customer-specific federation. Render deployment values from KV and preflight
-every private payload before apply.
+customer-specific federation. Resolve private values through the deployment
+secret boundary and preflight every private payload before apply.
 
 LDAP preflight redacts `bindDn` and `bindCredential` and must never be used
-as the apply payload; apply the original private file only. The first
+as the apply payload; apply the original private payload only. The first
 directory profile is LDAPS-only, read-only, Kerberos-disabled, and
 `trustEmail=false`.
 
@@ -144,10 +171,17 @@ Design: [`docs/merge-unification-flow.md`](docs/merge-unification-flow.md).
 
 ## Configuration and secrets
 
-Config and secrets are read from the **KV / DB store**, not from runtime
-`os.getenv`. Environment variables are **bootstrap transport** only
-(`CWL_IDP_BOOTSTRAP` → `deploy/bootstrap/bootstrap.yaml`). Database objects
-use two-word-or-longer snake_case names (`idp_config_entries`,
+Non-secret configuration and bootstrap locators remain typed configuration.
+Application credentials are not configuration: Keyverse is the canonical CWL
+secret-lifecycle owner, and consumers must adopt only an immutable released
+workload-resolution contract. The account service's `CWL_IDP_BOOTSTRAP` value is
+a non-secret locator to `deploy/bootstrap/bootstrap.yaml`, not a secret value.
+
+Keyverse's own root bootstrap cannot depend on the locked Keyverse API. Compose
+therefore uses the three protected files described above as a narrow
+self-bootstrap exception. It does **not** restore `.env`, a plaintext config DB,
+or consumer-side secret files as fallback authorities. Database objects use
+two-word-or-longer snake_case names (`idp_config_entries`,
 `account_merge_audit`, `user_operation_lock_state`).
 
 ## Engine and licensing
@@ -160,8 +194,8 @@ use two-word-or-longer snake_case names (`idp_config_entries`,
 
 | Path | What |
 | --- | --- |
-| [`docs/adr/`](docs/adr/README.md) | Accepted architecture decisions (0001–0008 on this branch) |
-| [`docs/REFERENCES.md`](docs/REFERENCES.md) | APA 7th bibliography for ADR 0001–0007 |
+| [`docs/adr/`](docs/adr/README.md) | Architecture decisions and proposed changes |
+| [`docs/REFERENCES.md`](docs/REFERENCES.md) | APA 7th bibliography |
 | [`docs/doctoring/`](docs/doctoring/) | Feature-specific standards interpretation |
 | [`docs/product-technical-gap-baseline.md`](docs/product-technical-gap-baseline.md) | Current buyer-visible product and technical gap register |
 | [`docs/papers/`](docs/papers/README.md) | Offline copies of selected primary sources |
@@ -174,10 +208,10 @@ use two-word-or-longer snake_case names (`idp_config_entries`,
 
 | Path | What |
 | --- | --- |
-| `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
-| `deploy/keycloak/` | Portable Keycloak realm config-as-code and service-account bootstrap |
+| `docker-compose.yml` | Standalone bring-up with protected root-bootstrap mounts |
+| `deploy/keycloak/` | Portable realm config and bounded Keycloak bootstrap adapter |
 | `deploy/templates/` | Private deployment templates for preflight and desired state |
-| `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
+| `deploy/bootstrap/` | Non-secret bootstrap pointer to the account-service config store |
 | `deploy/scripts/healthz.sh` | Cross-component readiness probe |
 | `scripts/validate_realm.py` | Realm config-as-code validator |
 | `services/account_unification/` | FastAPI admin service (link, merge, SCIM, federation, RP desired state) |
