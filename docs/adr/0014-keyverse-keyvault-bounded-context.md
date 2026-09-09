@@ -1,152 +1,57 @@
-# ADR-0014: Keyvault as a separate bounded context from IdP identity/config
+# ADR-0014: Keyverse Key Vault as a separate secret-lifecycle bounded context
 
-**Status:** Accepted (first slice implemented)
+**Status:** Proposed; implementation is still an open PR and is not a released workload credential service.
 **Date:** 2026-09-02
+**Updated:** 2026-09-10
 
 ## Context
 
-The owner asked that Keyverse stop being only a Keycloak-fronting Identity
-Provider and also become usable as a Keyvault: a namespaced,
-encrypted-at-rest secrets store analogous to Azure Key Vault or HashiCorp
-Vault's KV secrets engine, with write/read/delete APIs and audit logging.
+Keyverse must become the canonical CWL Key Vault rather than merely a Keycloak-fronting identity service. That responsibility is distinct from both identity/authentication and ordinary application configuration: secret custody has different invariants for encryption, key separation, versions, rotation, revocation, authorization, recovery and audit.
 
-Keyverse already runs one seam that looks superficially similar:
-`services/account_unification/app/kv_store.py`'s `idp_config_entries` table
-(`KvStore` protocol; `InMemoryKvStore`/`SqliteKvStore`), which
-`config.py` reads at startup for this service's *own* operational
-configuration (Keycloak URLs, operator tokens, timeouts). Values there are
-stored as plain SQLite text, never encrypted — appropriate for
-`config.py`'s stated invariant ("nothing here reads process environment";
-everything is this service's own internal, operator-set configuration), but
-not a safe foundation for a general-purpose secrets product surface other
-CWL services would write arbitrary customer/provider secrets into.
+`idp_config_entries` remains the account-unification service's configuration store. It must not become a general credential database. The Key Vault therefore owns dedicated persistence and APIs, while consumers retain the domain meaning of their credentials behind Anti-Corruption Layers.
 
-Identity/authentication and secrets storage are historically separate
-concerns even inside mature platforms — Keycloak (an OpenID Connect
-Provider) is architecturally distinct from HashiCorp Vault (a secrets
-manager), and the two are typically deployed and operated independently.
-Domain-Driven Design treats this as a Bounded Context question: two models
-that use similar words ("store a value under a key") but serve different
-Aggregates, different invariants, and different consumers should not be
-collapsed into one undifferentiated model merely because they could share a
-table (Evans, 2003, ch. 14; Vernon, 2013, ch. 2–3).
+The initial feature branch used PBKDF2-HMAC-SHA256 with one fixed organization-wide salt. Although a PBKDF2 salt need not be secret, reusing the same salt means equal passphrases derive the same vault key and prevents the vault instance from carrying its own recoverable KDF configuration. A durable vault instead needs installation-specific random parameters. Randomizing the salt only at process startup would be worse: the service could not derive the same key after restart. The parameters therefore have to be persisted with the ciphertext database and validated before use.
 
-A genuine motivating first consumer already exists in this ecosystem:
-`contextual-orchestrator`'s `credentials.py` documents the exact same "KV,
-not env" principle for its own provider API keys (`CredentialBackend`
-Protocol; `InMemoryCredentialBackend` default; pgcrypto-encrypted
-`PostgresCredentialBackend`). That module's docstring explicitly names
-Keyverse-style KV-backed secret resolution as the org reference pattern.
-A Keyverse Keyvault is not a feature built for its own sake — it is the
-natural next step for that pattern to be centrally operated rather than
-reimplemented per repository, and `contextual-orchestrator` could later
-swap in a `KeyverseCredentialBackend` implementing its existing
-`CredentialBackend` Protocol with no call-site change, exactly as its
-pluggable-backend design already anticipates.
-
-NIST SP 800-57 Part 1 Rev. 5 sets general key-management expectations
-(key separation, controlled key lifetime, protecting keys distinct from the
-data they protect) that a from-scratch secrets store should satisfy rather
-than inventing ad hoc practice (Barker, 2020). OWASP's Application Security
-Verification Standard requires application-layer secrets to be encrypted
-at rest with keys that are not co-located with the ciphertext under the
-same trust boundary (OWASP Foundation, 2021, V6 Cryptography at rest).
+The feature branch may also have been exercised outside protected `main`. Silently falling back to its former fixed salt during normal startup would turn an obsolete derivation into a permanent compatibility path. Conversely, blindly generating a fresh salt when ciphertext already exists would make that ciphertext unreadable. Migration must therefore be explicit, authenticated, atomic and one-shot.
 
 ## Decision
 
-Keyvault is a **separate bounded context** from Keyverse's IdP-facing
-modules (Keycloak realm/client management, `relying_party_admin.py`, the
-in-flight `authorization_plane.py`/`org_authorization.py` line — see
-ADR-0015). It does **not** extend `idp_config_entries` or `kv_store.py`.
+Key Vault is a separate Keyverse bounded context. Identity establishes a principal, the Authorization Plane grants scoped operations, and the Key Vault performs secret-lifecycle operations. Consumers do not query Keyverse tables or receive a shared administrator token.
 
-What is shared (deliberately minimal Shared Kernel, per this org's
-DDD convention of keeping Shared Kernels small):
+The current storage foundation consists of:
 
-- The **pattern** already proven twice in this service (`kv_store.py`,
-  `audit.py`): a small `Protocol` plus in-memory and SQLite backends, WAL
-  journal mode, a 10-second `busy_timeout`, and an append-only trail.
-  Keyvault keeps each mutation and its audit event in one transaction.
-- The `operator_auth_dependency` / `admin_path_security_dependency`
-  router-level authentication and opaque-path-segment validation already
-  required for every privileged router in `main.py`.
-- The "KV, not env" bootstrap discipline: `keyvault_passphrase` is read
-  from the *existing* `idp_config_entries` config store (never a raw
-  environment variable at request time), exactly like every other
-  `ServiceConfig` field.
+- `keyvault_secrets`, keyed by namespace and secret key, containing ciphertext and update time;
+- `keyvault_audit_log`, an append-only access/mutation trail that never contains plaintext or ciphertext values;
+- `keyvault_kdf_config`, a singleton durable KDF record containing `kdf_version`, `iteration_count`, a random per-vault salt and creation time.
 
-What is genuinely new (Capability #1 of the owner's three-capability
-request; #2 service ABAC/RBAC and #3 login credential store are ADR-0015
-and ADR-0016):
+For a fresh, empty vault, `SqliteKeyvaultStore.load_or_create_kdf_parameters()` generates a cryptographically random 32-byte salt, persists it transactionally, and returns the exact parameters used by `derive_fernet_key`. On restart, the stored version, iteration count and salt are loaded and validated before key derivation. Unsupported versions, an iteration count below the supported floor, or an undersized salt fail closed.
 
-- `app/keyvault.py` — `SqliteKeyvaultStore`/`InMemoryKeyvaultStore` over a
-  dedicated `keyvault_secrets` table (`secret_namespace`, `secret_key`,
-  `encrypted_value`, `updated_at`) and a dedicated `keyvault_audit_log` table
-  (namespace/key/action/actor/`created_at` — deliberately not
-  `AuditEvent`'s survivor/duplicate-user shape, since a Keyvault write has
-  no survivor and forcing one schema onto the other would blur two
-  different Aggregates); `KeyvaultService`, which is the only collaborator
-  that ever holds plaintext (encryption/decryption happens at this service
-  boundary with `cryptography.fernet.Fernet`, keyed by PBKDF2-HMAC-SHA256 of
-  the configured passphrase — the store never sees plaintext and audit events
-  never contain ciphertext or plaintext).
-- `app/keyvault_admin.py` — `PUT`/`DELETE /keyvault/{namespace}/{key}`,
-  `GET /keyvault/{namespace}` (metadata only: namespace, key, `updated_at`
-  — **never** a value, so an admin UI can render an inventory without ever
-  holding plaintext it does not need), and
-  `GET /keyvault/{namespace}/{key}/audit`.
-- Opt-in by construction: `config.py`'s `keyvault_passphrase` defaults to
-  `None`. `main.py`'s `_build_keyvault_service` returns `None` when unset,
-  and `keyvault_admin.get_keyvault` then fails closed with **503** ("not
-  configured"), never a misleading 404 that would suggest the feature
-  exists but is empty. A namespace here identifies the *consumer* of a
-  secret (one CWL service or deployment-scoped concern), never an end user
-  or a Keycloak realm object.
+If ciphertext exists but `keyvault_kdf_config` does not, normal startup raises `LegacyKeyvaultMigrationRequiredError`; it never generates a new salt and never tries the former fixed salt automatically. The former salt is reachable only through `legacy_fernet_key_for_migration` and `migrate_legacy_kdf`. That migration first authenticates and decrypts every legacy row in memory before any durable mutation. Only after all rows authenticate does one transaction generate fresh per-vault parameters, re-encrypt every value, append `secret_rewrapped` audit events, and persist the new KDF record. A wrong passphrase therefore cannot leave a partially migrated vault.
 
-A dedicated admin *page* for Keyvault (distinct from any general "3
-admin webs" work — see the sibling multi-repo research this ADR's PR
-accompanies) is designed but not built in this slice; the API above is the
-complete, tested surface it will consume.
+The migration helper is a recovery primitive, not an ordinary read fallback. Operations must invoke it during a controlled maintenance window using the protected root bootstrap and must retain a tested backup until the rewrapped vault has been reopened and verified. Future KDF or envelope-key changes require versioned migration rather than editing the active KDF row in place.
 
-The branch briefly used a bare SHA-256 derivation before this feature reached
-protected main. No released database used that pre-release format, so there is
-no ciphertext to migrate and no legacy weak-key fallback is admitted. If live
-deployment evidence later contradicts that premise, migration must be a
-separate recovery change that identifies legacy rows explicitly and rewrites
-them once; new rows must never try the legacy derivation.
+Administrative GET responses that expose namespace names, key names, update times or audit actors set `Cache-Control: no-store`. The administrator API still never returns plaintext. A future workload API requires signed workload identity and namespace/key/version-scoped authorization before any consumer migration.
+
+## Root bootstrap
+
+A vault cannot obtain the credential required to unlock itself from its own unavailable API. The root bootstrap is therefore an explicit exception to ordinary application-secret resolution. It must be supplied from an independently protected supervisor/KMS/HSM boundary, not `.env` or the plaintext configuration database. The follow-up protected-bootstrap PR tightens this boundary further; ordinary CWL product credentials do not inherit this exception.
+
+Production evolution should replace the compatibility passphrase model with external KMS/HSM-backed envelope-key custody and managed workload identity. Persisted KDF parameters are necessary recovery metadata for this foundation, not a claim that SQLite plus Fernet is the final enterprise key-management architecture.
 
 ## Consequences
 
-- `idp_config_entries` stays exactly what its own docstring says it is:
-  this service's internal configuration, never a place other services'
-  secrets land.
-- A wrong `keyvault_passphrase` cannot silently produce garbage: Fernet
-  authenticates ciphertext (`cryptography.fernet.InvalidToken` on
-  mismatch), so a passphrase rotation without re-encrypting existing rows
-  fails loudly rather than returning corrupted plaintext.
-- `contextual-orchestrator`'s `CredentialBackend`/`kv_config.ConfigStore`
-  Protocols are the natural adapter target for a future
-  `KeyverseCredentialBackend` — noted here as the motivating consumer, not
-  implemented in this PR (see the "what's left" note in the accompanying
-  PR description).
-- Plaintext retrieval is intentionally absent from the administrator surface.
-  A consumer adapter cannot ship until Keyverse can verify a signed workload
-  identity and bind its read scope to exactly one namespace.
-- 100% branch coverage and 100% docstring coverage on `app/keyvault.py`
-  and `app/keyvault_admin.py` (verified: `uv run coverage run --branch
-  --source=app -m pytest -q && uv run coverage report --fail-under=100`;
-  `uv run interrogate -v app`), and `uv run ruff check app tests` passes
-  clean, matching this service's existing gates.
+Equal passphrases in two fresh vault databases now derive different encryption keys. A vault can still restart because its non-secret KDF parameters are durable. Existing feature-branch ciphertext cannot be accidentally orphaned by a random new salt, and legacy compatibility is not left enabled in the request path.
+
+The KDF metadata belongs with the encrypted vault backup: losing it loses the ability to reproduce the derived key, while disclosing it does not disclose the passphrase. The root credential belongs in a different trust boundary. Backup/restore acceptance must therefore restore ciphertext, audit data and KDF metadata as one coherent vault state while independently restoring access to the root credential.
+
+This PR remains a foundation. It does not yet provide immutable secret versions, leases, revocation, context-bound multi-tenant envelope encryption, an external KMS/HSM adapter, or a released signed-workload read API. Those remain release gates before CWL-wide `.env` retirement can be called complete.
 
 ## References
 
-Barker, E. (2020). *Recommendation for key management: Part 1 – General*
-(NIST SP 800-57 Part 1, Rev. 5). National Institute of Standards and
-Technology. https://doi.org/10.6028/NIST.SP.800-57pt1r5
+Barker, E. (2020). *Recommendation for key management: Part 1 – General* (NIST SP 800-57 Part 1, Rev. 5). National Institute of Standards and Technology. https://doi.org/10.6028/NIST.SP.800-57pt1r5
 
-Evans, E. (2003). *Domain-driven design: Tackling complexity in the heart
-of software*. Addison-Wesley.
+Evans, E. (2003). *Domain-driven design: Tackling complexity in the heart of software*. Addison-Wesley.
 
-OWASP Foundation. (2021). *OWASP application security verification
-standard 4.0.3*. https://owasp.org/www-project-application-security-verification-standard/
+OWASP Foundation. (2021). *OWASP application security verification standard 4.0.3*. https://owasp.org/www-project-application-security-verification-standard/
 
 Vernon, V. (2013). *Implementing domain-driven design*. Addison-Wesley.
