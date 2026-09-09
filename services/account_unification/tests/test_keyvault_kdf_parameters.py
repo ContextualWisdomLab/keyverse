@@ -7,6 +7,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from app.keyvault import (
+    KeyvaultKdfParameters,
     LegacyKeyvaultMigrationRequiredError,
     SqliteKeyvaultStore,
     derive_fernet_key,
@@ -67,6 +68,38 @@ def test_kdf_metadata_is_versioned_and_persisted_in_vault_database(tmp_path):
     assert len(parameters.salt) == 32
 
 
+@pytest.mark.parametrize(
+    ("parameters", "error_match"),
+    [
+        (KeyvaultKdfParameters(version=2, iterations=600_000, salt=b"s" * 32), "version"),
+        (KeyvaultKdfParameters(version=1, iterations=599_999, salt=b"s" * 32), "iteration"),
+        (KeyvaultKdfParameters(version=1, iterations=600_000, salt=b"s" * 31), "salt"),
+    ],
+)
+def test_invalid_kdf_parameters_fail_closed(parameters, error_match):
+    """Persisted KDF metadata cannot silently weaken or change derivation semantics."""
+    with pytest.raises(RuntimeError, match=error_match):
+        derive_fernet_key("passphrase", parameters)
+
+
+def test_invalid_persisted_kdf_metadata_is_rejected_on_reopen(tmp_path):
+    """Recovery validates durable metadata rather than trusting database contents."""
+    database_path = str(tmp_path / "keyvault.db")
+    store = SqliteKeyvaultStore(database_path)
+    store.load_or_create_kdf_parameters()
+    store.close()
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE keyvault_kdf_config SET kdf_version = 99 WHERE config_slot = 1"
+        )
+        connection.commit()
+
+    reopened = SqliteKeyvaultStore(database_path)
+    with pytest.raises(RuntimeError, match="version"):
+        reopened.load_or_create_kdf_parameters()
+    reopened.close()
+
+
 def test_nonempty_legacy_vault_fails_closed_without_explicit_migration(tmp_path):
     """Startup must not invent a fresh salt for ciphertext made by the old feature branch."""
     database_path = str(tmp_path / "legacy.db")
@@ -103,6 +136,25 @@ def test_explicit_legacy_rewrap_preserves_plaintext_and_records_event(tmp_path):
         "secret_set",
         "secret_rewrapped",
     ]
+    store.close()
+
+
+def test_empty_vault_migration_initializes_without_legacy_fallback(tmp_path):
+    """The maintenance operation on an empty vault is equivalent to fresh initialization."""
+    store = SqliteKeyvaultStore(str(tmp_path / "empty.db"))
+    parameters = store.migrate_legacy_kdf("unused-passphrase", actor="operator")
+
+    assert parameters == store.load_or_create_kdf_parameters()
+    store.close()
+
+
+def test_initialized_vault_rejects_repeated_legacy_migration(tmp_path):
+    """Legacy rewrap is one-shot and cannot rewrite an already initialized vault."""
+    store = SqliteKeyvaultStore(str(tmp_path / "initialized.db"))
+    store.load_or_create_kdf_parameters()
+
+    with pytest.raises(RuntimeError, match="already initialized"):
+        store.migrate_legacy_kdf("passphrase", actor="operator")
     store.close()
 
 
