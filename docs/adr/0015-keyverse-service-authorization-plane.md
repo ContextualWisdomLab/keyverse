@@ -121,7 +121,7 @@ Technology. https://doi.org/10.6028/NIST.SP.800-162
 
 Keycloak. (n.d.). *Authorization services guide* (Version 26.7.1).
 Retrieved September 2, 2026, from
-https://www.keycloak.org/docs/latest/authorization_services/
+https://www.keycloak.org/docs/26.7.1/authorization_services/
 
 Sandhu, R. S., Coyne, E. J., Feinstein, H. L., & Youman, C. E. (1996).
 Role-based access control models. *Computer, 29*(2), 38–47.
