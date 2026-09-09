@@ -21,6 +21,13 @@ def _helm_values() -> dict:
     )
 
 
+def _compose_values() -> dict:
+    """Return the standalone Compose document without runtime interpolation."""
+    return yaml.safe_load(
+        (_repository_root() / "docker-compose.yml").read_text(encoding="utf-8")
+    )
+
+
 def _seed_tool_source() -> str:
     """Return the local configuration seed tool source."""
     return (
@@ -34,15 +41,73 @@ def _seed_tool_source() -> str:
 
 def test_compose_persists_account_unification_state() -> None:
     """Standalone restarts retain audit and user-operation lock databases."""
-    compose = yaml.safe_load(
-        (_repository_root() / "docker-compose.yml").read_text(encoding="utf-8")
-    )
+    compose = _compose_values()
     service = compose["services"]["account_unification_service"]
     assert (
         "account_unification_data:/var/lib/account-unification"
         in service["volumes"]
     )
     assert "account_unification_data" in compose["volumes"]
+
+
+def test_standalone_distribution_has_no_dotenv_credential_template() -> None:
+    """Operators are not instructed to materialize repository-local dotenv secrets."""
+    assert not (_repository_root() / ".env.example").exists()
+    readme = (_repository_root() / "README.md").read_text(encoding="utf-8")
+    assert "cp .env.example .env" not in readme
+
+
+def test_compose_bootstrap_credentials_are_file_mounted_not_interpolated() -> None:
+    """Self-bootstrap secrets enter only through the explicit supervisor mount."""
+    compose = _compose_values()
+    postgres_environment = compose["services"]["idp_database"]["environment"]
+    keycloak_environment = compose["services"]["idp_engine"]["environment"]
+    keycloak_secrets = compose["services"]["idp_engine"]["secrets"]
+    postgres_secrets = compose["services"]["idp_database"]["secrets"]
+
+    assert "POSTGRES_PASSWORD" not in postgres_environment
+    assert postgres_environment["POSTGRES_PASSWORD_FILE"] == "/run/secrets/idp_database_password"
+    assert "KC_DB_PASSWORD" not in keycloak_environment
+    assert "KC_BOOTSTRAP_ADMIN_USERNAME" not in keycloak_environment
+    assert "KC_BOOTSTRAP_ADMIN_PASSWORD" not in keycloak_environment
+    assert {item["target"] for item in postgres_secrets} == {"idp_database_password"}
+    assert {item["target"] for item in keycloak_secrets} == {
+        "idp_database_password",
+        "idp_bootstrap_admin_username",
+        "idp_bootstrap_admin_password",
+    }
+
+
+def test_compose_bootstrap_secret_sources_live_outside_repository() -> None:
+    """The standalone profile consumes supervisor/KMS materialized files only."""
+    compose = _compose_values()
+    secret_files = {
+        secret_name: secret_config["file"]
+        for secret_name, secret_config in compose["secrets"].items()
+    }
+    assert secret_files == {
+        "idp_database_password": "/run/keyverse-bootstrap/idp_database_password",
+        "idp_bootstrap_admin_username": "/run/keyverse-bootstrap/idp_bootstrap_admin_username",
+        "idp_bootstrap_admin_password": "/run/keyverse-bootstrap/idp_bootstrap_admin_password",
+    }
+
+
+def test_keycloak_secret_entrypoint_has_bounded_secret_transport() -> None:
+    """Keycloak gets only its native process environment immediately before exec."""
+    entrypoint_path = _repository_root() / "deploy" / "keycloak" / "secret-entrypoint.sh"
+    assert entrypoint_path.is_file()
+    source = entrypoint_path.read_text(encoding="utf-8")
+    assert "set -eu" in source
+    assert "umask 077" in source
+    assert "/run/secrets/idp_database_password" in source
+    assert "/run/secrets/idp_bootstrap_admin_username" in source
+    assert "/run/secrets/idp_bootstrap_admin_password" in source
+    assert "export KC_DB_PASSWORD" in source
+    assert "export KC_BOOTSTRAP_ADMIN_USERNAME" in source
+    assert "export KC_BOOTSTRAP_ADMIN_PASSWORD" in source
+    assert 'exec /opt/keycloak/bin/kc.sh "$@"' in source
+    assert "cat " not in source
+    assert "echo " not in source
 
 
 def test_helm_can_fail_closed_on_missing_account_image_digest() -> None:
