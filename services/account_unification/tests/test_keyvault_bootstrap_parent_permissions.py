@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import stat
 
 import pytest
 
@@ -43,13 +44,12 @@ def test_owner_private_parent_directory_remains_supported(tmp_path):
 
 
 def test_root_sticky_tmp_component_does_not_break_private_descendant(tmp_path):
-    """The normal root-owned sticky /tmp ancestor is allowed when descendants are private."""
+    """A root-owned sticky /tmp ancestor is allowed when descendants are private."""
     if not str(tmp_path).startswith("/tmp/"):
         pytest.skip("runner temporary directory is not below /tmp")
     tmp_state = os.stat("/tmp")
-    if tmp_state.st_uid != 0 or not tmp_state.st_mode & os.stat_result((0,) * 10).st_mode.__class__(0):
-        # The second predicate is intentionally avoided below; platform mode is checked explicitly.
-        pass
+    if tmp_state.st_uid != 0 or not stat.S_ISVTX & tmp_state.st_mode:
+        pytest.skip("runner /tmp is not the root-owned sticky-directory profile")
     credential_path = _private_credential(tmp_path)
     tmp_path.chmod(0o700)
 
