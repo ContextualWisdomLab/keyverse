@@ -8,7 +8,7 @@ verified workload identity to one namespace and one explicit read scope.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from .keyvault import KeyvaultService, SecretNotFoundError
@@ -55,11 +55,18 @@ def _actor(request: Request) -> str:
     return client.host if client else "unknown"
 
 
+def _forbid_cache(response: Response) -> None:
+    """Prevent stores and intermediaries from retaining privileged metadata."""
+    response.headers["Cache-Control"] = "no-store"
+
+
 @router.get("", response_model=list[str])
 def list_namespaces(
+    response: Response,
     keyvault: KeyvaultService = Depends(get_keyvault),
 ) -> list[str]:
     """List non-empty consumer namespaces without exposing secret material."""
+    _forbid_cache(response)
     return keyvault.list_namespaces()
 
 
@@ -82,9 +89,12 @@ def put_secret(
 
 @router.get("/{namespace}", response_model=list[SecretMetadataOut])
 def list_secrets(
-    namespace: str, keyvault: KeyvaultService = Depends(get_keyvault)
+    namespace: str,
+    response: Response,
+    keyvault: KeyvaultService = Depends(get_keyvault),
 ) -> list[SecretMetadataOut]:
     """List one namespace's secrets as metadata only -- values are never listed."""
+    _forbid_cache(response)
     return [
         SecretMetadataOut(
             namespace=metadata.namespace,
@@ -111,7 +121,11 @@ def delete_secret(
 
 @router.get("/{namespace}/{secret_key}/audit")
 def get_secret_audit(
-    namespace: str, secret_key: str, keyvault: KeyvaultService = Depends(get_keyvault)
+    namespace: str,
+    secret_key: str,
+    response: Response,
+    keyvault: KeyvaultService = Depends(get_keyvault),
 ) -> list[dict]:
     """Return the ordered set/read/delete audit trail for one secret."""
+    _forbid_cache(response)
     return keyvault.audit_history(namespace, secret_key)
