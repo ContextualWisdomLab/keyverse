@@ -78,14 +78,34 @@ MAX_BOOTSTRAP_CREDENTIAL_BYTES = 4096
 _BOOTSTRAP_CREDENTIAL_ERROR = "bootstrap credential is unavailable or unsafe"
 
 
+def _validate_bootstrap_directory(directory_descriptor: int) -> None:
+    """Reject path components another untrusted principal can replace."""
+    directory_state = os.fstat(directory_descriptor)
+    directory_mode = stat.S_IMODE(directory_state.st_mode)
+    trusted_owner = directory_state.st_uid in {0, os.geteuid()}
+    shared_writable = bool(directory_mode & (stat.S_IWGRP | stat.S_IWOTH))
+    root_sticky_directory = (
+        directory_state.st_uid == 0 and bool(directory_mode & stat.S_ISVTX)
+    )
+    if (
+        not stat.S_ISDIR(directory_state.st_mode)
+        or not trusted_owner
+        or (shared_writable and not root_sticky_directory)
+    ):
+        raise ValueError
+
+
 def read_bootstrap_credential(credential_path: str) -> str:
     """Read a supervisor-owned POSIX credential without dotenv or DB fallback.
 
     All path components are opened relative to held directory descriptors with
-    no symlink following. Validate ownership, permissions, type and size on the
-    actual file descriptor, not on an earlier path lookup. The only allowed
-    plaintext-file exception is Keyverse's own root bootstrap: application
-    secrets still require the separately released workload-resolution API.
+    no symlink following. Validate directory trust plus file ownership,
+    permissions, type, and size on the actual descriptors rather than on an
+    earlier path lookup. Root-owned sticky directories such as ``/tmp`` are an
+    explicit shared-parent exception because their sticky bit prevents another
+    unprivileged principal from replacing entries it does not own. The only
+    allowed plaintext-file exception is Keyverse's own root bootstrap:
+    application secrets still require the separately released workload API.
     """
     try:
         required_flags = ("O_NOFOLLOW", "O_DIRECTORY", "O_CLOEXEC", "O_NONBLOCK")
@@ -105,11 +125,13 @@ def read_bootstrap_credential(credential_path: str) -> str:
         with ExitStack() as descriptor_stack:
             parent_descriptor = os.open("/", directory_flags)
             descriptor_stack.callback(os.close, parent_descriptor)
+            _validate_bootstrap_directory(parent_descriptor)
             for path_part in path_parts[:-1]:
                 parent_descriptor = os.open(
                     path_part, directory_flags, dir_fd=parent_descriptor
                 )
                 descriptor_stack.callback(os.close, parent_descriptor)
+                _validate_bootstrap_directory(parent_descriptor)
             file_descriptor = os.open(
                 path_parts[-1], file_flags, dir_fd=parent_descriptor
             )
