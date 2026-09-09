@@ -70,6 +70,7 @@ def test_list_secrets_returns_metadata_never_the_value(client):
     client.put("/keyvault/ns/key2", json={"value": "another-secret-value"})
     response = client.get("/keyvault/ns")
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
     body = response.json()
     assert {item["secret_key"] for item in body} == {"key1", "key2"}
     assert "super-secret-value" not in response.text
@@ -77,7 +78,9 @@ def test_list_secrets_returns_metadata_never_the_value(client):
 
 
 def test_list_namespaces_supports_management_discovery_without_secret_values(client):
-    assert client.get("/keyvault").json() == []
+    first_response = client.get("/keyvault")
+    assert first_response.json() == []
+    assert first_response.headers["cache-control"] == "no-store"
     client.put("/keyvault/noema/GITHUB_APP_KEY", json={"value": "private-value"})
     client.put(
         "/keyvault/contextual-orchestrator/OPENAI_API_KEY",
@@ -87,6 +90,7 @@ def test_list_namespaces_supports_management_discovery_without_secret_values(cli
     response = client.get("/keyvault")
 
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
     assert response.json() == ["contextual-orchestrator", "noema"]
     assert "private-value" not in response.text
     assert "provider-value" not in response.text
@@ -98,6 +102,7 @@ def test_secret_audit_trail_records_set_read_and_delete(client):
     client.delete("/keyvault/ns/key1")
     response = client.get("/keyvault/ns/key1/audit")
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
     actions = [event["action"] for event in response.json()]
     assert actions == ["secret_set", "secret_read", "secret_deleted"]
 
