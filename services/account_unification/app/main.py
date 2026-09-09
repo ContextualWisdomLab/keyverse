@@ -21,11 +21,7 @@ from .bootstrap import load_bootstrap_descriptor, open_config_store
 from .config import load_service_config
 from .directory_federation import directory_federation_router
 from .federation import FederationService, federation_router
-from .keyvault import (
-    KeyvaultService,
-    SqliteKeyvaultStore,
-    derive_fernet_key,
-)
+from .keyvault import KeyvaultService, SqliteKeyvaultStore, derive_fernet_key
 from .keyvault_admin import router as keyvault_router
 from .path_security import (
     ScimPathValidationError,
@@ -68,20 +64,27 @@ def _user_operation_lock_path(audit_database_path: str) -> tuple[str, bool]:
 
 
 def _build_keyvault_service(config) -> KeyvaultService | None:
-    """Build the Keyvault service, or ``None`` when no passphrase is configured.
+    """Build the Keyvault service from its durable per-vault KDF parameters.
 
-    Opt-in by design (see ``config.py``): a deployment that never sets
-    ``keyvault_passphrase`` gets no Keyvault service at all, and the router's
-    ``get_keyvault`` dependency then fails closed with 503 rather than
-    exposing an unencrypted or default-keyed store.
+    A deployment with no root passphrase remains explicitly unconfigured. For a
+    configured vault, startup loads or initializes the vault-local KDF metadata
+    before deriving the Fernet key. Existing ciphertext without KDF metadata
+    fails closed and requires the explicit legacy rewrap operation rather than
+    silently deriving with the historical organization-wide fixed salt.
     """
     if not config.keyvault_passphrase:
         return None
     _ensure_parent_directory(config.keyvault_database_path)
-    return KeyvaultService(
-        SqliteKeyvaultStore(config.keyvault_database_path),
-        derive_fernet_key(config.keyvault_passphrase),
-    )
+    keyvault_store = SqliteKeyvaultStore(config.keyvault_database_path)
+    try:
+        kdf_parameters = keyvault_store.load_or_create_kdf_parameters()
+        return KeyvaultService(
+            keyvault_store,
+            derive_fernet_key(config.keyvault_passphrase, kdf_parameters),
+        )
+    except Exception:
+        keyvault_store.close()
+        raise
 
 
 def build_service(app: FastAPI) -> None:
