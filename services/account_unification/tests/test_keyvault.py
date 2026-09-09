@@ -7,12 +7,18 @@ import pytest
 
 from app.keyvault import (
     InMemoryKeyvaultStore,
+    KeyvaultKdfParameters,
     KeyvaultService,
     KeyvaultStore,
     SecretNotFoundError,
     SqliteKeyvaultStore,
     derive_fernet_key,
 )
+
+
+def _test_parameters(salt_byte: bytes = b"t") -> KeyvaultKdfParameters:
+    """Return explicit deterministic parameters for in-memory unit fixtures."""
+    return KeyvaultKdfParameters(version=1, iterations=600_000, salt=salt_byte * 32)
 
 
 def test_store_protocol_methods_have_concrete_implementations():
@@ -37,9 +43,11 @@ def keyvault_service(request, tmp_path) -> KeyvaultService:
     """Return a KeyvaultService over each supported backend pair."""
     if request.param == "memory":
         store = InMemoryKeyvaultStore()
+        parameters = _test_parameters()
     else:
         store = SqliteKeyvaultStore(str(tmp_path / "keyvault.db"))
-    service = KeyvaultService(store, derive_fernet_key("test-passphrase"))
+        parameters = store.load_or_create_kdf_parameters()
+    service = KeyvaultService(store, derive_fernet_key("test-passphrase", parameters))
     yield service
     service.close()
 
@@ -114,15 +122,16 @@ def test_overwriting_a_secret_replaces_the_value_and_keeps_one_metadata_row(keyv
 
 
 def test_wrong_passphrase_cannot_decrypt_another_services_secrets(tmp_path):
-    """Encryption is real: a different Fernet key cannot read the ciphertext."""
+    """Encryption is real: a different passphrase cannot read the ciphertext."""
     shared_store = SqliteKeyvaultStore(str(tmp_path / "shared.db"))
+    parameters = shared_store.load_or_create_kdf_parameters()
     writer = KeyvaultService(
-        shared_store, derive_fernet_key("correct-horse")
+        shared_store, derive_fernet_key("correct-horse", parameters)
     )
     writer.put_secret("ns", "key1", "top-secret", actor="operator1")
 
     reader = KeyvaultService(
-        shared_store, derive_fernet_key("wrong-passphrase")
+        shared_store, derive_fernet_key("wrong-passphrase", parameters)
     )
     with pytest.raises(Exception):
         reader.get_secret("ns", "key1", actor="operator1")
@@ -173,9 +182,14 @@ def test_sqlite_write_rolls_back_when_audit_insert_fails(tmp_path):
 def test_failed_decryption_is_not_recorded_as_successful_read(tmp_path):
     """Corrupt or wrong-key ciphertext never produces a successful-read event."""
     store = SqliteKeyvaultStore(str(tmp_path / "keyvault.db"))
-    writer = KeyvaultService(store, derive_fernet_key("correct-passphrase"))
+    parameters = store.load_or_create_kdf_parameters()
+    writer = KeyvaultService(
+        store, derive_fernet_key("correct-passphrase", parameters)
+    )
     writer.put_secret("ns", "key1", "secret", actor="writer")
-    reader = KeyvaultService(store, derive_fernet_key("wrong-passphrase"))
+    reader = KeyvaultService(
+        store, derive_fernet_key("wrong-passphrase", parameters)
+    )
     with pytest.raises(Exception):
         reader.get_secret("ns", "key1", actor="reader")
     assert [event["action"] for event in store.events_for("ns", "key1")] == [
@@ -184,6 +198,14 @@ def test_failed_decryption_is_not_recorded_as_successful_read(tmp_path):
     writer.close()
 
 
-def test_derive_fernet_key_is_deterministic_for_the_same_passphrase():
-    assert derive_fernet_key("same-passphrase") == derive_fernet_key("same-passphrase")
-    assert derive_fernet_key("passphrase-a") != derive_fernet_key("passphrase-b")
+def test_derive_fernet_key_is_deterministic_only_with_same_parameters():
+    parameters = _test_parameters()
+    assert derive_fernet_key("same-passphrase", parameters) == derive_fernet_key(
+        "same-passphrase", parameters
+    )
+    assert derive_fernet_key("passphrase-a", parameters) != derive_fernet_key(
+        "passphrase-b", parameters
+    )
+    assert derive_fernet_key("same-passphrase", parameters) != derive_fernet_key(
+        "same-passphrase", _test_parameters(b"u")
+    )
