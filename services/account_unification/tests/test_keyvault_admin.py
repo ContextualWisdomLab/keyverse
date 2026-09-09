@@ -6,10 +6,17 @@ from fastapi.testclient import TestClient
 
 from app.keyvault import (
     InMemoryKeyvaultStore,
+    KeyvaultKdfParameters,
     KeyvaultService,
     derive_fernet_key,
 )
 from app.main import create_app
+
+_TEST_KDF_PARAMETERS = KeyvaultKdfParameters(
+    version=1,
+    iterations=600_000,
+    salt=b"k" * 32,
+)
 
 
 @pytest.fixture
@@ -18,7 +25,7 @@ def client(auth_header):
     app = create_app(wire=False)
     app.state.keyvault_service = KeyvaultService(
         InMemoryKeyvaultStore(),
-        derive_fernet_key("test-passphrase"),
+        derive_fernet_key("test-passphrase", _TEST_KDF_PARAMETERS),
     )
     app.state.operator_api_token = auth_header["Authorization"].removeprefix("Bearer ")
     with TestClient(app, headers=auth_header) as test_client:
