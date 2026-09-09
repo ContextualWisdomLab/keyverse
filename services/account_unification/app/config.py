@@ -1,4 +1,4 @@
-"""Typed service configuration, loaded entirely from the KV/DB store.
+"""Typed service configuration with a separate protected vault bootstrap.
 
 Nothing here reads process environment. :func:`load_service_config` takes an
 opened :class:`~app.kv_store.KvStore` (from :mod:`app.bootstrap`) and returns a
@@ -7,9 +7,10 @@ frozen config object. Missing or unsafe values fail loudly at startup.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from .bootstrap import read_bootstrap_credential
 from .kv_store import KvStore
 
 # Keys expected in the KV namespace. Two-word snake_case where they map to
@@ -31,6 +32,7 @@ KEY_REGISTRATION_ACTION_LIFESPAN_SECONDS = (
 KEY_AUDIT_DATABASE_PATH = "audit_database_path"
 KEY_KEYVAULT_DATABASE_PATH = "keyvault_database_path"
 KEY_KEYVAULT_PASSPHRASE = "keyvault_passphrase"
+KEY_KEYVAULT_PASSPHRASE_FILE = "keyvault_passphrase_file"
 
 MAX_REGISTRATION_ACTION_LIFESPAN_SECONDS = 3600
 
@@ -44,11 +46,11 @@ class ServiceConfig:
     keycloak_server_url: str
     keycloak_realm: str
     keycloak_client_id: str
-    keycloak_client_secret: str
+    keycloak_client_secret: str = field(repr=False)
     # Privileged and product registration surfaces deliberately use different
     # bearer credentials so relying products never acquire operator authority.
-    operator_api_token: str
-    registration_api_token: str | None = None
+    operator_api_token: str = field(repr=False)
+    registration_api_token: str | None = field(default=None, repr=False)
     registration_client_id: str | None = None
     registration_redirect_uri: str | None = None
     registration_action_lifespan_seconds: int = 900
@@ -57,7 +59,7 @@ class ServiceConfig:
     # keyvault_service=None (503 "not configured"), never a silently-open
     # secret store. See app/keyvault.py and app/keyvault_admin.py.
     keyvault_database_path: str = "/var/lib/account-unification/keyvault.db"
-    keyvault_passphrase: str | None = None
+    keyvault_passphrase: str | None = field(default=None, repr=False)
     merge_conflict_policy: str = "survivor_wins"
     # This is an invariant, not a deployer-selectable feature. The field remains
     # so audit/config evidence can prove it was explicitly disabled.
@@ -185,6 +187,19 @@ def _registration_settings(
     return client_id, redirect_uri, lifespan_seconds
 
 
+def _load_keyvault_bootstrap(store: KvStore, namespace: str) -> str | None:
+    """Resolve only a protected locator; never accept a plaintext DB root key."""
+    if store.get(namespace, KEY_KEYVAULT_PASSPHRASE) is not None:
+        raise RuntimeError(
+            "plaintext Keyvault bootstrap is forbidden; migrate the root "
+            "credential outside the config store and configure its file reference"
+        )
+    credential_path = store.get(namespace, KEY_KEYVAULT_PASSPHRASE_FILE)
+    if credential_path is None:
+        return None
+    return read_bootstrap_credential(credential_path)
+
+
 def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
     """Build and validate the :class:`ServiceConfig` from the KV store."""
     operator_api_token = _require(store, namespace, KEY_OPERATOR_API_TOKEN)
@@ -246,7 +261,7 @@ def load_service_config(store: KvStore, namespace: str) -> ServiceConfig:
             store.get(namespace, KEY_KEYVAULT_DATABASE_PATH)
             or "/var/lib/account-unification/keyvault.db"
         ),
-        keyvault_passphrase=store.get(namespace, KEY_KEYVAULT_PASSPHRASE) or None,
+        keyvault_passphrase=_load_keyvault_bootstrap(store, namespace),
         merge_conflict_policy=merge_conflict_policy,
         allow_unverified_email_link=allow_unverified_email_link,
         request_timeout_seconds=_as_finite_float(
