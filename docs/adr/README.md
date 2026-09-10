@@ -18,16 +18,24 @@ authorization boundary and is not rewritten by that expansion.
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
+| [0017](0017-keyverse-root-bootstrap-secret-transport.md) | Independent Keyverse custody and self-bootstrap; external KMS is optional and static file transport is not migration | Proposed |
 
 ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
-proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
-ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
-the next intended number without renumbering parallel work; it must be
-reconciled after those PRs land, and none of the absent records is accepted
-architecture on protected `main` yet.
+proposed in the open LineageWeave claim-profile PR, ADR-0010 through ADR-0012
+are proposed in the authorization-plane PR, ADR-0013 is the open MCP decision,
+and ADR-0014 through ADR-0016 are reserved by the Key Vault foundation stack.
+ADR-0017 records self-bootstrap and the 2026-09-10 owner correction of the
+external-KMS/static-file direction without allocating a conflicting ADR number.
+Every proposed record must be reconciled after its owning PR lands; an absent
+record is not accepted architecture on protected `main`.
+
+The implementation scope of #153 remains transport-only until the native
+custody and credential-lifecycle acceptance in ADR-0017 is demonstrated. The
+owner's requirement supersedes earlier proposed external-KMS prerequisites;
+it does not promote any open PR to Accepted or erase its valid source delta.
 
 ## ADR triggers
 
-Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, or autonomous/release authority.
+Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, root custody, self-bootstrap, or autonomous/release authority.
 
 Each implementation PR should reconcile PRD/TRD/Architecture/UML/ERD/Threat/Test/Operability/Traceability and the relevant `docs/doctoring/`, `docs/papers/`, or `docs/operations/` research/standards/runbook record when those contracts move.

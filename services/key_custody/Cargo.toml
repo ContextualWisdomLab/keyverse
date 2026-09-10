@@ -1,0 +1,18 @@
+[package]
+name = "keyverse_custody"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "Apache-2.0"
+publish = false
+description = "Internal independently unsealed Keyverse custody barrier"
+
+[lib]
+path = "src/custody_barrier.rs"
+
+[dependencies]
+chacha20poly1305 = { version = "=0.11.0", default-features = false, features = ["alloc"] }
+getrandom = "=0.4.3"
+rand_chacha = "=0.3.1"
+sharks = { version = "=0.5.0", default-features = false, features = ["zeroize_memory"] }
+zeroize = { version = "=1.9.0", features = ["std"] }

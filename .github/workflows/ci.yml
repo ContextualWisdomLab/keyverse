@@ -80,3 +80,36 @@ jobs:
         env:
           IDP_DB_PASSWORD: ci-placeholder
           IDP_BOOTSTRAP_ADMIN_PASSWORD: ci-placeholder
+
+  key-custody-tests:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/key_custody
+    steps:
+      - name: Checkout exact native source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned native toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
+      - name: Resolve initial candidate dependency lock
+        run: |
+          cargo +1.97.1 generate-lockfile
+          printf '\nBEGIN_CUSTODY_CANDIDATE_LOCK\n'
+          cat Cargo.lock
+          printf '\nEND_CUSTODY_CANDIDATE_LOCK\n'
+      - name: Execute native custody contract
+        run: cargo +1.97.1 test --locked --all-targets
+      - name: Reject native lint warnings
+        run: cargo +1.97.1 clippy --locked --all-targets -- -D warnings
+      - name: Validate native API documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo +1.97.1 doc --locked --no-deps
+      - name: Require reviewed committed dependency lock
+        run: |
+          git ls-files --error-unmatch Cargo.lock
+          git diff --exit-code -- Cargo.lock

@@ -16,6 +16,10 @@ authenticator is removed from the login flow). cwl-idp is the hub; employer and
 corporate identity systems are external deployment data and compatibility
 targets, never the hub.
 
+Keyverse is also the canonical CWL secret-lifecycle owner. Identity,
+authorization, ordinary configuration, and secret custody remain separate
+bounded contexts even though they live under one product authority.
+
 ## Common commands
 
 Make targets work with Docker or Podman (`COMPOSE="podman compose" make up`):
@@ -25,17 +29,18 @@ make up               # bring up Keycloak + Postgres + admin service
 make down             # tear down while retaining volumes
 make logs             # follow logs
 make ready            # poll readiness (deploy/scripts/healthz.sh)
-make install          # install the admin service development environment
-make test             # run account-unification unit tests
-make lint             # run Ruff + interrogate docstring coverage
-make validate-realm   # validate deploy/keycloak/realm-cwl.json
-make seed-bootstrap   # create a local SQLite KV bootstrap store
+make install           # install the admin service development environment
+make test              # run account-unification unit tests
+make lint              # run Ruff + interrogate docstring coverage
+make validate-realm    # validate deploy/keycloak/realm-cwl.json
+make seed-bootstrap    # create a local SQLite configuration bootstrap store
 ```
 
-Compose bring-up needs `.env` (from `.env.example`) and
-`deploy/bootstrap/bootstrap.yaml` (from `bootstrap.example.yaml`). Keycloak
-console: `http://localhost:8080`; admin service:
-`http://localhost:8099/healthz`.
+Compose bring-up does **not** use `.env`. A trusted supervisor/KMS adapter first
+materializes the three root-bootstrap files documented in `README.md` under
+`/run/keyverse-bootstrap`; `deploy/bootstrap/bootstrap.yaml` remains a
+non-secret locator/configuration descriptor. Keycloak console:
+`http://localhost:8080`; admin service: `http://localhost:8099/healthz`.
 
 Per-service commands matching CI, from `services/account_unification/`:
 
@@ -58,6 +63,9 @@ export CWL_IDP_BOOTSTRAP=/path/to/bootstrap.yaml
 uvicorn app.main:app --port 8099
 ```
 
+`CWL_IDP_BOOTSTRAP` is a non-secret locator, not credential transport. Do not add
+secret-valued environment variables or dotenv discovery to the account service.
+
 ## CI gates (`.github/workflows/ci.yml`)
 
 1. **account-unification-tests** — locked dependencies, Ruff, 100% interrogate
@@ -70,8 +78,9 @@ uvicorn app.main:app --port 8099
    registration and reset-password remain off; no external IdP or user-storage
    federation may be committed; public RP access-token lifetime is bounded; real
    client secrets are forbidden.
-3. **compose-config-validates** — validates `docker-compose.yml` with placeholder
-   bootstrap passwords.
+3. **compose-config-validates** — validates `docker-compose.yml` with the
+   supervisor/KMS bootstrap secret mounts. CI must not fabricate production
+   credential values merely to make Compose parsing succeed.
 
 CodeQL, Semgrep, Security Scan, current-head review, and unresolved-thread gates
 remain authoritative. `.clusterfuzzlite/` is a discovery marker; the fuzz
@@ -86,10 +95,15 @@ Three runtime containers run on two networks (`docker-compose.yml`; the Helm
 chart has the same shape):
 
 - **idp_database** — Postgres 17, Keycloak's system of record. Internal network
-  only.
+  only. In standalone Compose its password is read with PostgreSQL's `_FILE`
+  mechanism from the root-bootstrap secret mount.
 - **idp_engine** — Keycloak 26, `start --import-realm`; imports the portable,
   passwordless-first `cwl` realm. Health is exposed on management port 9000.
-  TLS terminates at the WAF edge, so HTTP is enabled internally.
+  TLS terminates at the WAF edge, so HTTP is enabled internally. Because
+  Keycloak consumes bootstrap credentials through native environment options,
+  `deploy/keycloak/secret-entrypoint.sh` reads only the three mounted bootstrap
+  files and immediately `exec`s Keycloak. This exception must not spread to
+  ordinary CWL product credentials.
 - **account_unification_service** — FastAPI admin service (Python ≥3.11) on port
   8099. It talks to Keycloak only through the Admin REST API using a confidential
   service-account client. It provides account inspect/link/merge, inbound SCIM,
@@ -106,27 +120,37 @@ is required by the normal suite.
 
 ### Deployment layout
 
-- `deploy/keycloak/` — portable realm config-as-code and
-  `kcadm-bootstrap.sh`. The realm contains no employer-specific federation.
+- `deploy/keycloak/` — portable realm config-as-code, `kcadm-bootstrap.sh`, and
+  the narrow Compose bootstrap adapter. The realm contains no employer-specific
+  federation.
 - `deploy/templates/` — explicit private deployment contracts. SAML/OIDC use
   Keyverse desired-state endpoints. `oidc-rp-naruon.json` is the reviewed public
   Naruon runtime RP profile with one audience mapper and bounded routing claims.
   LDAP is preflighted through Keyverse and then applied through private Keycloak
-  Admin REST in this release. All `{{placeholders}}` are resolved from KV before
-  use.
-- `deploy/bootstrap/` — the bootstrap pointer locating the KV/DB config store.
+  Admin REST in this release. Private placeholders are resolved by the approved
+  deployment secret authority before use; do not introduce dotenv as an
+  intermediate store.
+- `deploy/bootstrap/` — non-secret bootstrap pointer locating the typed
+  configuration store.
 - `helm/cwl-idp/` — the same three components; Keycloak and Postgres may be
-  disabled in favor of externally managed services. Secrets come from
-  pre-created Kubernetes secrets populated from KV.
+  disabled in favor of externally managed services. Bootstrap secrets come from
+  pre-created Kubernetes Secret objects populated by a deployment secret
+  controller/KMS integration, never repository-local dotenv files.
 - The repository is **standalone AND submodule-embeddable**: a parent compose can
   `include:` `docker-compose.yml`, or depend on `helm/cwl-idp`.
 
 ## Key conventions
 
-- **Config and secrets come from the KV/DB store, never runtime `os.getenv`.**
-  Environment variables are bootstrap transport only. The admin service reads
-  `CWL_IDP_BOOTSTRAP`, which points at the bootstrap file and then the typed KV
-  configuration.
+- **Keyverse owns CWL application secret lifecycle; typed configuration is not a
+  secret store.** Ordinary consumers use only an immutable released Keyverse
+  workload-resolution contract and never query Keyverse persistence directly.
+- **No dotenv credential authority.** Do not add `.env`, home-directory dotenv
+  discovery, `env_file`, or secret-valued environment fallback. Non-secret
+  deployment settings and locators may remain explicit typed configuration.
+- **Root bootstrap is a narrow exception.** Keyverse cannot obtain the secrets
+  required to start its own database/Keycloak engine from its locked API. The
+  supervisor/KMS mount is allowed only for those bootstrap inputs and must
+  converge toward managed workload identity plus external KMS/HSM custody.
 - **SAML/OIDC federation is desired state.** Validate registrations through
   `POST /federation/identity-providers:validate`, persist with `PUT`, and
   converge through the federation service. Preflight must not write, call

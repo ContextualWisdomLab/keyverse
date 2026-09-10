@@ -7,6 +7,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- ADR-0017 and a bounded Keycloak secret entrypoint define the root-only
+  supervisor/KMS bootstrap exception without creating a general application
+  secret-file fallback.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
@@ -55,6 +58,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Standalone Compose no longer uses a repository-local `.env` credential
+  template. PostgreSQL consumes its root bootstrap password through `_FILE`,
+  while Keycloak reads exactly three supervisor/KMS-mounted bootstrap files at
+  its final process boundary. Non-secret deployment configuration remains
+  separate from Keyverse secret custody.
 - Federation PUT and apply now report `applied_to_keycloak: true` only after a
   fresh live Keycloak identity-provider observation matches the desired
   observable representation. Keycloak's fixed mask for the known
@@ -111,6 +119,9 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Removed the standalone `.env.example` credential path so root bootstrap
+  credentials cannot silently become a reusable dotenv authority for CWL
+  consumers.
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
