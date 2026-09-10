@@ -1,121 +1,192 @@
-# ADR-0017: Keyverse self-bootstrap uses protected secret mounts, not dotenv
+# ADR-0017: Independent Keyverse custody and self-bootstrap; files are not migration
 
-**Status:** Proposed
-**Date:** 2026-09-10
-**Related:** Key Vault foundation #129, protected root bootstrap #151, CWL migration ContextualWisdomLab/.github#2063
+**Status:** Proposed; owner requirement clarified, runtime acceptance outstanding.
+**Date:** 2026-09-10.
+**Related:** Keyverse #129, #151, #153; ContextualWisdomLab/.github#2063.
 
-## Context
+## Problem and correction
 
-CWL is moving application credentials away from `.env` and toward Keyverse as
-the canonical secret-lifecycle authority. Keyverse itself cannot obtain the
-credentials required to start its database and Keycloak engine from a Keyverse
-API that is not running yet. That is a genuine self-bootstrap cycle, not a
-reason to keep dotenv as a parallel secret authority.
+The owner requires Keyverse to replace dotenv-dependent secret management across
+CWL and to be usable itself as the KMS/cryptographic trust service on which other
+systems depend. A mandatory external vault or KMS would make Keyverse only an
+adapter. Replacing a static dotenv password with a static mounted password does
+not implement custody, authorization, rotation, revocation or audit.
 
-The protected `main` Compose profile previously instructed operators to copy
-`.env.example` to `.env` and placed the PostgreSQL password and one-time
-Keycloak bootstrap administrator credentials into Compose interpolation. This
-made the repository-local dotenv file an operational credential source even
-though comments described it as temporary transport.
+The previous revision of this ADR, at
+`cf8498dd33b7d64363a8359d76cab4cb47577ba9`, incorrectly selected protected host
+files as the solution and required eventual external KMS/HSM custody. That
+architecture direction is superseded by this correction. Its useful no-logging,
+no-argv, no-dotenv-discovery and least-disclosure controls remain requirements;
+no valid source delta or deployment data is discarded.
 
-The Helm profile already consumes pre-created Kubernetes Secret objects. That
-is closer to the intended boundary, but the mechanism that populates those
-objects still belongs to the deployment platform and must not be confused with
-Keyverse's runtime workload secret API.
+The same revision of PR #153 deletes `.env.example`, mounts three static host
+files, uses `POSTGRES_PASSWORD_FILE`, and exports Keycloak passwords from an
+entrypoint. These are implemented transport changes only. The producer of those
+files has no implemented Keyverse lifecycle contract. The deployment-contract
+tests check wiring; they do not prove Keyverse-managed credentials. Current
+Compose still reflects that earlier design and is NOT accepted as the final
+standalone profile. No rollout or completion may be inferred from a GREEN test
+of that wiring.
 
-## Decision
+## Alternatives and choice
 
-Keyverse has exactly one narrow bootstrap exception for secrets needed before
-its own secret service can be available. In standalone Compose, a trusted host
-supervisor, credential agent, or KMS/HSM adapter materializes these files
-outside the repository:
+1. Mandatory external KMS/HSM: reject as the default product dependency. Keep
+   provider integration as an optional, explicitly selected protection profile.
+2. Static credentials in a different file or Kubernetes Secret: reject as the
+   target architecture. Files may only be a narrowly justified transport for a
+   legacy client, never the authority or proof of migration.
+3. Independent Keyverse custody with explicit initialization, seal/unseal,
+   native key operations and governed workload credentials: selected direction.
+   The implementation remains Proposed, not an accepted or released capability.
 
-```text
-/run/keyverse-bootstrap/idp_database_password
-/run/keyverse-bootstrap/idp_bootstrap_admin_username
-/run/keyverse-bootstrap/idp_bootstrap_admin_password
-```
+## Responsibility and product boundaries
 
-Compose mounts them as service secrets. PostgreSQL consumes its password via
-the image's `POSTGRES_PASSWORD_FILE` contract. Keycloak consumes bootstrap
-values through native process-environment options, so a small container
-entrypoint reads only those mounted files immediately before `exec` of
-`kc.sh`. It neither discovers dotenv files nor provides a general-purpose
-secret resolver.
+Keyverse remains the canonical owner. Its identity/federation, authorization,
+secret lifecycle, cryptographic key operations, and root custody are separate
+bounded contexts with narrow interfaces. New key custody and cryptographic
+runtime are implemented in Rust using reviewed cryptographic implementations;
+do not create a new cipher, KDF or threshold scheme. Existing Python adapters
+are compatibility surfaces, not the new cryptographic engine.
 
-The account-unification service keeps `CWL_IDP_BOOTSTRAP` only as a non-secret
-locator for `bootstrap.yaml`. The descriptor itself contains configuration and
-opaque secret references, never secret values. Application credentials,
-provider keys, database credentials of ordinary CWL consumers, and user secrets
-do not qualify for the root-bootstrap exception.
+The custody core must be independently startable inside the Keyverse product.
+Its sealed-state administration must not require a live Keycloak, a PostgreSQL
+password supplied by that same locked vault, an external vault, or another
+Keyverse deployment. Otherwise the circular dependency has only been moved.
+Minimal local durable storage may contain encrypted key material, authenticated
+metadata and public trust anchors, not the plaintext key that unlocks it. If a
+relational backend is later attached, the bootstrap record and storage-connection
+path must still pass the no-circular-dependency acceptance test.
 
-The repository-local `.env.example` credential template is removed. Non-secret
-ports, hostname, cache mode, and database name/user may remain explicit
-operator/deployment configuration; they are not promoted into the Key Vault
-merely to eliminate a filename.
+Org/product domain truth is not moved here. `.github` owns reusable verification,
+AppGuardrail owns source detection, and enterprise-architecture-core records the
+cross-context map. Consumers use immutable released contracts, not this branch,
+Keyverse source copies or cross-service SQL. Authorization-plane #103 remains
+its existing owner line.
 
-## Security invariants
+## Independent initialization and recovery
 
-- No Keyverse or CWL runtime may fall back from a failed Keyverse lookup to a
-  dotenv file, plaintext config DB, shared administrator token, or second local
-  vault.
-- Root-bootstrap files are materialized outside the source checkout and are not
-  committed, copied into YAML, logged, attached to CI artifacts, passed as
-  command arguments, or sent to a model.
-- The Keycloak adapter handles only the three declared bootstrap files and
-  immediately replaces itself with Keycloak using `exec`.
-- Production orchestration is responsible for protecting and rotating the
-  source material and for deleting the one-time bootstrap administrator once
-  passkey/operator provisioning is complete.
-- Helm Secret objects remain bootstrap transport, not a second product-owned
-  secret system. Their source should converge on managed workload identity plus
-  external KMS/HSM custody.
-- Ordinary CWL applications adopt only an immutable released Keyverse workload
-  contract with tenant/environment/namespace/key/version/operation scope,
-  lease/revocation, audit, and fail-closed outage behavior.
+The standalone software profile generates root key material inside the custody
+boundary with a cryptographically secure random source. It supports an explicit
+lifecycle: uninitialized -> sealed -> unsealed -> sealed, with a separate
+recovery/rekey workflow. Before unseal, only the authenticated local or pinned
+administrative initialization/status/unseal surface is available; general
+secret reads, key operations and credential issuance are denied.
 
-## Consequences
+A reviewed threshold-unseal profile is a suitable standalone design: independent
+custodians receive protected shares during initialization and provide a quorum
+through an authenticated/pinned channel. The service does not write the complete
+unseal key or enough shares to reconstruct it into its own persistent storage,
+repository, environment or backup. Quorum values are deployment-policy decisions,
+not an invented fixed security score. Quorum unseal is NOT threshold signing:
+it can reconstruct a key in the custody process and must be documented as such.
 
-Standalone startup is no longer a one-command operation after creating `.env`;
-an operator or deployment controller must first provide the explicit bootstrap
-files. This extra step is intentional because the trust boundary is now visible
-and independently governable.
+Protect initial enrollment against takeover; bind it to operator presence and a
+verified instance fingerprint. Do not use trust-on-first-network-request, an
+unverified JWT payload, a shared static admin password or disabling TLS as the
+initial identity solution. Local operating-system peer identity may be one
+explicit administration profile, not a network `trust` authentication rule.
 
-This ADR does not claim that a host file is equivalent to HSM custody, nor that
-Keyverse's workload read API is already released. It only removes dotenv from
-Keyverse's own bootstrap path and narrows the unavoidable bootstrap secret
-surface. PR #129/#151 and their successors still own encrypted custody,
-protected vault-root loading, workload resolution, versioning, rotation,
-revocation, KMS/HSM integration, and immutable release evidence.
+A fully unattended restart requires a separately available unlocking factor.
+That factor may be locally hardware-sealed or held by an independently governed
+cluster quorum; it need not be an external cloud KMS. Without hardware, an
+independent live quorum or operator input, this design does not promise both
+unattended full-cluster cold recovery and protection from an attacker possessing
+all host state. External KMS/HSM and a separate Keyverse deployment can be optional
+unseal providers, but dependency cycles must be rejected and the standalone
+profile must remain usable with those integrations absent.
 
-## Alternatives rejected
+Software, locally hardware-backed and externally backed profiles must report
+their actual protection boundary. A software cryptographic service, including
+one exposing a PKCS#11-compatible interface, is not automatically a physical
+HSM, tamper-resistant appliance or FIPS-validated module. Any hardware/FIPS claim
+requires evidence for the exact module, version, configuration and environment.
 
-### Keep `.env` because it is only bootstrap transport
+## Key operations are distinct from secret retrieval
 
-Rejected. A repository-local file holding reusable bootstrap passwords remains
-a credential authority in practice and becomes an easy fallback path for other
-services.
+Key management supports generation, controlled import, versions, cryptoperiods,
+rotation, disablement, recovery and authorized destruction. Managed root,
+wrapping and signing private keys are non-exportable through the normal API.
+Clients use an opaque key handle and scoped encrypt/decrypt, wrap/unwrap,
+sign/verify or MAC operation; they do not fetch every key as a string. Public
+verification material may be published. Envelope data-key export is a separate,
+explicitly authorized capability, not implied by permission to use the wrapping
+key. Cryptographic context binds tenant, environment, purpose and key version.
 
-### Put bootstrap passwords in `bootstrap.yaml`
+Secret management separately handles values that an external protocol actually
+requires, such as a provider API credential. Only the authorized execution
+boundary receives necessary plaintext for the allowed operation and lifetime.
+CO retains the provider-execution boundary; siblings do not receive copies of
+model-provider keys. Returned plaintext cannot be retroactively erased from a
+compromised caller by revoking a Keyverse lease; actual upstream revocation and
+credential lifetime must be part of the contract.
 
-Rejected. Renaming the plaintext container does not create a new trust boundary
-and couples locators/configuration to secret backup and access semantics.
+## PostgreSQL: replace the credential authority, not the filename
 
-### Make Keyverse fetch its own startup secrets from Keyverse
+`POSTGRES_PASSWORD_FILE` in PR #153 supplies the image's database initialization
+password. It is not a per-workload database login lease, and it does not issue,
+rotate or revoke credentials. Database administrative initialization and later
+application logins are separate contracts.
 
-Rejected as circular. The data plane cannot serve credentials before the
-identity/database/key material required to start it is available.
+For consumer logins, prefer Keyverse-issued, narrowly mapped short-lived client
+certificates where the actual PostgreSQL driver supports the complete TLS/key
+integration. PostgreSQL `cert` authentication checks trusted client certificates
+and the database-user mapping without requesting a password. Certificate signing
+keys stay in Keyverse; any workload private key has a separate generated-key,
+proof-of-possession, transport and destruction policy. Merely replacing a
+password file with a static private-key file is not acceptance.
 
-### Give every CWL service the same supervisor-file exception
+Where certificate authentication is incompatible, an explicit dynamic-role
+profile may issue short-lived, least-privilege PostgreSQL credentials via a
+Keyverse-owned database adapter. The adapter is the intentional privileged
+integration boundary, not permission for arbitrary consumers to query sibling
+DBs. Issuance, renewal, disablement, cleanup and audit must reflect observed DB
+state. No long-lived shared superuser password is returned to applications.
 
-Rejected. The exception exists only to break Keyverse's own bootstrap cycle.
-Once Keyverse is available, consumers must use its released workload contract.
+Neither certificate expiry nor password expiration is treated as proof that an
+already-authenticated pooled connection has ended. Define and test revocation
+for new connections AND existing sessions, including pool draining/termination,
+maximum session lifetime, outage and reconnect behavior. The adapter must also
+have a separately authenticated initial provisioning path so its own login does
+not recursively require an unavailable credential lease.
 
-## References
+Prefer direct client integration or authenticated local IPC. A driver-mandated
+file is only an optional compatibility sink after verified Keyverse issuance:
+short-lived scoped material, private ephemeral storage, explicit replacement
+and cleanup, no source authority, and no fallback after lease invalidation.
+The current static host mounts satisfy none of that lifecycle by themselves.
 
-Barker, E. (2020). *Recommendation for key management: Part 1 – General*
-(NIST SP 800-57 Part 1 Rev. 5). National Institute of Standards and Technology.
-https://doi.org/10.6028/NIST.SP.800-57pt1r5
+## Acceptance and current gaps
 
-OWASP Foundation. (n.d.). *Secrets management cheat sheet*.
-https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+| Gate | Required executable evidence | Current disposition |
+| --- | --- | --- |
+| Standalone custody | Initialize, seal/unseal and operate with external KMS/vault access denied and Keycloak/database authentication dependencies unavailable | Not implemented by #153 |
+| Bootstrap integrity | Reject duplicate initialization, wrong/insufficient/replayed shares, unauthorized enrollment and tampered bootstrap records | Required native owner work |
+| Non-exportable key use | Authorized operations succeed; private-key export, wrong tenant/purpose/version, disabled key and audit failure deny correctly | Required native owner work |
+| Recovery | Full cold restart and restore work under the declared custody profile without plaintext unlock material in persisted state | Required native owner work |
+| PostgreSQL lifecycle | Correct real driver/DB login, wrong-role denial, expiry, rotation, revocation of new and existing sessions, reconnect and cleanup | `_FILE` wiring is not acceptance |
+| Client compatibility | Any ephemeral materialization is traceable to a valid issued lease and fails closed without static fallback | Current host files remain a gap |
+| Consumer migration | Released owner version + exact consumer revision + real clean startup/outage/recovery evidence | Not delivered by deleting `.env.example` |
+
+Keep #153 Draft. Do not close or discard #129/#151/#153 to conceal the gap.
+Their existing regression/security controls remain valuable, but native custody
+and lifecycle must replace or explicitly confine the compatibility behavior
+before deployment. PRD/TRD/UML/ERD/operability and the product gap baseline must be
+reconciled across those owner stacks before protected integration and release.
+
+## References and interpretation
+
+HashiCorp. (n.d.-a). *Seal stanza*. https://developer.hashicorp.com/vault/docs/configuration/seal
+
+HashiCorp. (n.d.-b). *Seal/Unseal*. https://developer.hashicorp.com/vault/docs/concepts/seal
+
+HashiCorp. (n.d.-c). *Transit secrets engine*. https://developer.hashicorp.com/vault/docs/secrets/transit
+
+HashiCorp. (n.d.-d). *PostgreSQL database secrets engine*. https://developer.hashicorp.com/vault/docs/secrets/databases/postgresql
+
+PostgreSQL Global Development Group. (n.d.). *Certificate authentication (PostgreSQL 17)*. https://www.postgresql.org/docs/17/auth-cert.html
+
+National Institute of Standards and Technology. (n.d.). *FIPS 140-3 standards*. https://csrc.nist.gov/projects/cryptographic-module-validation-program/fips-140-3-standards
+
+These are primary-source architectural precedents and assurance boundaries,
+not dependencies adopted by this ADR. They do not demonstrate that Keyverse has
+implemented or passed the target controls. See the associated doctoring record.
