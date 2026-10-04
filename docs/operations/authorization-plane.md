@@ -30,6 +30,26 @@ include `tenant_deployment_id` as the GET/DELETE query parameter; an ambiguous
 administration operation fails closed. The query value is validated before the
 tenant-qualified KV record is selected.
 
+## Menu and SSO read coherence
+
+A menu decision captures both grant namespaces in one read before validation.
+An SSO-combination decision captures combination definitions and software-unit
+grants together through the same coherent read seam. All captured rows are
+validated before the unchanged PDP, including unrelated names and tenants;
+do not bypass corrupt rows by filtering them first. Validated name/tenant
+selection retains HTTP 404 for missing and HTTP 409 for ambiguous combinations.
+An independent SQLite writer can commit during a read without mixing new rows
+with old rows from the other requested namespace. An already captured coherent
+allow can still be returned after a concurrent revocation; the next fresh read
+sees the committed revocation. Do not treat this as operation cancellation.
+
+Separate PUT requests remain separate transactions: this read seam does not
+make a multi-request grant rollout atomic or supply a monotonic revision.
+Custom KV implementations must implement `get_all_namespaces` as one coherent
+read, not a loop over independently visible `get_all` calls. Restore corrupt
+rows rather than dropping them to obtain an allow. Current Orgmetra membership,
+issuer validation, RP enforcement, and durable write-intent remain separate.
+
 ## Start-login failures
 
 - Empty `identity_providers`: the local federation registry has no enabled

@@ -82,6 +82,17 @@ Product extensions are isolated behind `ProductAdminApi`; relying-party client
 CRUD is further narrowed behind `RelyingPartyAdminApi`. Deterministic preflight
 modules require neither protocol nor any network client.
 
+Menu decisions capture software-unit and menu namespace rows through one
+`KvStore.get_all_namespaces` read. SSO-combination decisions likewise capture
+the combination definitions and software-unit grants together through that
+same seam. Both paths validate every captured row before invoking the unchanged
+canonical PDP and preserve legacy grant-key sorting. Combination selection uses
+validated name and tenant, with the existing missing/ambiguous 404/409 errors.
+SQLite uses one parameter-bound SELECT; in-memory storage uses one store lock.
+The service/SQLite instance RLocks do not serialize independent connections or
+processes. This is read coherence, not a grant-write manifest, current-membership
+verification, or revocation of already admitted operations.
+
 ### Deployment controller
 
 - resolves every `{{placeholder}}` from KV or a secret manager;

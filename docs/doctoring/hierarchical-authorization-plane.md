@@ -89,6 +89,73 @@ software-unit grant cannot carry menu ABAC constraints. This slice does not
 subscribe to Orgmetra change feeds. Production login acceptance remains a
 separate runtime evidence boundary.
 
+## Menu torn-read root cause and bounded repair
+
+**Measured evidence:** Exact PR103 source `5ac33256229321e9fccbb14a460c7d6de984444a`
+read software grants, released its read lock, then read menu grants. A fixture
+using the actual SQLite store and a second SQLite connection commits a single
+transaction changing `(software allow, menu deny)` to `(software deny, menu
+allow)` between those reads. Both complete states deny; the old composition
+returns allow and capabilities from the pair that never existed together.
+The behavioral RED is preserved with exact source hashes in the private review
+packet. The repaired composition returns the coherent before-state deny, and
+a subsequent decision observes the after-state software denial.
+
+**Vendor behavior:** Separate SQLite connections isolate committed transactions;
+WAL readers keep their snapshot while another connection commits.[1] A separate
+native-row callback test commits on the second connection during `fetchall`
+and verifies both returned namespaces retain the old values without replacing
+any persisted row or PDP result.
+
+**Policy choice:** `get_all_namespaces` captures detached raw strings in one
+SQLite SELECT with bound namespace parameters, or one in-memory lock. Missing
+namespaces are empty, duplicates collapse, no namespaces yields an empty dict,
+and unrequested namespaces are not returned. Existing single-namespace APIs
+and every policy rule in `org_authorization.py` remain unchanged. All captured
+rows are parsed before the canonical PDP, retaining malformed and semantically
+invalid row rejection.
+
+**Limits:** Read coherence alone does not make separately committed grant writes
+one rollout, create monotonic manifests/revisions, establish issuer or current
+Orgmetra membership authority, revoke already admitted RP work, or supply durable
+cross-system write intent. Instance RLocks are not cross-process locks. A valid
+allow captured before revocation can return after that revocation; the next
+fresh decision denies. The private suite and changed-seam coverage are scoped
+local evidence, not full repository/HTTP/Keycloak/hosted CI/merge acceptance.
+
+## SSO definition/grants sibling and bounded successor
+
+**Measured evidence:** On the immutable menu-repaired PR103 private candidate,
+`decide_combination` still captured a definition and later read software grants.
+The real SQLite/TestClient regression commits a complete definition-plus-grants
+transaction through a second connection after actual definition capture. The
+before suite (`naruon-web`, `common-web`) denies naruon; the after suite
+(`clearfolio-web`, `common-web`) denies clearfolio. Both coherent generations
+deny, but the old definition plus new grants falsely returns HTTP 200/Allow.
+The retained RED has one intended assertion failure and zero errors/skips.
+The unchanged race hook releases the writer at the real legacy or atomic read
+boundary; GREEN captures the old definition and old grants together and denies.
+The next fresh decision observes the committed after suite and also denies.
+Stable nonempty Allow, all-row JSON/semantic corruption rejection, tenant/name
+filtering, grant-key ordering and missing/ambiguous 404/409 controls are retained
+through both canonical backends. Existing `get_combination` administration
+semantics and the pure PDP are unchanged.
+
+**Policy choice:** Reuse `get_all_namespaces` for combination definitions plus
+software grants; parse all captured rows before tenant/name selection and PDP.
+No transaction wrapper, new writer protocol, revision counter, or second PDP is
+introduced. SQLite isolation evidence is the same authoritative source [1].
+
+**Limits:** Actual TestClient routing is local ASGI evidence using synthetic
+operator and assignment inputs, not deployed HTTP or authenticated end-user
+acceptance. This successor addresses only read coherence. Current employment,
+issuer/RP enforcement, cross-system authority, atomic rollout writers and
+revocation of already admitted operations remain excluded. A captured valid
+allow can still return after revocation, while the next fresh decision denies.
+Independent whole-candidate review and exact-head hosted/release gates remain
+separate from private tests; no production deployment or full-product approval
+is established.
+
 ## References
 
 Grassi, P. A., Nadeau, E. M., Richer, J. P., Squire, S. K., Fenton, J. L.,
@@ -106,3 +173,9 @@ https://doi.org/10.6028/NIST.SP.800-162
 Jones, M. B., Hardt, D., & Campbell, B. (2020). *JSON Web Token best current
 practices* (BCP 225, RFC 8725). RFC Editor.
 https://www.rfc-editor.org/rfc/rfc8725
+
+SQLite. (n.d.). *Isolation in SQLite*. Retrieved October 4, 2026, from https://www.sqlite.org/isolation.html
+
+## Sources
+
+[1] https://www.sqlite.org/isolation.html — Isolation in SQLite

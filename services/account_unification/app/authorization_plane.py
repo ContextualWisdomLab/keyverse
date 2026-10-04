@@ -269,10 +269,24 @@ class AuthorizationPlaneService:
         )
 
     def decide_menu(self, request: MenuDecisionRequest) -> AuthorizationDecision:
-        """Evaluate menu access from stored software-unit and menu grants."""
+        """Evaluate menu access from one coherent software-unit/menu read.
+
+        Parse every captured row before calling the canonical PDP. This read
+        does not revoke operations already admitted by a relying-party PEP.
+        """
         snapshot = validate_snapshot(request.snapshot)
+        with self._state_lock:
+            raw_grants = self._store.get_all_namespaces(
+                (SOFTWARE_UNIT_GRANT_NAMESPACE, MENU_GRANT_NAMESPACE)
+            )
+        grants: list[AuthorizationGrant] = []
+        for namespace in (SOFTWARE_UNIT_GRANT_NAMESPACE, MENU_GRANT_NAMESPACE):
+            namespace_grants = [
+                self._parse_grant(raw_value) for raw_value in raw_grants[namespace].values()
+            ]
+            grants.extend(sorted(namespace_grants, key=lambda item: item.grant_key))
         return decide_menu(
-            self.list_software_unit_grants() + self.list_menu_grants(),
+            grants,
             snapshot,
             request.software_unit_id,
             request.menu_path,
@@ -281,16 +295,46 @@ class AuthorizationPlaneService:
     def decide_combination(
         self, request: SsoCombinationDecisionRequest
     ) -> SsoCombinationDecision:
-        """Evaluate whether every member of a stored combination is allowed."""
+        """Evaluate a stored SSO definition and grants from one coherent read.
+
+        Validate every captured row before selecting the tenant-qualified
+        combination and invoking the unchanged PDP. Read coherence does not
+        cancel an allow already admitted by a relying-party PEP.
+        """
         snapshot = validate_snapshot(request.snapshot)
-        combination = self.get_combination(
-            request.combination_name,
-            tenant_deployment_id=snapshot.tenant_deployment_id,
-        )
+        validate_slug(request.combination_name, field_name="combination_name")
+        with self._state_lock:
+            raw_values = self._store.get_all_namespaces(
+                (SSO_COMBINATION_NAMESPACE, SOFTWARE_UNIT_GRANT_NAMESPACE)
+            )
+        combinations = [
+            self._parse_combination(raw_value)
+            for raw_value in raw_values[SSO_COMBINATION_NAMESPACE].values()
+        ]
+        grants = [
+            self._parse_grant(raw_value)
+            for raw_value in raw_values[SOFTWARE_UNIT_GRANT_NAMESPACE].values()
+        ]
+        matches = [
+            combination
+            for combination in combinations
+            if combination.combination_name == request.combination_name
+            and combination.tenant_deployment_id == snapshot.tenant_deployment_id
+        ]
+        if not matches:
+            raise AuthorizationPolicyError(
+                "sso combination is not registered",
+                status_code=404,
+            )
+        if len(matches) > 1:
+            raise AuthorizationPolicyError(
+                "tenant_deployment_id is required for an ambiguous sso combination",
+                status_code=409,
+            )
         return decide_sso_combination(
-            self.list_software_unit_grants(),
+            sorted(grants, key=lambda item: item.grant_key),
             snapshot,
-            combination,
+            matches[0],
         )
 
     def _put_grant(

@@ -68,6 +68,18 @@ enforce ABAC/RBAC at its own boundary.
    capability codes. Software-unit grants carry capabilities only; their
    attribute constraints are rejected because ABAC is a menu-level contract.
 
+### Bounded menu and SSO read-coherence clarification
+
+Software-unit and menu rows used by one menu decision must be captured through
+one coherent multi-namespace store read. An SSO-combination decision likewise
+captures combination definitions and software-unit grants together, validates
+all captured rows, then selects the validated name and tenant with the existing
+404/409 missing/ambiguous behavior. Both paths preserve grant-key sorting and
+use the unchanged canonical PDP. SQLite achieves the read with one bound SELECT;
+the in-memory backend holds one lock. This clarification does not add an atomic
+multi-namespace writer, revision/manifest protocol, issuer or membership
+authority, second PDP, or revocation of admitted work.
+
 ## Consequences
 
 - Operators persist grants and combinations through authenticated Keyverse

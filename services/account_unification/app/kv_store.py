@@ -40,6 +40,14 @@ class KvStore(Protocol):
         """Return every entry in one namespace."""
         ...
 
+    def get_all_namespaces(self, namespaces: Collection[str]) -> dict[str, dict[str, str]]:
+        """Return detached entries for requested namespaces at one read instant.
+
+        Include absent namespaces as empty dicts, collapse duplicates, and return
+        an empty dict for no namespaces. Unrequested namespaces are excluded.
+        """
+        ...
+
     def delete(self, namespace: str, entry_key: str) -> None:
         """Remove one entry if present."""
         ...
@@ -92,6 +100,11 @@ class InMemoryKvStore:
         """Return a copy of every value in one namespace."""
         with self._lock:
             return dict(self._data.get(namespace, {}))
+
+    def get_all_namespaces(self, namespaces: Collection[str]) -> dict[str, dict[str, str]]:
+        """Copy all requested namespace entries while holding one store lock."""
+        with self._lock:
+            return {namespace: dict(self._data.get(namespace, {})) for namespace in namespaces}
 
     def delete(self, namespace: str, entry_key: str) -> None:
         """Remove one value from one namespace if present."""
@@ -195,6 +208,26 @@ class SqliteKvStore:
                 (namespace,),
             ).fetchall()
         return {entry_key: entry_value for entry_key, entry_value in rows}
+
+    def get_all_namespaces(self, namespaces: Collection[str]) -> dict[str, dict[str, str]]:
+        """Copy requested namespaces from one SQLite SELECT snapshot.
+
+        The instance lock protects this connection, not other connections or
+        processes. SQLite supplies read coherence through the single statement.
+        """
+        values: dict[str, dict[str, str]] = {namespace: {} for namespace in namespaces}
+        if not values:
+            return values
+        placeholders = ", ".join("?" for _ in values)
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT config_namespace, entry_key, entry_value FROM idp_config_entries "
+                f"WHERE config_namespace IN ({placeholders})",
+                tuple(values),
+            ).fetchall()
+        for namespace, entry_key, entry_value in rows:
+            values[namespace][entry_key] = entry_value
+        return values
 
     def delete(self, namespace: str, entry_key: str) -> None:
         """Remove one config value from one namespace if present."""

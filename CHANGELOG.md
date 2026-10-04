@@ -5,6 +5,17 @@ Keep a Changelog, and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Menu decisions read software-unit and menu grants at one coherent instant,
+  preventing a software-before/menu-after torn pair from falsely allowing
+  access. SSO-combination decisions capture the combination definitions and
+  software-unit grants together at the same read boundary, preventing an old
+  definition/new grants false allow. Corrupt rows still fail closed, legacy
+  sorting and tenant-qualified missing/ambiguous errors are preserved, and
+  single-namespace APIs are unchanged. This does not revoke operations already
+  admitted by an RP or make separately committed policy writes one rollout.
+
 ### Added
 
 - Hierarchical authorization plane (ADR-0010): software-unit ACL, menu
