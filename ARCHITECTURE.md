@@ -231,6 +231,11 @@ explicitly documented deployment-controller responsibility.
   publication token, or upstream NIM credential.
 - Generated text patches are bounded, digest-sealed, independently verified on
   a fresh checkout, and published only as a draft PR.
+- Repository `ci.yml` proposes the dedicated `CWL CI isolated` group plus
+  self-hosted/Linux/x64/isolation labels for all three credential-free CI jobs.
+  Checkout does not persist credentials. This source configuration is not proof
+  of registered disposable capacity, network isolation, cleanup, or executed
+  Checks; operator acceptance remains required before public PR execution.
 - Existing review agents and their credential system remain independent.
 - Neither automation path may self-approve, bypass protection, merge unverified
   work, tag, or publish a release.

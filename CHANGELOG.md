@@ -111,6 +111,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Proposed dedicated-group isolated self-hosted routing for the three local CI
+  jobs after a billing lock prevented hosted job startup. Checkout no longer
+  persists its token; all test/coverage/build gates remain unchanged. Actual
+  isolated runner eligibility and execution remain rollout prerequisites.
+
 - Removed the obsolete local PR-steward tests after #140 centralized PR
   maintenance. Added an ownership regression and aligned architecture and
   operator guidance without restoring local merge automation or changing

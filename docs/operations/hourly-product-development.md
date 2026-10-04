@@ -16,6 +16,22 @@ publishes a release. The existing review-agent workflows and their credentials
 remain unchanged. Review, repair, revalidation, and merge stay owned by the
 normal protected PR path.
 
+## Local CI admission prerequisite
+
+The local `ci.yml` routes its three jobs through the dedicated `CWL CI isolated`
+runner group with `self-hosted`, `linux`, `x64`, and `cwlab-ci-isolated` labels.
+There is no hosted fallback or persistent control-runner substitution, and each
+checkout uses `persist-credentials: false`. The commands, Python 3.12 contract,
+coverage thresholds, action pins, and Draft/closed-PR admission remain unchanged.
+
+This is proposed source routing, not activated capacity. Before public PR jobs
+execute, the existing isolated-runner operator must prove selected-repository
+eligibility, disposable per-job state, host/private-network denial, tool-image
+acceptance, and cleanup. Central `.github#2565` and `linux-cluster-ops#326` retain
+those existing owner gates. Do not relabel privileged runners, widen access,
+change billing, or reuse a token merely to drain the queue. Required Checks and
+independent current-head approval remain mandatory for protected merge.
+
 ## Architecture
 
 The workflow uses three jobs with different trust levels.

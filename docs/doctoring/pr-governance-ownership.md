@@ -38,6 +38,14 @@ prove its dispatch or effective protection on Keyverse.
   steward. A third test reproduced that contradiction before prose was changed
   to the normal protected PR path under central governance. The replacement
   makes no claim that central dispatch has executed.
+- **Hosted review sensitivity correction (2026-10-04):** CodeRabbit noted
+  that central-owner wording could coexist with the former statement that the
+  hourly PR steward advances trusted PRs. Two copied-document controls first
+  passed unchanged guidance, then restored that contradiction; both initially
+  failed because the contract did not reject it. The contract now rejects the
+  exact obsolete active-owner statement in both documents while preserving
+  historical retirement references. These controls do not claim general
+  natural-language contradiction detection or central execution evidence.
 - **Non-goals:** no production Python, credential, workflow, review gate,
   passwordless policy, SCIM contract, or release version is changed. This is
   static ownership and local regression evidence, not live login, Keycloak,
