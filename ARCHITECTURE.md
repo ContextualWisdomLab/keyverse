@@ -221,8 +221,10 @@ explicitly documented deployment-controller responsibility.
 
 ## Automation boundaries
 
-- The hourly PR steward advances only trusted same-repository PRs with exact-head
-  approvals and required Checks.
+- Protected PR maintenance belongs to the organization's central
+  `pr-review-merge-scheduler.yml`; Keyverse's local hourly steward was removed
+  in #140. Exact-head approvals and required Checks remain mandatory. The local
+  product-development workflow does not own review or merge authority.
 - The hourly product-development workflow runs OpenCode through
   `NVIDIA_NIM_API_KEY`, not Copilot Agent Tasks or `COPILOT_GITHUB_TOKEN`.
 - The model workspace has no Git metadata, GitHub credential, Actions OIDC,

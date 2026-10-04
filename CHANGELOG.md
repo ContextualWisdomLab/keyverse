@@ -111,6 +111,11 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Removed the obsolete local PR-steward tests after #140 centralized PR
+  maintenance. Added an ownership regression and aligned architecture and
+  operator guidance without restoring local merge automation or changing
+  production identity behavior.
+
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
