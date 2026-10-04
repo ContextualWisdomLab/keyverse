@@ -25,7 +25,7 @@ Skipped, cancelled, absent, stale, predecessor-head, synthetic-only, rate-limite
 - explicit link behavior;
 - survivor/duplicate tombstone semantics;
 - merge idempotency and rollback;
-- merge/SCIM shared lock concurrency.
+- merge/SCIM PUT/PATCH shared lock concurrency and lock-timeout errors.
 
 ## SCIM tests
 
@@ -99,7 +99,7 @@ repository supplies its own exact token-validation and ABAC/RBAC evidence.
 
 - PostgreSQL/KV migrations and rollback for Keyverse-owned records;
 - configuration bootstrap and runtime store behavior;
-- user-operation locks across processes;
+- user-operation locks across processes, including merge/SCIM PATCH linearization;
 - desired-state idempotency/concurrency;
 - secret scanning and redacted logs;
 - Compose health/readiness;
@@ -113,6 +113,20 @@ Mirror `docs/THREAT_MODEL.md`: malicious IdP/LDAP URLs, path/resource IDs, dupli
 ## Documentation contract
 
 CI should require PRD, TRD, Architecture, UML, ERD, Threat Model, Test Strategy, Operability, Traceability, ADR index, README, AGENTS, CLAUDE, CHANGELOG, and discoverable `docs/doctoring/`, `docs/papers/`, and `docs/operations/` research/standards/runbook records. It must assert PR #72/#74 are recorded as integrated protected-main changes and ADR-0008 remains indexed. ADR-0009 is reserved for PR #100; ADR-0010–0012 index the authorization plane, start-login helper, and programmable tokens.
+
+The maturity guard in
+`services/account_unification/tests/test_documentation_maturity.py` is collected
+by the canonical account-service pytest command and supports an explicit
+Markdown grammar: exact level-two capability sections, blank-line-delimited
+`**PR103 source maturity:**` and `**SCIM source maturity:**` paragraphs, and
+unique traceability rows. It requires an unmerged/source-only clause rather
+than accepting a vague future mention. Otherwise-valid fixture corpora cover
+ordinary version decimals and wrapping; single mutations restore current-feature
+bullets, same-line/wrapped promotion, missing markers/pins/methods/disclaimers,
+methods moved outside their paragraph, stale SCIM active-PR wording, and wrong
+row maturity. This is a bounded source-document regression, not arbitrary prose
+understanding or deployed readiness certification. Ownership guards retain
+central exact-head review and publication-race protection without local stewards.
 
 ## Release acceptance
 

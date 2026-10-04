@@ -113,6 +113,11 @@ may consult after token validation.
 
 ## Hierarchical authorization decision
 
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. The following
+three sequences describe that candidate; Orgmetra and RP authority stay separate.
+
 ```mermaid
 sequenceDiagram
     participant Orgmetra
@@ -192,7 +197,8 @@ Unverified email cannot enter `candidate_link` by itself.
 ```mermaid
 flowchart LR
     PUT[SCIM full replacement PUT]
-    PATCH[SCIM PATCH active=false — current narrower path]
+    PATCH[SCIM PATCH active=false]
+    DELETE[SCIM soft DELETE]
     MERGE[Merge/link mutation]
     LOCK[user_operation_lock_state]
     USER[Keycloak user state]
@@ -201,11 +207,16 @@ flowchart LR
     PUT --> LOCK
     MERGE --> LOCK
     LOCK --> USER
-    PATCH -. not currently in shared-lock guarantee .-> USER
+    PATCH --> LOCK
+    DELETE --> LOCK
     USER --> AUDIT
 ```
 
-Protected `main` guarantees the shared cross-process lock for merge/link and full SCIM replacement. The current `PATCH active=false` path is explicitly not represented as serialized with merge. Extending that guarantee is a source-and-concurrency-test change, not a documentation relabel.
+**SCIM source maturity:** Pinned main
+`7d9151cd2da260e118020c938c7358e2ee75d541` is implemented-main source:
+`PUT`, `PATCH active=false`, and `DELETE` use the shared user-operation lock
+and return retryable SCIM `503` on contention. This is not deployed acceptance.
+The source diagram records this boundary, not live Keycloak or PostgreSQL evidence.
 
 ## Automation authority
 

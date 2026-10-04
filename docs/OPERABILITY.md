@@ -68,6 +68,11 @@ Mapper unit tests alone do not prove Naruon product authorization readiness.
 
 ## Authorization-plane and token runbook
 
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. These steps
+are candidate acceptance procedures, not instructions claiming deployed routes.
+
 1. Obtain an Orgmetra assignment snapshot for the subject, including its
    validated `tenant_deployment_id`; do not copy the Orgmetra tree into
    Keyverse.
@@ -90,7 +95,18 @@ See `docs/authorization-onboarding.md` and
 
 ## Account merge recovery
 
-Merge and SCIM full replacement (`PUT`) must hold the shared operation lock. Protected-main `PATCH active=false` is not currently inside that shared-lock guarantee and must not be treated as transactionally serialized with merge. On failure, classify whether state changed in Keycloak, Keyverse audit, linked identities, or tombstone status. Re-observe before retry. Never infer a retry is safe solely from the previous HTTP response. Preserve survivor and duplicate lineage in audit.
+**SCIM source maturity:** Pinned main
+`7d9151cd2da260e118020c938c7358e2ee75d541` is implemented-main source:
+`PUT`, `PATCH active=false`, and `DELETE` use the shared user-operation lock
+and return retryable SCIM `503` on contention. This is not deployed acceptance.
+
+Merge retains its existing service error contract; SCIM endpoints use the
+root-level RFC 7644 error envelope for `_scim_error` failures, while `PUT`
+and `DELETE` retain their existing mutation/status semantics. On failure,
+classify whether state changed in Keycloak, Keyverse audit, linked identities,
+or tombstone status.
+Re-observe before retry. Never infer a retry is safe solely from the previous
+HTTP response. Preserve survivor and duplicate lineage in audit.
 
 ## Desired-state recovery
 

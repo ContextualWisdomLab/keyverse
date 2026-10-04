@@ -15,7 +15,7 @@ Its job is to let CWL products consume stable standards-based identity without e
 - OIDC/OAuth relying-party service for CWL applications and SAML brokering for external identity providers;
 - inbound SCIM v2 shim for lifecycle provisioning;
 - account linking/unification and survivor-wins merge with verified-email policy and tombstone behavior;
-- user-operation locking across merge and SCIM full-replacement (`PUT`) paths;
+- user-operation locking across merge and SCIM `PUT`, `PATCH active=false`, and `DELETE` paths;
 - password-free registration enrollment action flow;
 - deterministic, side-effect-free SAML/OIDC federation preflight and durable desired-state reconciliation;
 - deterministic LDAPS-only directory preflight and durable Keycloak component desired-state reconciliation;
@@ -24,11 +24,22 @@ Its job is to let CWL products consume stable standards-based identity without e
 - configuration/secret bootstrap via KV/DB boundary rather than application environment as runtime source of truth;
 - 100% production statement/branch/docstring quality gates and protected review/security workflows.
 - an explicit per-RP Keyverse token-validation and downstream ABAC/RBAC acceptance boundary; application login alone is not authorization readiness.
+
+**SCIM source maturity:** Pinned main
+`7d9151cd2da260e118020c938c7358e2ee75d541` is implemented-main source:
+`PUT`, `PATCH active=false`, and `DELETE` use the shared user-operation lock
+and return retryable SCIM `503` on contention. This is not deployed acceptance.
+
+## PR103 candidate capabilities
+
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. Accepted
+ADR-0010–0012 and local regression evidence do not promote this source.
+
 - an issuer-side hierarchical authorization plane for software-unit ACL, menu ABAC/RBAC decisions, SSO combination scopes, and org-path inheritance consumed from Orgmetra assignment snapshots;
 - an app start-login helper that discovers enabled brokered IdPs and returns a `kc_idp_hint` authorization URL without metadata fetch;
 - hashed, purpose-bound programmable application tokens scoped to one software unit and API capabilities.
-
-The current SCIM `PATCH active=false` deprovisioning path is not protected by the shared cross-process user-operation lock used by merge and full replacement. It must not be represented as transactionally serialized with merge until a source change and concurrency regression prove that boundary.
 
 ## 3. Integrated protected-main changes
 
@@ -73,11 +84,11 @@ Keyverse SHALL support deployment-owned external SAML/OIDC and LDAP/AD onboardin
 
 ### PRD-FR-003 Account unification
 
-Account matching and merge SHALL follow exact subject → verified email → explicit operator link precedence. Merge SHALL preserve a canonical survivor, disable/tombstone duplicates, retain auditable lineage, and coordinate full-replacement SCIM writes through the shared user-operation lock. Any additional SCIM read-modify-write operation may claim the same serialization guarantee only after it uses that lock and has a concurrency regression covering merge/tombstone interaction.
+Account matching and merge SHALL follow exact subject → verified email → explicit operator link precedence. Merge SHALL preserve a canonical survivor, disable/tombstone duplicates, retain auditable lineage, and coordinate SCIM full-replacement and `PATCH active=false` writes through the shared user-operation lock. Any additional SCIM read-modify-write operation may claim the same serialization guarantee only after it uses that lock and has a concurrency regression covering merge/tombstone interaction.
 
 ### PRD-FR-004 SCIM
 
-Inbound SCIM SHALL map authoritative enterprise lifecycle operations into Keycloak while preserving Keyverse merge/tombstone invariants and failing closed on unsafe identity ambiguity. Protected-main currently serializes merge with full SCIM `PUT` replacement; the `PATCH active=false` path is a narrower deprovisioning path and is not yet part of that shared-lock guarantee.
+Inbound SCIM SHALL map authoritative enterprise lifecycle operations into Keycloak while preserving Keyverse merge/tombstone invariants and failing closed on unsafe identity ambiguity. Pinned-main source serializes merge with full SCIM `PUT` replacement, supported `PATCH active=false`, and `DELETE`; SCIM lock contention returns retryable `503` before mutation. Source implementation is not evidence of deployed provisioning or database acceptance.
 
 ### PRD-FR-005 Relying-party lifecycle
 

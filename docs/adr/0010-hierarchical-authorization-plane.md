@@ -1,6 +1,6 @@
 # ADR-0010: Issue hierarchical authorization attributes and decisions without owning employment truth
 
-**Status:** Accepted  
+**Status:** Accepted<br>
 **Date:** 2026-08-18
 
 ## Context

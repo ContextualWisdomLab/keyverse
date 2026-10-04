@@ -57,6 +57,12 @@ application relying-party registration.
 
 ### Account-unification service
 
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. Descriptions
+of those modules below retain candidate design and implementation boundaries;
+they do not claim protected integration, issuer acceptance, or membership authority.
+
 - account inspection, linking, and survivor-wins merge;
 - verified-email and exact-subject match policy;
 - tombstone-safe SCIM provisioning;
@@ -140,6 +146,10 @@ private rendered payload
 
 Validation never fetches metadata or discovery documents. Deployment egress
 policy and Keycloak perform remote interaction only after explicit apply.
+Reconciliation compares desired observable fields exactly; the fixed Keycloak
+mask for the known non-observable `clientSecret` field is the sole exception and
+does not prove secret equality. Missing, changed, or unknown fields remain
+drift.
 
 ### LDAP and Active Directory
 
@@ -216,16 +226,26 @@ Keyverse binds an opaque subject and does not copy the Orgmetra tree.
 Relying applications start brokered login through the Keyverse start-login
 helper (ADR-0011) and may present software-unit-scoped programmable tokens
 (ADR-0012) that are hashed at rest, never inherit org-tree grants, and cannot be
-rotated after revocation, prior rotation, or expiry. Rotation writes the
-replacement and predecessor through one KV-store transaction, then compensates
-the pair through one atomic upsert/delete operation if audit persistence fails.
+rotated after revocation, prior rotation, or expiry. Rotation compares the captured predecessor and absent replacement while writing
+both records atomically. SQLite uses a short `BEGIN IMMEDIATE` transaction;
+memory uses one store lock. A unique lifecycle generation distinguishes repeated
+retirements even at the same timestamp. Audit runs after that transaction closes,
+not atomically with the database. Audit failure restores the predecessor only
+when the exact written pair is still current; conflicts preserve independent
+retirements and remove only a still-owned replacement. Storage cleanup errors
+preserve the original audit error and require operator recovery.
+
+The runtime PAT router contains request-schema validation before the endpoint.
+It returns a fixed HTTP 422 without serializing submitted values, keys, or error
+locations, including when another application embeds that router directly.
+Authentication and non-validation service failures retain their existing gates.
 
 ## Account and provisioning invariants
 
 1. Matching precedence is exact `(identity_provider, subject)`, then verified
    email, then explicit operator link.
 2. Unverified email never authorizes linking or merge.
-3. Merge and SCIM replacement share one user-operation lock.
+3. Merge, SCIM replacement, and `PATCH active=false` deprovisioning share one user-operation lock.
 4. Merged duplicates remain disabled tombstones with a survivor pointer.
 5. Registration creates no password and rolls back if enrollment initialization
    fails.
@@ -255,8 +275,10 @@ explicitly documented deployment-controller responsibility.
 
 ## Automation boundaries
 
-- The hourly PR steward advances only trusted same-repository PRs with exact-head
-  approvals and required Checks.
+- Protected PR maintenance belongs to the organization's central
+  `pr-review-merge-scheduler.yml`; Keyverse's local hourly steward was removed
+  in #140. Exact-head approvals and required Checks remain mandatory. The local
+  product-development workflow does not own review or merge authority.
 - The hourly product-development workflow runs OpenCode through
   `NVIDIA_NIM_API_KEY`, not Copilot Agent Tasks or `COPILOT_GITHUB_TOKEN`.
 - The model workspace has no Git metadata, GitHub credential, Actions OIDC,

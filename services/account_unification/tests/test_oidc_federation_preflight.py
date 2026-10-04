@@ -114,6 +114,32 @@ def test_oidc_preflight_allows_optional_endpoints_to_be_absent(
     _assert_no_side_effects(store, api)
 
 
+def test_oidc_put_accepts_keycloak_masked_client_secret_readback(api) -> None:
+    """A masked Keycloak client secret remains an applied provider state."""
+    store = InMemoryKvStore()
+    federation = FederationService(store, api)
+    registration = IdentityProviderRegistration.model_validate(_oidc_body())
+    original_get = api.get_identity_provider
+
+    def observe_with_mask(provider_alias: str) -> dict | None:
+        """Return live state with Keycloak's non-observable secret marker."""
+        observed = original_get(provider_alias)
+        if observed is not None:
+            config = observed.get("config")
+            assert isinstance(config, dict)
+            config["clientSecret"] = "**********"
+        return observed
+
+    api.get_identity_provider = observe_with_mask
+
+    status = federation.put_registration(
+        registration.provider_alias,
+        registration,
+    )
+
+    assert status.applied_to_keycloak is True
+
+
 @pytest.mark.parametrize(
     "required_field",
     [

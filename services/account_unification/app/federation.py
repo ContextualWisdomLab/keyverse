@@ -32,6 +32,8 @@ _MAX_PROVIDER_CONFIG_ENTRIES = 64
 _MAX_PROVIDER_CONFIG_KEY_LENGTH = 128
 _MAX_PROVIDER_CONFIG_VALUE_LENGTH = 16_384
 _REDACTED_VALUE = "<redacted>"
+_KEYCLOAK_MASKED_VALUE = "**********"
+_NON_OBSERVABLE_PROVIDER_CONFIG_KEYS = frozenset({"clientSecret"})
 _ALIAS_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _ALIAS_EDGE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789")
 _HTTP_SCHEMES = frozenset({"http", "https"})
@@ -278,6 +280,15 @@ class FederationService:
         """Attempt convergence and report failure without losing desired state."""
         try:
             self._apply(registration)
+            observed = self._api.get_identity_provider(
+                registration.provider_alias
+            )
+            if not _identity_provider_matches(registration, observed):
+                logger.error(
+                    "identity-provider post-apply observation drift alias=%s",
+                    registration.provider_alias,
+                )
+                return False
         except Exception:
             logger.exception(
                 "identity-provider convergence failed alias=%s",
@@ -295,11 +306,11 @@ class FederationService:
         """Build a redacted status, tolerating temporary Keycloak outages."""
         if applied is None:
             try:
-                applied = (
+                applied = _identity_provider_matches(
+                    registration,
                     self._api.get_identity_provider(
                         registration.provider_alias
-                    )
-                    is not None
+                    ),
                 )
             except Exception:
                 logger.warning(
@@ -644,6 +655,41 @@ def _to_keycloak_payload(
         "linkOnly": False,
         "config": dict(registration.provider_config),
     }
+
+
+def _identity_provider_matches(
+    registration: IdentityProviderRegistration,
+    observed: dict | None,
+) -> bool:
+    """Compare every desired observable field with the live representation."""
+    if not isinstance(observed, dict):
+        return False
+    desired = _to_keycloak_payload(registration)
+    observed_config = observed.get("config")
+    return (
+        all(
+            observed.get(key) == value
+            for key, value in desired.items()
+            if key != "config"
+        )
+        and isinstance(observed_config, dict)
+        and _provider_config_matches(desired["config"], observed_config)
+    )
+
+
+def _provider_config_matches(
+    desired_config: dict[str, str],
+    observed_config: dict,
+) -> bool:
+    """Compare config while preserving Keycloak's known secret mask boundary."""
+    return all(
+        observed_config.get(key) == value
+        or (
+            key in _NON_OBSERVABLE_PROVIDER_CONFIG_KEYS
+            and observed_config.get(key) == _KEYCLOAK_MASKED_VALUE
+        )
+        for key, value in desired_config.items()
+    )
 
 
 federation_router = APIRouter(prefix="/federation", tags=["federation"])

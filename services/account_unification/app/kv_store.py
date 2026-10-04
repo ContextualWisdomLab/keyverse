@@ -32,6 +32,20 @@ class KvStore(Protocol):
         """Upsert values and delete keys in one atomic operation."""
         ...
 
+    def compare_and_replace(
+        self,
+        namespace: str,
+        expected: Mapping[str, str | None],
+        entries: Mapping[str, str],
+        delete_keys: Collection[str] = (),
+    ) -> bool:
+        """Atomically check exact values (None means absent), then replace them.
+
+        Every changed key must have an expectation. A mismatch returns False
+        without any write; storage errors propagate after atomic rollback.
+        """
+        ...
+
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return a value or ``None`` when it is absent."""
         ...
@@ -90,6 +104,34 @@ class InMemoryKvStore:
             values.update(entries)
             for entry_key in delete_keys:
                 values.pop(entry_key, None)
+
+    def compare_and_replace(
+        self,
+        namespace: str,
+        expected: Mapping[str, str | None],
+        entries: Mapping[str, str],
+        delete_keys: Collection[str] = (),
+    ) -> bool:
+        """Check and replace a namespace generation under one memory-store lock."""
+        if not (set(entries) | set(delete_keys)) <= set(expected):
+            raise ValueError("every changed key requires an expected value")
+        with self._lock:
+            values = self._data.get(namespace, {})
+            if any(values.get(key) != value for key, value in expected.items()):
+                return False
+            before = dict(values)
+            try:
+                if delete_keys:
+                    self.replace_many(namespace, entries, delete_keys)
+                elif len(entries) == 1:
+                    key, value = next(iter(entries.items()))
+                    self.put(namespace, key, value)
+                else:
+                    self.put_many(namespace, entries)
+            except BaseException:
+                self._data[namespace] = before
+                raise
+            return True
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one value from one namespace, if present."""
@@ -188,6 +230,45 @@ class SqliteKvStore:
                     "WHERE config_namespace = ? AND entry_key = ?",
                     (namespace, entry_key),
                 )
+
+    def compare_and_replace(
+        self,
+        namespace: str,
+        expected: Mapping[str, str | None],
+        entries: Mapping[str, str],
+        delete_keys: Collection[str] = (),
+    ) -> bool:
+        """Compare and mutate after BEGIN IMMEDIATE, without external callbacks.
+
+        SQLite serializes independent writers before the expected-state reads.
+        The existing busy timeout bounds lock waiting. The connection context
+        rolls back read/write errors; no writer transaction spans audit I/O.
+        """
+        if not (set(entries) | set(delete_keys)) <= set(expected):
+            raise ValueError("every changed key requires an expected value")
+        with self._lock, self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            for key, value in expected.items():
+                row = self._connection.execute(
+                    "SELECT entry_value FROM idp_config_entries "
+                    "WHERE config_namespace = ? AND entry_key = ?",
+                    (namespace, key),
+                ).fetchone()
+                if (row[0] if row else None) != value:
+                    return False
+            self._connection.executemany(
+                "INSERT INTO idp_config_entries "
+                "(config_namespace, entry_key, entry_value) VALUES (?, ?, ?) "
+                "ON CONFLICT(config_namespace, entry_key) "
+                "DO UPDATE SET entry_value = excluded.entry_value",
+                ((namespace, key, value) for key, value in entries.items()),
+            )
+            self._connection.executemany(
+                "DELETE FROM idp_config_entries "
+                "WHERE config_namespace = ? AND entry_key = ?",
+                ((namespace, key) for key in delete_keys),
+            )
+            return True
 
     def get(self, namespace: str, entry_key: str) -> str | None:
         """Return one config value, if present."""

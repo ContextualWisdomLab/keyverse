@@ -37,7 +37,7 @@ from .registration import registration_auth_dependency, registration_router
 from .relying_party import relying_party_router
 from .relying_party_admin import RelyingPartyHttpAdminApi
 from .relying_party_state import RelyingPartyService, relying_party_state_router
-from .scim import scim_router
+from .scim import ScimHttpException, scim_exception_handler, scim_router
 from .service import UnificationService
 from .start_login import StartLoginService, start_login_router
 from .user_locks import SqliteUserOperationLocks
@@ -162,6 +162,7 @@ def create_app(*, wire: bool = True) -> FastAPI:
         ScimPathValidationError,
         scim_path_validation_exception_handler,
     )
+    app.add_exception_handler(ScimHttpException, scim_exception_handler)
     if not wire:
         app.state.ready = True
 

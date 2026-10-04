@@ -1,6 +1,6 @@
 # ADR-0011: Offer app start-login as a Keyverse-owned federation helper
 
-**Status:** Accepted  
+**Status:** Accepted<br>
 **Date:** 2026-08-18
 
 ## Context

@@ -9,6 +9,12 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 
 ## 2. Runtime components
 
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. Requirements
+and candidate API/storage descriptions remain specifications until protected
+integration; Orgmetra employment truth and RP PEP enforcement are unchanged.
+
 - **Keycloak engine:** OIDC/OAuth, SAML brokering, WebAuthn, users/sessions/roles/groups, external IdP and LDAP component execution, RP clients.
 - **Account-unification FastAPI service:** merge/link, SCIM, federation/directory/RP validation and desired-state/reconciliation, hierarchical authorization decisions, start-login helper, programmable application tokens, audit/locking boundaries.
 - **PostgreSQL/KV:** Keycloak state plus Keyverse configuration, intent, receipts, merge audit, and user-operation locks.
@@ -34,7 +40,7 @@ Identity matching precedence is exact `(identity_provider, subject)` → verifie
 
 ## 5. Concurrency and transactions
 
-User merge and SCIM full replacement (`PUT`) share one cross-process operation-lock boundary. Protected-main `PATCH active=false` is currently outside that shared-lock guarantee and must not be represented as serialized with merge. Any PATCH or future SCIM read-modify-write operation that can affect tombstone/survivor invariants must join the same lock boundary and add a concurrency regression before the stronger guarantee is promoted. Desired-state records and apply receipts require deterministic keys, transaction-safe update semantics, exact desired-version binding, and reconciliation after crash/retry. Remote deletion precedes local desired-state removal when local-first deletion could falsely report success.
+User merge, SCIM full replacement (`PUT`), and supported `PATCH active=false` deprovisioning share one cross-process operation-lock boundary. Lock contention returns retryable SCIM `503` before the mutation sequence. Any future SCIM read-modify-write operation that can affect tombstone/survivor invariants must join the same lock boundary and add a concurrency regression before the stronger guarantee is promoted. Desired-state records and apply receipts require deterministic keys, transaction-safe update semantics, exact desired-version binding, and reconciliation after crash/retry. Remote deletion precedes local desired-state removal when local-first deletion could falsely report success.
 
 ## 6. Federation requirements
 

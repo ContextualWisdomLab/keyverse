@@ -13,6 +13,14 @@ but must still provide the configured operator token; `actor_identity_id` in a
 grant is administrative policy metadata, not a caller identity derived from a
 shared operator bearer.
 
+## PAT verification schema errors
+
+The runtime verification router returns a fixed HTTP 422 detail for invalid
+request schemas. The response does not echo submitted keys, values, token
+material, or validation locations. Direct router embedding retains this boundary.
+An outer caller must still avoid recording raw request bodies in its middleware.
+Authentication errors and semantic service errors keep their existing meaning.
+
 ## Persist grants
 
 1. Confirm the org path is contiguous from `group_company`.
@@ -86,9 +94,17 @@ ready before the request is sent.
    token ID. Do not attempt to rotate the already retired predecessor again.
 5. Confirm the predecessor verifies as `revoked_token` and the credential now
    stored by the application verifies as active. Rotation persists predecessor
-   and replacement through one KV-store transaction; if Keyverse audit
-   persistence itself fails before the response, one atomic compensation
-   operation restores the predecessor and removes the replacement.
+   and replacement through one conditional KV-store transaction. A stale
+   snapshot returns HTTP 409 before audit. Audit failure restores only the
+   exact current written generation; a concurrent retirement instead keeps
+   the predecessor retired and conditionally removes the owned replacement.
+   Re-observe token IDs after an error, rather than assuming restoration.
+   Wait until both KV writes and audit appends recover before revoking stranded
+   IDs. If the audit append still fails, revoke compensation can restore the
+   active row. After a successful revoke, re-observe the persisted lifecycle and
+   its audit event before declaring recovery. Do not reissue or rotate to hide
+   unresolved state. Storage-only recovery does not establish retirement.
+   The original audit error remains authoritative and no plaintext is returned.
 6. Revoke unused tokens instead of extending them as login credentials. An
    expired or retired predecessor is not rotatable.
 

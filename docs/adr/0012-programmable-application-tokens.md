@@ -1,6 +1,6 @@
 # ADR-0012: Issue hashed, purpose-bound programmable application tokens
 
-**Status:** Accepted  
+**Status:** Accepted<br>
 **Date:** 2026-08-18
 
 ## Context
@@ -23,9 +23,9 @@ inherit down the org tree (ADR-0010).
 3. Tokens are software-unit and API-capability scoped, time-bounded (60
    seconds to 90 days), rotatable, revocable, and auditable. Rotation accepts
    only an active, unexpired predecessor, validates the replacement before
-   revoking it, and uses atomic storage compensation for storage or audit
-   failures, so invalid, incomplete, or retired-token replacement actions do
-   not destroy or revive a credential.
+   revoking it, and atomically compares the captured predecessor and absent
+   successor before writing both. A stale snapshot returns HTTP 409 without
+   auditing or compensating an operation that did not commit.
 4. The plaintext secret is returned only at issue or rotate time. List, get,
    verify, and revoke responses never include the secret or hash.
 5. Verification does not consult org-tree grants. Tokens never inherit.
@@ -35,10 +35,14 @@ inherit down the org tree (ADR-0010).
    with the least-privilege `X-Keyverse-Runtime-Token` service credential;
    `presented_token` in the request body is only the PAT being verified and is
    never the credential that authenticates the verification endpoint itself.
-7. Issue, revoke, and rotate mutations roll back token state when audit
-   persistence fails; rotation restores the predecessor and deletes its
-   replacement in one KV-store operation. Expired or retired predecessors
-   cannot be rotated.
+7. Audit-failure compensation restores state only if the exact written
+   lifecycle generation remains current. An independent completed revoke or
+   rotation is never overwritten. A conflict leaves the predecessor retired
+   and conditionally removes only the still-owned new token. Cleanup storage
+   failure preserves the original error; durable recovery is then required.
+   Audit and KV are not one distributed transaction. Expired or retired
+   predecessors cannot be rotated. Custom KV backends must implement the
+   atomic `compare_and_replace` contract; an unconditional batch is insufficient.
 8. A token is not an authenticator. Browser passwordless policy (ADR-0002)
    remains unchanged.
 

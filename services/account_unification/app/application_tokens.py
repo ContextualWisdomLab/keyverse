@@ -12,11 +12,15 @@ import secrets
 import threading
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
+from starlette.responses import JSONResponse, Response
 
 from .audit import AuditLogger
 from .auth import operator_auth_dependency, runtime_auth_dependency
@@ -39,6 +43,31 @@ ROTATED_LIFECYCLE = "rotated"
 MIN_LIFETIME_SECONDS = 60
 MAX_LIFETIME_SECONDS = 90 * 24 * 60 * 60
 
+class _SecretSafeValidationRoute(APIRoute):
+    """Contain runtime request validation without serializing submitted data.
+
+    The route owns this boundary so direct router embedding is protected too.
+    Only request-schema failures become a closed 422; authentication, service
+    errors, response validation, and successful responses keep their behavior.
+    """
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        """Wrap FastAPI's dependency/body validation before endpoint execution."""
+        original_handler = super().get_route_handler()
+
+        async def secret_safe_handler(request: Request) -> Response:
+            """Return a constant schema rejection without inspecting or logging input."""
+            try:
+                return await original_handler(request)
+            except RequestValidationError:
+                return JSONResponse(
+                    status_code=422,
+                    content={"detail": "Invalid application token verification request"},
+                )
+
+        return secret_safe_handler
+
+
 application_token_router = APIRouter(
     prefix="/application-tokens",
     tags=["application-tokens"],
@@ -48,6 +77,7 @@ application_token_runtime_router = APIRouter(
     prefix="/application-tokens",
     tags=["application-tokens"],
     dependencies=[runtime_auth_dependency],
+    route_class=_SecretSafeValidationRoute,
 )
 _MANAGEMENT_DEPENDENCIES = [operator_auth_dependency, admin_path_security_dependency]
 
@@ -83,6 +113,8 @@ class ApplicationTokenRecord(BaseModel):
     revoked_at: float | None = None
     actor_identity_id: str
     replaced_token_id: str | None = None
+    lifecycle_generation_id: str | None = None
+    _stored_value: str | None = PrivateAttr(default=None)
 
 
 class ApplicationTokenIssueResponse(BaseModel):
@@ -178,7 +210,7 @@ class ApplicationTokenService:
         """Mint one token, persist only the hash, and audit the issue."""
         record, plaintext = self._mint(request, replaced_token_id=None)
         with self._state_lock:
-            self._write_record(record)
+            self._change_records({record.application_token_id: None}, [record])
             try:
                 self._audit_event(
                     "application_token_issued",
@@ -186,7 +218,7 @@ class ApplicationTokenService:
                     record,
                 )
             except Exception:
-                self._delete_record(record)
+                self._compensate_records([record], [], [record.application_token_id])
                 raise
         return self._issue_response(record, plaintext)
 
@@ -221,9 +253,12 @@ class ApplicationTokenService:
                 update={
                     "lifecycle_status_code": lifecycle_status_code,
                     "revoked_at": self._clock(),
+                    "lifecycle_generation_id": uuid.uuid4().hex,
                 }
             )
-            self._write_record(updated)
+            self._change_records(
+                {record.application_token_id: self._snapshot(record)}, [updated]
+            )
             try:
                 self._audit_event(
                     "application_token_revoked",
@@ -231,7 +266,7 @@ class ApplicationTokenService:
                     updated,
                 )
             except Exception:
-                self._write_record(record)
+                self._compensate_records([updated], [record], [])
                 raise
         return self._view(updated)
 
@@ -268,29 +303,35 @@ class ApplicationTokenService:
                 update={
                     "lifecycle_status_code": ROTATED_LIFECYCLE,
                     "revoked_at": self._clock(),
+                    "lifecycle_generation_id": uuid.uuid4().hex,
                 }
             )
             record, plaintext = self._mint(
                 request, replaced_token_id=application_token_id
             )
-            try:
-                self._store.put_many(
-                    APPLICATION_TOKEN_NAMESPACE,
-                    {
-                        record.application_token_id: record.model_dump_json(),
-                        updated.application_token_id: updated.model_dump_json(),
-                    },
+            if not self._store.compare_and_replace(
+                APPLICATION_TOKEN_NAMESPACE,
+                {
+                    existing.application_token_id: self._snapshot(existing),
+                    record.application_token_id: None,
+                },
+                {
+                    record.application_token_id: record.model_dump_json(),
+                    updated.application_token_id: updated.model_dump_json(),
+                },
+            ):
+                raise AuthorizationPolicyError(
+                    "application token state changed", status_code=409
                 )
+            try:
                 self._audit_event(
                     "application_token_rotated",
                     request.actor_identity_id,
                     record,
                 )
             except Exception:
-                self._store.replace_many(
-                    APPLICATION_TOKEN_NAMESPACE,
-                    {existing.application_token_id: existing.model_dump_json()},
-                    {record.application_token_id},
+                self._compensate_records(
+                    [updated, record], [existing], [record.application_token_id]
                 )
                 raise
         return self._issue_response(record, plaintext)
@@ -388,19 +429,58 @@ class ApplicationTokenService:
         )
         return record, plaintext
 
-    def _write_record(self, record: ApplicationTokenRecord) -> None:
-        """Persist one hashed token record."""
-        with self._state_lock:
-            self._store.put(
-                APPLICATION_TOKEN_NAMESPACE,
-                record.application_token_id,
-                record.model_dump_json(),
+    def _snapshot(self, record: ApplicationTokenRecord) -> str:
+        """Use exact captured bytes, including legacy rows without a generation."""
+        return record._stored_value or record.model_dump_json()
+
+    def _change_records(
+        self,
+        expected: dict[str, str | None],
+        records: list[ApplicationTokenRecord],
+    ) -> None:
+        """Persist only against the captured state; a stale snapshot is HTTP409."""
+        if not self._store.compare_and_replace(
+            APPLICATION_TOKEN_NAMESPACE,
+            expected,
+            {record.application_token_id: record.model_dump_json() for record in records},
+        ):
+            raise AuthorizationPolicyError(
+                "application token state changed", status_code=409
             )
 
-    def _delete_record(self, record: ApplicationTokenRecord) -> None:
-        """Compensate one lifecycle write when its audit event fails."""
-        with self._state_lock:
-            self._store.delete(APPLICATION_TOKEN_NAMESPACE, record.application_token_id)
+    def _compensate_records(
+        self,
+        expected: list[ApplicationTokenRecord],
+        restore: list[ApplicationTokenRecord],
+        delete_keys: list[str],
+    ) -> None:
+        """Undo only this exact write, never overwrite an independent lifecycle.
+
+        A conflict leaves the predecessor retired. Remove any still-owned new
+        token separately, without touching an independently changed successor.
+        Cleanup errors must not replace the original audit error.
+        """
+        try:
+            restored = self._store.compare_and_replace(
+                APPLICATION_TOKEN_NAMESPACE,
+                {record.application_token_id: record.model_dump_json() for record in expected},
+                {record.application_token_id: record.model_dump_json() for record in restore},
+                delete_keys,
+            )
+        except Exception:
+            restored = False
+        if not restored:
+            for record in expected:
+                if record.application_token_id in delete_keys:
+                    try:
+                        self._store.compare_and_replace(
+                            APPLICATION_TOKEN_NAMESPACE,
+                            {record.application_token_id: record.model_dump_json()},
+                            {},
+                            [record.application_token_id],
+                        )
+                    except Exception:
+                        pass
 
     def _records(self) -> list[ApplicationTokenRecord]:
         """Load every hashed token record, fail-closed on corruption."""
@@ -430,7 +510,9 @@ class ApplicationTokenService:
                 status_code=404,
             )
         try:
-            return ApplicationTokenRecord.model_validate_json(raw_value)
+            record = ApplicationTokenRecord.model_validate_json(raw_value)
+            record._stored_value = raw_value
+            return record
         except ValidationError as exc:
             raise AuthorizationPolicyError(
                 "application token store is corrupt",
@@ -669,7 +751,7 @@ def verify_application_token(
     body: ApplicationTokenVerifyRequest,
     service: ApplicationTokenService = Depends(get_application_token_service),
 ) -> ApplicationTokenVerifyResponse:
-    """Verify one presented programmable application token."""
+    """Verify one PAT; runtime schema errors use a fixed, secret-free HTTP 422."""
     try:
         return service.verify(body)
     except AuthorizationPolicyError as exc:
