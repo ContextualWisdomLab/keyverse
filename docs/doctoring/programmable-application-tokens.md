@@ -107,21 +107,14 @@ all writers must use this conditional contract before concurrent service use.
 
 ## References
 
+The three undated framework/storage pages below were rechecked on October 5, 2026 (KST).
+This is a successor source check, not attestation of the original candidate's retrieval chronology.
+
 FastAPI. (n.d.-a). *Handling errors*. Retrieved October 5, 2026, from
 https://fastapi.tiangolo.com/tutorial/handling-errors/
 
 FastAPI. (n.d.-b). *Custom request and APIRoute class*. Retrieved October 5,
 2026, from https://fastapi.tiangolo.com/how-to/custom-request-and-route/
-
-SQLite. (n.d.). *Transaction*. Retrieved October 5, 2026, from
-https://www.sqlite.org/lang_transaction.html
-
-
-Temoshok, D., Fenton, J., Choong, Y.-Y., Lefkovitz, N., Regenscheid, A.,
-Galluzzo, R., & Richer, J. (2025). *Digital identity guidelines:
-Authentication and authenticator management* (NIST Special Publication
-800-63B-4). National Institute of Standards and Technology.
-https://doi.org/10.6028/NIST.SP.800-63b-4
 
 Jones, M. B., & Hardt, D. (2012). *The OAuth 2.0 authorization framework:
 Bearer token usage* (RFC 6750). RFC Editor.
@@ -130,3 +123,12 @@ https://www.rfc-editor.org/rfc/rfc6750
 Jones, M. B., Hardt, D., & Campbell, B. (2020). *JSON Web Token best current
 practices* (BCP 225, RFC 8725). RFC Editor.
 https://www.rfc-editor.org/rfc/rfc8725
+
+SQLite. (n.d.). *Transaction*. Retrieved October 5, 2026, from
+https://www.sqlite.org/lang_transaction.html
+
+Temoshok, D., Fenton, J., Choong, Y.-Y., Lefkovitz, N., Regenscheid, A.,
+Galluzzo, R., & Richer, J. (2025). *Digital identity guidelines:
+Authentication and authenticator management* (NIST Special Publication
+800-63B-4). National Institute of Standards and Technology.
+https://doi.org/10.6028/NIST.SP.800-63b-4

@@ -143,7 +143,7 @@ erDiagram
 
     AUTHORIZATION_SOFTWARE_UNIT_GRANT {
       text grant_key PK
-      text tenant_deployment_id FK
+      text tenant_deployment_id PK, FK
       text org_path
       text software_unit_id
       text effect_code
@@ -154,7 +154,7 @@ erDiagram
 
     AUTHORIZATION_MENU_GRANT {
       text grant_key PK
-      text tenant_deployment_id FK
+      text tenant_deployment_id PK, FK
       text org_path
       text software_unit_id
       text menu_path
@@ -201,8 +201,8 @@ federation source and MUST NOT be interpreted as global keys.
 | `FEDERATION_SOURCE` | `(tenant_deployment_id, federation_alias)` |
 | `DIRECTORY_FEDERATION_SOURCE` | `(tenant_deployment_id, directory_alias)` |
 | `RELYING_PARTY_SOURCE` | `(tenant_deployment_id, client_id)` |
-| `AUTHORIZATION_SOFTWARE_UNIT_GRANT` | `(tenant_deployment_id, org_path, software_unit_id)` |
-| `AUTHORIZATION_MENU_GRANT` | `(tenant_deployment_id, org_path, software_unit_id, menu_path)` |
+| `AUTHORIZATION_SOFTWARE_UNIT_GRANT` | `(tenant_deployment_id, grant_key)` and `(tenant_deployment_id, org_path, software_unit_id)` |
+| `AUTHORIZATION_MENU_GRANT` | `(tenant_deployment_id, grant_key)` and `(tenant_deployment_id, org_path, software_unit_id, menu_path)` |
 | `SSO_COMBINATION_SCOPE` | `(tenant_deployment_id, combination_name)` |
 | `APPLICATION_ACCESS_TOKEN` | `(tenant_deployment_id, application_token_id)` and unique `token_hash` |
 | `KEYCLOAK_USER_REFERENCE` | `(tenant_deployment_id, keycloak_user_uuid)` |
