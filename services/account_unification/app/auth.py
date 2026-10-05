@@ -44,7 +44,7 @@ def require_operator_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     presented = authorization[len("Bearer ") :].strip()
-    if not hmac.compare_digest(presented, expected):
+    if not hmac.compare_digest(presented.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(status_code=403, detail="invalid operator token")
 
 
@@ -58,7 +58,7 @@ def require_runtime_token(
         alias="X-Keyverse-Runtime-Token",
     ),
 ) -> None:
-    """Authenticate the least-privilege runtime service token."""
+    """Authenticate runtime credentials using bytes; invalid headers remain denied."""
     expected = getattr(request.app.state, "runtime_api_token", None)
     if not expected:
         raise HTTPException(status_code=503, detail="runtime authentication unavailable")
@@ -68,7 +68,7 @@ def require_runtime_token(
             detail="runtime service token required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not hmac.compare_digest(runtime_token, expected):
+    if not hmac.compare_digest(runtime_token.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(status_code=403, detail="invalid runtime service token")
 
 

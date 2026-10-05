@@ -305,7 +305,7 @@ The account-unification/control-service tests can be run from its package direct
 
 ```bash
 cd services/account_unification
-uv sync --locked
+uv sync --locked --extra dev
 uv run pytest -q
 ```
 

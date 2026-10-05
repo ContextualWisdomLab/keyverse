@@ -33,6 +33,24 @@ and does not become a new IdP.
 
 ## Measured repository evidence
 
+### Shared-token comparison representation
+
+Python's `hmac.compare_digest` accepts bytes or ASCII-only strings (Python
+Software Foundation, n.d.). A synthetic raw non-ASCII runtime header reproduced
+HTTP 500 at the actual start-login ASGI consumer while an otherwise-valid ASCII
+credential returned HTTP 200. The same defect was reproduced at operator and
+registration bearer consumers. These guards now encode both compared strings
+as UTF-8 bytes without trimming beyond their existing bearer extraction or
+Unicode normalization. Invalid headers retain fixed HTTP 403; no configured
+credentials are issued, changed, or logged by this repair.
+
+`test_token_header_safety.py` records separate runtime and sibling RED→GREEN
+slices, each with authorized handler positives. This is offline synthetic HTTP
+consumer evidence, not deployed identity, issuer, RP login, or release evidence.
+The runtime dependency policy is unchanged. The root README test setup now
+selects the existing optional `dev` extra; its manifest/setup regression does
+not claim a clean hosted dependency installation.
+
 `services/account_unification/tests/test_start_login.py` proves single-IdP
 auto-selection, multi-IdP hinting, disabled-provider omission, discovery-URL
 rejection, HTTPS redirect policy, empty-registry behavior, and the
@@ -64,6 +82,10 @@ https://www.keycloak.org/docs/latest/server_admin/#_identity_broker
 
 OpenID Foundation. (2023). *OpenID Connect Core 1.0 incorporating errata set
 2*. https://openid.net/specs/openid-connect-core-1_0.html
+
+Python Software Foundation. (n.d.). *hmac: Keyed-hashing for message
+authentication* (Python 3.12 documentation).
+https://docs.python.org/3.12/library/hmac.html#hmac.compare_digest
 
 Lodderstedt, T., Bradley, J., Labunets, A., & Fett, D. (2025). *Best current
 practice for OAuth 2.0 security* (RFC 9700; BCP 240). RFC Editor.

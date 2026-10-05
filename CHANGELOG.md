@@ -7,6 +7,13 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Runtime, operator, and registration shared-token guards compare UTF-8 bytes
+  instead of ASCII-only strings. Incorrect non-ASCII HTTP credentials retain
+  fixed HTTP 403 responses rather than causing a TypeError/500; missing
+  credentials and unavailable configuration retain HTTP 401/503.
+- Root developer test instructions install the declared optional `dev` extra
+  with locked dependencies, without adding test tools to production dependencies.
+
 - PAT rotation reads contain malformed custom typed-error codes and incomplete
   stored-memory envelopes as fixed closed errors without raw cause/context.
   Known exact-string codes, strict global validation and generic audit queries

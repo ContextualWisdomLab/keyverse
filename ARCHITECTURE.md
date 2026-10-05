@@ -57,6 +57,13 @@ application relying-party registration.
 
 ### Account-unification service
 
+Shared runtime, operator, and registration tokens are separate configured
+credentials. Their existing gates compare UTF-8 bytes without Unicode
+normalization; raw non-ASCII header values cannot raise the ASCII-only string
+comparison error. Incorrect credentials retain fixed HTTP 403 responses. This
+representation repair does not grant new authority or change missing-token
+HTTP 401 and unavailable-configuration HTTP 503 behavior.
+
 **PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
 hierarchical authorization plane, start-login helper, and programmable
 application tokens are not protected-main or deployed readiness. Descriptions

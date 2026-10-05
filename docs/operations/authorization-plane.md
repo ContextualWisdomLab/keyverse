@@ -60,6 +60,13 @@ issuer validation, RP enforcement, and durable write-intent remain separate.
 
 ## Start-login failures
 
+- Missing runtime credentials return HTTP 401, incorrect credentials return the
+  fixed HTTP 403, and missing configured runtime credentials return HTTP 503.
+  Incorrect non-ASCII header bytes also receive HTTP 403, not a server error.
+  Operator and registration bearer gates retain the same representation guard
+  with their own separate credentials. This does not authenticate end users or
+  establish relying-party login acceptance. Do not log header values.
+
 - Empty `identity_providers`: the local federation registry has no enabled
   IdP. Register one through desired state; do not point the helper at a
   discovery URL.
