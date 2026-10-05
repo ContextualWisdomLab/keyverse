@@ -210,3 +210,5 @@ evidence required by the deployment record.
 - [ ] exact redirect/origin/logout values independently reviewed
 - [ ] expected mapper audience and claim profile re-observed without drift
 - [ ] controlled login, downstream JWT acceptance/rejection, refresh, logout, and rollback evidence recorded
+- [ ] software-unit grant and start-login helper documented for the RP
+- [ ] PAT minted only when the RP needs machine API access, stored in the app secret manager, never used as a password

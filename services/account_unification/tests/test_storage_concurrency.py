@@ -32,6 +32,31 @@ def test_sqlite_kv_store_handles_concurrent_access(tmp_path) -> None:
             f"entry_value_{index}" for index in range(100)
         ]
         assert len(store.get_all("runtime_configuration")) == 100
+        store.put_many(
+            "runtime_configuration",
+            {"batch_entry_a": "batch_value_a", "batch_entry_b": "batch_value_b"},
+        )
+        assert store.get("runtime_configuration", "batch_entry_a") == "batch_value_a"
+        assert store.get("runtime_configuration", "batch_entry_b") == "batch_value_b"
+
+
+def test_sqlite_kv_store_replaces_entries_in_one_operation(tmp_path) -> None:
+    """Durable compensation upserts and removes entries transactionally."""
+    with closing(SqliteKvStore(str(tmp_path / "replacement.sqlite3"))) as store:
+        store.put_many(
+            "runtime_configuration",
+            {"keep_entry": "old_value", "remove_entry": "stale_value"},
+        )
+        store.replace_many(
+            "runtime_configuration",
+            {"keep_entry": "new_value", "added_entry": "new_value"},
+            {"remove_entry"},
+        )
+
+        assert store.get_all("runtime_configuration") == {
+            "keep_entry": "new_value",
+            "added_entry": "new_value",
+        }
 
 
 def test_sqlite_audit_sink_handles_concurrent_events(tmp_path) -> None:

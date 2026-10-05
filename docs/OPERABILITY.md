@@ -1,7 +1,7 @@
 # Keyverse Operability, Recovery, and Release Guide
 
 **Status:** Accepted cross-cutting operating baseline  
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 Feature-specific procedures under `docs/operations/`, federation/RP onboarding, and deployment READMEs remain authoritative for their slices. This guide defines the shared operating model and evidence needed before declaring the identity platform healthy or release-ready.
 
@@ -66,17 +66,45 @@ must test the **Naruon** product login/token/authorization journey using the
 `naruon-web` RP client ID and verify the expected audience and bounded claims.
 Mapper unit tests alone do not prove Naruon product authorization readiness.
 
+## Authorization-plane and token runbook
+
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. These steps
+are candidate acceptance procedures, not instructions claiming deployed routes.
+
+1. Obtain an Orgmetra assignment snapshot for the subject, including its
+   validated `tenant_deployment_id`; do not copy the Orgmetra tree into
+   Keyverse.
+2. PUT software-unit and menu grants at the intended org-path node.
+3. PUT an SSO combination when several RPs should share one session.
+4. Call the matching `:decide` endpoint and keep the RP as PEP.
+5. For app login, the application backend calls
+   `POST /federation/identity-providers:start-login` with the separately
+   provisioned `X-Keyverse-Runtime-Token`, then adds PKCE locally and
+   redirects. Do not fetch IdP metadata from the app.
+6. An operator calls `POST /application-tokens` with the operator bearer,
+   stores the one-time plaintext response in the relying application's secret
+   manager, and discards the response. The application presents that PAT to
+   `POST /application-tokens:verify` with the runtime service token. Rotate an
+   active, unexpired token or revoke it; retired and expired tokens cannot be
+   revived. Never share a password.
+
+See `docs/authorization-onboarding.md` and
+`docs/operations/authorization-plane.md`.
+
 ## Account merge recovery
 
-The active PR implementation makes merge, SCIM full replacement (`PUT`),
-`PATCH active=false`, and `DELETE` hold the shared operation lock. Only SCIM
-lock contention is translated at this boundary into a retryable `503` before
-entering the mutation sequence. Merge retains its existing service error
-contract; SCIM endpoints use the root-level RFC 7644 error envelope for
-`_scim_error` failures, while `PUT` and `DELETE` retain their existing
-mutation/status semantics. The protected-main promotion remains
-an active-PR gate in `docs/TRACEABILITY.md`. On failure, classify whether state
-changed in Keycloak, Keyverse audit, linked identities, or tombstone status.
+**SCIM source maturity:** Pinned main
+`7d9151cd2da260e118020c938c7358e2ee75d541` is implemented-main source:
+`PUT`, `PATCH active=false`, and `DELETE` use the shared user-operation lock
+and return retryable SCIM `503` on contention. This is not deployed acceptance.
+
+Merge retains its existing service error contract; SCIM endpoints use the
+root-level RFC 7644 error envelope for `_scim_error` failures, while `PUT`
+and `DELETE` retain their existing mutation/status semantics. On failure,
+classify whether state changed in Keycloak, Keyverse audit, linked identities,
+or tombstone status.
 Re-observe before retry. Never infer a retry is safe solely from the previous
 HTTP response. Preserve survivor and duplicate lineage in audit.
 

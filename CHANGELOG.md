@@ -5,8 +5,89 @@ Keep a Changelog, and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Runtime, operator, and registration shared-token guards compare UTF-8 bytes
+  instead of ASCII-only strings. Incorrect non-ASCII HTTP credentials retain
+  fixed HTTP 403 responses rather than causing a TypeError/500; missing
+  credentials and unavailable configuration retain HTTP 401/503.
+- Root developer test instructions install the declared optional `dev` extra
+  with locked dependencies, without adding test tools to production dependencies.
+
+- PAT rotation reads contain malformed custom typed-error codes and incomplete
+  stored-memory envelopes as fixed closed errors without raw cause/context.
+  Known exact-string codes, strict global validation and generic audit queries
+  remain unchanged; this private successor awaits fresh whole-source review.
+
+- PAT rotation retains one successor-correlated audit event and now includes the
+  predecessor ID and captured persisted retired state. Generic audit queries
+  remain exact-correlation reads; this metadata does not add predecessor lookup
+  or make audit and KV atomic. Issue/revoke payload shapes are unchanged.
+
+- PAT verification schema errors now return a fixed HTTP 422 without reflecting
+  submitted values or keys, including direct runtime-router embedding.
+- The 58 source-maturity regressions are now included in the account-service
+  test path used by canonical CI, without changing workflow routing.
+
+- PAT lifecycle writes now atomically compare expected state on memory and
+  independent SQLite connections. One predecessor has at most one successful
+  concurrent rotation. Generation-bound compensation preserves independent
+  completed revokes/rotations; stale or occupied successor state returns 409
+  before audit. Audit is outside the writer transaction, and failed cleanup
+  preserves the original error with explicit recovery limitations.
+
+- Removed the obsolete local PR-steward tests after #140 centralized PR
+  maintenance. Added an ownership regression and aligned architecture and
+  operator guidance without restoring local merge automation or changing
+  production identity behavior.
+
+- Reconciled source maturity: PR #103 authorization/login/PAT descriptions
+  remain unmerged candidate capabilities; pinned-main SCIM PUT/PATCH/DELETE
+  locking is implemented source, not deployed acceptance. Historical gap
+  inventories are unchanged. Added scoped Markdown maturity regression guards.
+
+- Menu decisions read software-unit and menu grants at one coherent instant,
+  preventing a software-before/menu-after torn pair from falsely allowing
+  access. SSO-combination decisions capture the combination definitions and
+  software-unit grants together at the same read boundary, preventing an old
+  definition/new grants false allow. Corrupt rows still fail closed, legacy
+  sorting and tenant-qualified missing/ambiguous errors are preserved, and
+  single-namespace APIs are unchanged. This does not revoke operations already
+  admitted by an RP or make separately committed policy writes one rollout.
+
 ### Added
 
+- Explicit tenant-required in-process PAT rotation lineage reads on memory and
+  SQLite, with frozen secret-free metadata and an explicit legacy predecessor
+  coverage flag. Generic correlation and one append remain unchanged. Corrupt
+  rotation rows anywhere fail the captured read; tenant scope is not membership
+  authorization. No HTTP route or KV reconstruction is added.
+
+- Hierarchical authorization plane (ADR-0010): software-unit ACL, menu
+  ABAC/RBAC decisions, SSO combination scopes, and most-specific org-path
+  inheritance consumed from Orgmetra assignment snapshots. ADR-0008 stays
+  the PEP boundary. Hierarchical attributes use `group_company`,
+  `legal_entity`, `business_unit`, `team`, `person`, and `org_path` so they
+  do not collide with the unmerged LineageWeave `role`/`org`/`workspace`
+  profile reserved as ADR-0009 on PR #100.
+- App start-login helper (ADR-0011) that discovers enabled brokered IdPs from
+  the local registry and returns a Keycloak `kc_idp_hint` authorization URL
+  without metadata or discovery fetch; encoded discovery markers are rejected
+  after URL normalization at the same boundary.
+- Programmable application tokens (ADR-0012) hashed at rest, purpose-bound,
+  software-unit and API scoped, rotatable, auditable, and never a password
+  substitute or inherited secret; failed issue/rotation audit and storage
+  writes are compensated, and runtime verification uses a separate service
+  credential.
+- Authorization decisions now require a tenant-qualified assignment snapshot;
+  grant matching, ABAC constraints, duplicate identity, and KV keys preserve
+  tenant boundaries.
+- Authorization decision metadata now marks strict menu-prefix inheritance
+  correctly when the org path is an exact match.
+- Ambiguous same-named authorization grants can now be read or deleted through
+  an explicit tenant-scoped GET/DELETE query without weakening fail-closed
+  behavior.
+- Start-login issuer input is bound to configured Keyverse public issuer state.
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
@@ -55,6 +136,21 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Changed
 
+- Authorization decisions now require explicit tenant-bound assignment
+  snapshots, grants, SSO combinations, and application-token verification;
+  software-unit grants reject menu-only ABAC constraints.
+- Start-login now uses a configured Keycloak public issuer and is exposed as a
+  front-channel runtime helper, while PAT management remains operator-gated
+  and PAT verification remains token-gated.
+- Application-token rotation now persists the replacement and rotated
+  predecessor through one conditional KV-store batch before recording the
+  audit event, and restores the pair only when its exact written generation
+  remains current after audit failure.
+
+- The hierarchical authorization router now carries its operator-authentication
+  and privileged-path dependencies at the module boundary, so direct CWL/Naruon
+  embedding cannot accidentally mount grant administration without the existing
+  operator gate.
 - Federation PUT and apply now report `applied_to_keycloak: true` only after a
   fresh live Keycloak identity-provider observation matches the desired
   observable representation. Keycloak's fixed mask for the known
@@ -111,6 +207,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- Application-token rotation now rejects revoked, already-rotated, and expired
+  predecessors instead of reviving retired credentials.
+- Prevented cross-tenant authorization selection, SSO-name collisions, PAT
+  tenant confusion, expired-token revival, and audit-failure state leakage;
+  start-login can no longer reflect an attacker-selected issuer.
+
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
@@ -140,6 +242,9 @@ Keep a Changelog, and releases use semantic versioning.
   state storage lock is held.
 - Prevented unknown federation configuration keys, credentials, and private
   values from being echoed through list, get, or update responses.
+- Application-token rotation now validates the replacement purpose,
+  capabilities, lifetime, and software-unit binding before revoking the
+  active token, so invalid rotation requests preserve the working credential.
 - Rejected Unicode-confusable federation aliases outside the explicit ASCII
   slug alphabet.
 - Rejected raw C0 controls, DEL, invalid ports, insecure HTTP SSO or metadata

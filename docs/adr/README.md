@@ -17,17 +17,20 @@ authorization boundary and is not rewritten by that expansion.
 | [0006](0006-user-operation-lock.md) | Merge/link, SCIM full replacement, and supported `PATCH active=false` share one user-operation lock boundary | Accepted |
 | [0007](0007-automation-authority.md) | Autonomous development remains separate from review/merge/release authority | Accepted |
 | [0008](0008-keyverse-rp-authorization-boundary.md) | Every non-fork RP explicitly validates Keyverse identity and manages ABAC/RBAC at its own boundary | Accepted |
+| 0009 | Reserved for the unmerged LineageWeave `role`/`org`/`workspace` profile on PR #100 | Reserved |
+| [0010](0010-hierarchical-authorization-plane.md) | Hierarchical software-unit, menu, inheritance, and SSO-combination PDP; Orgmetra remains employment SoR; ADR-0008 PEP boundary unchanged | Accepted |
+| [0011](0011-app-start-login-helper.md) | App start-login / IdP discovery helper owned by Keyverse; no metadata fetch | Accepted |
+| [0012](0012-programmable-application-tokens.md) | Hashed, purpose-bound, software-unit and API scoped programmable application tokens | Accepted |
 | [0013](0013-mcp-oauth-client-authorization.md) | Use Keycloak-backed authorization code plus PKCE and exact resource binding for MCP clients | Proposed |
 
-ADR numbering note: protected `main` currently ends at ADR-0008. ADR-0009 is
-proposed in the open LineageWeave claim-profile PR, and ADR-0010 through
-ADR-0012 are proposed in the open authorization-plane PR. ADR-0013 preserves
-the next intended number without renumbering parallel work; it must be
-reconciled after those PRs land, and none of the absent records is accepted
-architecture on protected `main` yet.
+ADR numbering note: ADR-0009 remains reserved for the unmerged LineageWeave
+claim-profile PR. This PR103 composition includes ADR-0010 through ADR-0012;
+their design acceptance does not establish protected-main runtime promotion.
+ADR-0013 remains proposed and design-only. Preserve these parallel numbers
+without renumbering them or claiming MCP runtime acceptance.
 
 ## ADR triggers
 
-Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, or autonomous/release authority.
+Create or update an ADR for changes to authenticator policy, federation hub ownership, identity matching evidence, merge/tombstone semantics, SCIM authority, directory write/trust policy, RP credential/claim ownership, desired-state mutation order, persistent state, secret handling, hierarchical authorization attributes, programmable application tokens, start-login ownership, or autonomous/release authority.
 
 Each implementation PR should reconcile PRD/TRD/Architecture/UML/ERD/Threat/Test/Operability/Traceability and the relevant `docs/doctoring/`, `docs/papers/`, or `docs/operations/` research/standards/runbook record when those contracts move.

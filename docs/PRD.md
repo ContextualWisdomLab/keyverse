@@ -1,7 +1,7 @@
 # Keyverse Product Requirements Document
 
 **Status:** Accepted cross-cutting product baseline for protected `main` at `196814abe45ecf972a7776836af3933506d13fd5`
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 ## 1. Product purpose
 
@@ -15,7 +15,7 @@ Its job is to let CWL products consume stable standards-based identity without e
 - OIDC/OAuth relying-party service for CWL applications and SAML brokering for external identity providers;
 - inbound SCIM v2 shim for lifecycle provisioning;
 - account linking/unification and survivor-wins merge with verified-email policy and tombstone behavior;
-- user-operation locking across merge and SCIM full-replacement (`PUT`) paths;
+- user-operation locking across merge and SCIM `PUT`, `PATCH active=false`, and `DELETE` paths;
 - password-free registration enrollment action flow;
 - deterministic, side-effect-free SAML/OIDC federation preflight and durable desired-state reconciliation;
 - deterministic LDAPS-only directory preflight and durable Keycloak component desired-state reconciliation;
@@ -25,9 +25,21 @@ Its job is to let CWL products consume stable standards-based identity without e
 - 100% production statement/branch/docstring quality gates and protected review/security workflows.
 - an explicit per-RP Keyverse token-validation and downstream ABAC/RBAC acceptance boundary; application login alone is not authorization readiness.
 
-Active PR #113 extends that lock boundary to SCIM `PATCH active=false`
-deprovisioning. Its exact-head implementation evidence is not a protected-main
-capability until the PR passes independent review and protected Checks.
+**SCIM source maturity:** Pinned main
+`7d9151cd2da260e118020c938c7358e2ee75d541` is implemented-main source:
+`PUT`, `PATCH active=false`, and `DELETE` use the shared user-operation lock
+and return retryable SCIM `503` on contention. This is not deployed acceptance.
+
+## PR103 candidate capabilities
+
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. Accepted
+ADR-0010–0012 and local regression evidence do not promote this source.
+
+- an issuer-side hierarchical authorization plane for software-unit ACL, menu ABAC/RBAC decisions, SSO combination scopes, and org-path inheritance consumed from Orgmetra assignment snapshots;
+- an app start-login helper that discovers enabled brokered IdPs and returns a `kc_idp_hint` authorization URL without metadata fetch;
+- hashed, purpose-bound programmable application tokens scoped to one software unit and API capabilities.
 
 ## 3. Integrated protected-main changes
 
@@ -76,7 +88,7 @@ Account matching and merge SHALL follow exact subject → verified email → exp
 
 ### PRD-FR-004 SCIM
 
-Inbound SCIM SHALL map authoritative enterprise lifecycle operations into Keycloak while preserving Keyverse merge/tombstone invariants and failing closed on unsafe identity ambiguity. Protected-main serializes merge with full SCIM `PUT` replacement. Active PR #113 extends that boundary to the supported `PATCH active=false` deprovisioning path; its lock contention is surfaced as retryable SCIM `503` only after protected promotion.
+Inbound SCIM SHALL map authoritative enterprise lifecycle operations into Keycloak while preserving Keyverse merge/tombstone invariants and failing closed on unsafe identity ambiguity. Pinned-main source serializes merge with full SCIM `PUT` replacement, supported `PATCH active=false`, and `DELETE`; SCIM lock contention returns retryable `503` before mutation. Source implementation is not evidence of deployed provisioning or database acceptance.
 
 ### PRD-FR-005 Relying-party lifecycle
 
@@ -105,6 +117,30 @@ Compose/Helm deployments SHALL expose component readiness that distinguishes Key
 ### PRD-FR-010 Audit and recovery
 
 Privileged identity and desired-state operations SHALL produce auditable intent/outcome evidence sufficient for reconciliation/rollback without exposing protected secret values.
+
+### PRD-FR-011 Software-unit access control
+
+Keyverse SHALL decide whether an opaque Keyverse subject may use a named software unit / relying party from grants attached to a hierarchical org path. Employment truth SHALL remain in Orgmetra; Keyverse SHALL consume an assignment snapshot and SHALL NOT copy the Orgmetra tree as source of record.
+
+### PRD-FR-012 Menu ABAC and RBAC
+
+Keyverse SHALL decide menu access only after software-unit allow, applying closed ABAC constraints before remaining capability codes. Hierarchical attribute names SHALL be `group_company`, `legal_entity`, `business_unit`, `team`, `person`, and `org_path`, and SHALL NOT redefine LineageWeave `role`, `org`, or `workspace`.
+
+### PRD-FR-013 SSO combination scopes
+
+Keyverse SHALL authorize a named combination of software units to share one Keyverse session only when every member software unit is allowed for that snapshot. The Keycloak session remains Keycloak-owned.
+
+### PRD-FR-014 Higher-permission inheritance
+
+A grant at a higher org node SHALL apply to descendants unless a more-specific assignment restricts it. Default SHALL be deny. Secrets and programmable application tokens SHALL NOT inherit.
+
+### PRD-FR-015 App start-login helper
+
+Keyverse SHALL provide a start-login helper that discovers enabled identity providers from the local registry and returns a Keycloak authorization URL with `kc_idp_hint`. The helper SHALL NOT fetch metadata or discovery documents and SHALL NOT move federation ownership into the application.
+
+### PRD-FR-016 Programmable application tokens
+
+Keyverse SHALL issue hashed-at-rest, purpose-bound, software-unit and API scoped tokens that are rotatable, revocable, and auditable. Tokens SHALL NOT substitute for a password or WebAuthn authenticator and SHALL NOT inherit org-tree grants.
 
 ## 7. Security/privacy requirements
 

@@ -1,7 +1,7 @@
 # Keyverse Threat Model
 
 **Status:** Accepted baseline for protected-main identity control plane  
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 ## Trust boundaries
 
@@ -49,6 +49,10 @@ flowchart LR
 | automation credential exposure | repository/provider compromise | isolated OpenCode/broker/verification/publication and reviewer separation |
 | stale/false-green CI | unverified identity policy lands | exact-head checks, success-only evidence, fail-closed API gate |
 | RP accepts identity without authorization boundary | cross-tenant access or privilege elevation | explicit issuer/audience/JWKS profile, tenant/resource ABAC before bounded RBAC, cross-tenant denial tests, production fail-closed defaults |
+| inherited grant applied too broadly | privilege elevation down the org tree | most-specific grant wins; default deny; more-specific deny restricts |
+| PAT used as password | bypass of passwordless authenticator | closed purpose codes; reject password/WebAuthn/login purposes |
+| PAT or grant secret leakage | credential theft | hash-at-rest; one-time plaintext; redacted list/verify; no org-tree inheritance of secrets |
+| app fetches IdP metadata | SSRF / split federation ownership | start-login reads local registry only; discovery URLs rejected |
 
 ## STRIDE interpretation
 

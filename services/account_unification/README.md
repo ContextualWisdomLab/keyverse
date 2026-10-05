@@ -10,7 +10,11 @@ nor an external ADFS offers natively:
   with a survivor-wins conflict policy, a tombstoned duplicate, and a full audit
   trail, and
 - a minimal **SCIM 2.0** inbound provisioning shim (`/scim/v2/Users`) that
-  provisions into Keycloak via its Admin REST API.
+  provisions into Keycloak via its Admin REST API,
+- a hierarchical **authorization plane** for software-unit ACL, menu
+  ABAC/RBAC, SSO combinations, and org-path inheritance,
+- an app **start-login** helper for brokered IdP discovery, and
+- hashed **programmable application tokens** scoped to one software unit.
 
 See [`../../docs/merge-unification-flow.md`](../../docs/merge-unification-flow.md)
 for the algorithm and matching rules.
@@ -28,6 +32,10 @@ for the algorithm and matching rules.
 | `app/scim.py` | Inbound SCIM 2.0 provisioning shim → Keycloak Admin API |
 | `app/audit.py` | Append-only audit (`account_merge_audit`); in-memory + SQLite sinks |
 | `app/api.py` / `app/main.py` | HTTP routes + `/healthz` |
+| `app/org_authorization.py` | Hierarchical org-path, inheritance, menu, and SSO decisions |
+| `app/authorization_plane.py` | Durable grants and PDP HTTP surface |
+| `app/start_login.py` | App start-login / IdP discovery helper |
+| `app/application_tokens.py` | Hashed programmable application tokens |
 
 ## Run the tests
 

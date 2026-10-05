@@ -13,13 +13,17 @@
 | LDAPS directory profile | LDAP RFC 4511–4515 + Keycloak component docs | directory preflight/reconciliation tests | implemented-main |
 | secret-free RP desired state | OAuth/OIDC/PKCE/Keycloak client docs | RP preflight/reconciliation/integrity tests | implemented-main |
 | RP audience/role/org/workspace mapper profile | OIDC/JWT audience + Keycloak mapper docs | PR #72 protected-main source/tests; downstream RP acceptance remains required | implemented-main |
-| merge/SCIM PUT/PATCH shared operation lock | concurrency/data-integrity decision; ADR-0006 | merge + full-replacement + active=false PATCH lock/concurrency tests | active-PR |
+| merge/SCIM PUT/PATCH/DELETE shared operation lock | concurrency/data-integrity decision; ADR-0006 | pinned main `7d9151cd2da260e118020c938c7358e2ee75d541` scim.py + user_locks.py + merge/SCIM concurrency tests; source integration, not deployed acceptance | implemented-main |
 | intent before mutation, receipt after re-observation | desired-state/recovery decision | federation/directory/RP reconciliation tests | implemented-main |
 | receipt bound to exact desired-state version/hash | threat/recovery contract; ERD | persistence/migration/idempotency evidence required | accepted-contract |
 | remote-first deletion | consistency/recovery decision | delete/reconciliation tests | implemented-main |
 | secrets from KV/DB, env bootstrap only | architecture/security decision | config/bootstrap/template validation | implemented-main |
 | work-conserving fail-closed hourly API gate | automation safety decision | PR #74 protected-main workflow tests/exact-head evidence; scheduled/manual run remains required | implemented-main |
 | non-fork RP Keyverse authorization boundary | ADR-0008; OIDC/JWT recipient validation and least-privilege policy | six-app audit, per-RP issuer/audience/tenant/ABAC/RBAC evidence required | accepted-contract |
+| hierarchical software-unit and menu PDP | ADR-0010; NIST SP 800-162 ABAC; Orgmetra assignment snapshot; issue #102 | account-unification authorization-plane tests; Orgmetra remains SoR | active-PR |
+| SSO combination scopes | ADR-0010; OIDC session remains Keycloak-owned | combination decide tests require every member software unit | active-PR |
+| app start-login helper | ADR-0011; OpenID Connect Core; Keycloak `kc_idp_hint`; no metadata fetch | start-login tests; local registry only | active-PR |
+| programmable application tokens | ADR-0012; RFC 6750 bearer usage; hashed at rest | issue/verify/revoke/rotate tests; never a password substitute | active-PR |
 | MCP-compatible OAuth client authorization | ADR-0013; MCP Authorization 2026-07-28, RFC 8414, RFC 8707, RFC 8725, RFC 9068, RFC 9207, RFC 9728, RFC 9700 | design-only contract for Keycloak discovery, recorded-issuer versus callback-`iss` exact comparison, public-client PKCE, RFC 9068 JWT validation, exact resource binding, LineageWeave protected-resource metadata, centralized revocation, and negative evidence; a mismatch rejects the authorization code; no protected-main runtime evidence yet | gap-not-claimed |
 | naruon Keyverse OIDC acceptance boundary | ADR-0008; exact issuer/audience/JWKS validation and required OIDC NumericDate claims | naruon PR #1321 `ca6ccba` names the Keyverse issuer and `naruon-web` audience, requires verified `iat`, tests explicit org/workspace/role acceptance plus missing-`iat` denial, strips orphaned HTML comment terminators, and resolves the `develop` CHANGELOG conflict; protected-branch Checks/review remain required | active-PR |
 | semantic-data-portal Keyverse claim boundary | ADR-0008; bounded claim mapping and fail-closed tenant/role/JWT-header validation | semantic-data-portal PR #58 `47e2215` aliases `org`/`role`, validates every present tenant alias, rejects malformed/conflicting aliases before `ActorContext`, explicitly rejects unsupported JWT `crit` headers, and keeps the cryptography floor; protected-branch approval remains required | active-PR |
@@ -31,12 +35,13 @@
 
 ## Research, standards, and operations records
 
-`docs/doctoring/`, `docs/papers/`, and `docs/operations/` are the authoritative research/standards/runbook record for OIDC/OAuth/JWT, SCIM, SAML, LDAP, WebAuthn/passkeys, Keycloak behavior, relying-party lifecycle, and automation changes. This matrix does not duplicate full bibliographic entries.
+`docs/doctoring/`, `docs/papers/`, and `docs/operations/` are the authoritative research/standards/runbook record for OIDC/OAuth/JWT, SCIM, SAML, LDAP, WebAuthn/passkeys, Keycloak behavior, relying-party lifecycle, hierarchical authorization, programmable application tokens, start-login, and automation changes. This matrix does not duplicate full bibliographic entries.
 
 ## Maturity rules
 
 - `implemented-main`: source and representative tests exist on protected main.
-- `active-PR`: source/evidence exists only on an open PR; do not advertise as released/current behavior.
+- `active-PR`: source/evidence exists only on an open PR; do not advertise as released/current behavior. PR #103's hierarchical PDP, SSO combinations, start-login helper, and PATs remain unmerged candidate source in this private composition.
+- Pinned-main maturity in this record is source-local at `7d9151cd2da260e118020c938c7358e2ee75d541`, not a new remote observation or deployed acceptance. Dated gap-baseline inventories remain historical observations and are not rewritten by this reconciliation.
 - `accepted-contract`: architecture/data contract is accepted, but physical migration/runtime evidence is still required before claiming enforcement.
 - `gap-not-claimed`: a known boundary is intentionally documented as not guaranteed by protected-main behavior.
 - Architecture diagrams/plans/PR bodies alone cannot promote maturity.

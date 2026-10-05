@@ -1,7 +1,7 @@
 # Keyverse UML and Runtime Views
 
 **Status:** Accepted protected-main diagrams with integrated changes labelled.
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 ## Component and authority view
 
@@ -106,8 +106,72 @@ sequenceDiagram
     Policy-->>RP: authorization decision
 ```
 
-Authentication, client reconciliation, and mapper presence do not bypass the
-RP policy sequence. ADR-0008 records the audited status of each non-fork RP.
+Authentication, client reconciliation, mapper presence, and Keyverse PDP
+receipts do not bypass the RP policy sequence. ADR-0008 records the audited
+status of each non-fork RP. ADR-0010 adds an issuer-side decision that the RP
+may consult after token validation.
+
+## Hierarchical authorization decision
+
+**PR103 source maturity:** PR #103 is active-PR, unmerged candidate source:
+hierarchical authorization plane, start-login helper, and programmable
+application tokens are not protected-main or deployed readiness. The following
+three sequences describe that candidate; Orgmetra and RP authority stay separate.
+
+```mermaid
+sequenceDiagram
+    participant Orgmetra
+    participant Operator
+    participant Keyverse as Keyverse PDP
+    participant Store as Grant store
+    participant RP as Relying-party PEP
+
+    Orgmetra-->>Operator: assignment_record snapshot
+    Operator->>Keyverse: persist software-unit or menu grant
+    Keyverse->>Store: authorization grant
+    RP->>RP: validate iss/aud/sig/exp/sub
+    RP->>Keyverse: decide with org_path snapshot
+    Keyverse->>Store: load grants
+    Keyverse->>Keyverse: most-specific inherited grant
+    Keyverse-->>RP: attributes and effect
+    RP->>RP: enforce locally
+```
+
+Orgmetra remains employment SoR. Keyverse never copies the org tree.
+
+## App start-login helper
+
+```mermaid
+sequenceDiagram
+    participant App as Relying application
+    participant Keyverse
+    participant Registry as Local IdP registry
+    participant Browser
+    participant Keycloak
+
+    App->>Keyverse: POST start-login
+    Keyverse->>Registry: read enabled providers
+    Keyverse-->>App: kc_idp_hint URL, no metadata fetch
+    App->>Browser: redirect with PKCE
+    Browser->>Keycloak: authorization + kc_idp_hint
+```
+
+## Programmable application token
+
+```mermaid
+sequenceDiagram
+    participant Operator
+    participant Keyverse
+    participant Store as Hashed token store
+    participant App as Software unit
+
+    Operator->>Keyverse: issue PAT
+    Keyverse->>Store: token_hash only
+    Keyverse-->>Operator: plaintext once
+    Operator->>App: secret-manager placement
+    App->>Keyverse: verify token + software unit + APIs
+    Keyverse-->>App: allow or deny, no secret echo
+```
 
 ## Account merge state view
 
@@ -134,6 +198,7 @@ Unverified email cannot enter `candidate_link` by itself.
 flowchart LR
     PUT[SCIM full replacement PUT]
     PATCH[SCIM PATCH active=false]
+    DELETE[SCIM soft DELETE]
     MERGE[Merge/link mutation]
     LOCK[user_operation_lock_state]
     USER[Keycloak user state]
@@ -143,13 +208,15 @@ flowchart LR
     MERGE --> LOCK
     LOCK --> USER
     PATCH --> LOCK
+    DELETE --> LOCK
     USER --> AUDIT
 ```
 
-Protected `main` guarantees the shared cross-process lock for merge/link and
-full SCIM replacement. Active PR #113 extends the boundary to the supported
-`PATCH active=false` deprovisioning path; its retryable SCIM `503` behavior is
-not a protected-main guarantee until exact-head review and Checks pass.
+**SCIM source maturity:** Pinned main
+`7d9151cd2da260e118020c938c7358e2ee75d541` is implemented-main source:
+`PUT`, `PATCH active=false`, and `DELETE` use the shared user-operation lock
+and return retryable SCIM `503` on contention. This is not deployed acceptance.
+The source diagram records this boundary, not live Keycloak or PostgreSQL evidence.
 
 ## Automation authority
 
