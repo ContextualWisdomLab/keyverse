@@ -89,6 +89,29 @@ original reviewer assertion failed before the route repair and passed after it.
 This boundary requires whole-candidate execution and independent review;
 local results are not deployment or protected-merge acceptance.
 
+### One-event rotation metadata (private PR103 candidate)
+
+Keyverse policy retains one successor-correlated `application_token_rotated`
+event. The existing successor ID and active lifecycle fields remain unchanged.
+`replaced_token_id` and `replaced_token_lifecycle_status_code` come from the
+captured updated predecessor row already persisted by the successful conditional
+cutover, rather than a later independent read. These IDs and state codes are
+non-secret product data; no plaintext or hash is added. Both states describe
+that historical cutover, not later lifecycle changes. This is a repository
+policy, not an additional standards requirement; the existing confidentiality
+and SQLite references above remain applicable.
+
+`test_pat_rotation_audit_metadata.py` covers memory and real SQLite KV/audit
+close/reopen, nonempty machine-capability positives, one-event cardinality,
+unchanged issue/revoke shapes, exact predecessor-query limits, captured state
+after independent retirement, and failed append with original-error and
+conditional-compensation controls. The existing lifecycle/concurrency cohort
+retains its schedules and assertions with only optional-keyword hook
+compatibility. Generic `events_for` still selects only exact `audit_id`; adding
+payload lineage does not repair predecessor lookup. Audit/KV non-atomicity and
+append-then-error uncertainty are unchanged. Local evidence does not establish
+whole-candidate review, protected integration, or deployed acceptance.
+
 ## Assumptions and limitations
 
 This slice does not replace confidential OIDC client-secret placement
@@ -124,6 +147,14 @@ Jones, M. B., Hardt, D., & Campbell, B. (2020). *JSON Web Token best current
 practices* (BCP 225, RFC 8725). RFC Editor.
 https://www.rfc-editor.org/rfc/rfc8725
 
+Python Software Foundation. (n.d.-a). *Built-in exceptions: Exception context*
+(Python 3.12 documentation).
+https://docs.python.org/3.12/library/exceptions.html#exception-context
+
+Python Software Foundation. (n.d.-b). *Simple statements: The raise statement*
+(Python 3.12 documentation).
+https://docs.python.org/3.12/reference/simple_stmts.html#the-raise-statement
+
 SQLite. (n.d.). *Transaction*. Retrieved October 5, 2026, from
 https://www.sqlite.org/lang_transaction.html
 
@@ -132,3 +163,94 @@ Galluzzo, R., & Richer, J. (2025). *Digital identity guidelines:
 Authentication and authenticator management* (NIST Special Publication
 800-63B-4). National Institute of Standards and Technology.
 https://doi.org/10.6028/NIST.SP.800-63b-4
+
+## Explicit tenant-required PAT rotation lineage (private PR103 candidate)
+
+`ApplicationTokenService.rotation_audit_for(token_id, tenant_deployment_id=tenant)`
+reads historical rotations through a separate optional typed audit capability.
+Both inputs are required exact strings: token IDs are `tok-` plus 16 lowercase
+hex digits and tenants use the issuing service's slug grammar. The service does
+not consult KV, mint credentials, append events, or expose an HTTP route.
+Tenant scope restricts data; the shared operator boundary is not per-tenant
+membership authorization. Stored actor metadata is not an authenticated human
+principal. Future HTTP exposure requires a separately reviewed privileged route,
+never runtime verification or the generic merge audit route.
+
+Memory copies rotation rows under one lock. SQLite captures them with one bound
+SELECT in physical append order. Both validate **every captured rotation before
+selecting tenant or token**, deliberately failing all reads on a corrupt rotation
+in any tenant. This is an explicit availability tradeoff, not per-tenant corruption
+isolation. Malformed nonrotation JSON stays opaque under generic exact correlation.
+Unknown keys, partial/null lineage, duplicate JSON keys, nonfinite constants and
+scalar exponent overflow, invalid types and contradictory metadata fail closed.
+
+Results are closed frozen DTOs with an ordered tuple of secret-free events and
+an exact Boolean `predecessor_lookup_complete`. The current six-key legacy payload
+projects as `legacy_missing` with null predecessor fields; any requested-tenant
+legacy row makes completeness false, including on an empty/unrelated lookup.
+Other-tenant legacy rows do not affect that flag. A modern row projects recorded
+successor-active/predecessor-rotated historical states. Prefix, hash, plaintext,
+capabilities and raw payload JSON are not projected. Allowed opaque actor/identifier
+metadata is not a guarantee against a malicious caller placing secrets there.
+
+Successor OR recorded predecessor matches once per physical row. A→B→C gives B
+its two adjacent events, A and C only their adjacent event; no transitive walk or
+correlation-ID deduplication occurs. Physical duplicates remain visible. Generic
+`AuditSink` enumeration and `AuditLogger.events_for` exact bytes/semantics are
+unchanged; rotation still appends only one successor-correlated event.
+
+Custom reader output is revalidated at logger and service boundaries for exact
+shape, event semantics, tenant, ID match and contradictory legacy completeness.
+Those facades cannot prove a custom reader captured all unseen storage rows.
+Unsupported readers and unavailable storage raise fixed typed errors, never empty
+success. Errors omit raw driver/validation details and raw cause/context; this does
+not claim erasure of temporary interpreter memory or traceback locals. BaseException
+interruption is not caught.
+
+A post-capture independent append appears on the next read, not the current one.
+Instance locks do not lock independent connections/processes. Reads scan and
+validate all stored rotations, O(rotation rows), without JSON1, DDL/index changes,
+pagination, truncation, cache or a resource-bound promise. Completeness describes
+legacy coverage of that captured set, not retention, audit loss, current validity,
+or authenticated evidence. KV and audit remain non-atomic; a read between cutover
+and append can return no row. Audit append-then-error and crash uncertainty remain.
+
+The repository-discoverable `test_pat_rotation_audit_read.py` covers real memory
+and SQLite close/reopen, actual service issue/rotate, query-before-access, strict
+JSON/metadata, legacy/cross-tenant/facade controls, secret/error containment and
+independent committed append barriers without sleeps. First-GREEN characterization
+of already working boundaries is distinguished from reader behavioral RED→GREEN.
+Local private results do not establish independent whole-union review, protected
+integration, issuer acceptance or deployment readiness.
+
+### Malformed reader-error and stored-envelope containment (F1/F2 successor)
+
+The Python references describe exception semantics. This repair does not
+assert a retrieval date or authenticate earlier handoff lookup claims. Those
+claims are excluded. The measured local runtime is Python 3.12.13; the
+regressions independently test the promised error containment.
+
+A custom typed failure's code is read once inside an ordinary-Exception boundary.
+Only an exact builtin string in the existing closed vocabulary is preserved;
+missing, list/dict, str-subclass, unknown or failing-property codes become
+`storage_unavailable`. The boundary does not inspect raw args, str or repr.
+It constructs the fixed error only after the relevant handlers have exited,
+with no original cause/context; `raise ... from None` alone would only suppress
+context display, not erase that reference (Python Software Foundation, n.d.-a).
+BaseException interruptions remain uncaught.
+
+Memory validates exact AuditEvent class and exact-string event discriminator
+before filtering; missing/failing/malformed discriminators fail as
+`corrupt_rotation_event`, never a silently discarded row. The shared rotation
+decoder acquires all seven stored envelope fields under a bounded shape guard
+before strict payload/metadata validation. Missing fields and ordinary property
+failures use the same fixed corruption error. Nonrotation payload JSON remains
+opaque and generic audit enumeration is unchanged. Deliberate frozen-memory
+object corruption is the tested boundary, not a claim of physical SQLite
+corruption. Global rotation-before-tenant/token validation remains unchanged.
+
+`test_pat_rotation_containment.py` retains direct logger/injected-service failure
+regressions and valid-before-corrupt stored-memory controls. This successor does
+not change service delegation, schema, KV, HTTP, issuer or PDP policy and requires
+fresh independent whole-source review; local GREEN does not clear the retained
+predecessor NONPASS or establish deployment/integration acceptance.

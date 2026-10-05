@@ -7,6 +7,16 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
+- PAT rotation reads contain malformed custom typed-error codes and incomplete
+  stored-memory envelopes as fixed closed errors without raw cause/context.
+  Known exact-string codes, strict global validation and generic audit queries
+  remain unchanged; this private successor awaits fresh whole-source review.
+
+- PAT rotation retains one successor-correlated audit event and now includes the
+  predecessor ID and captured persisted retired state. Generic audit queries
+  remain exact-correlation reads; this metadata does not add predecessor lookup
+  or make audit and KV atomic. Issue/revoke payload shapes are unchanged.
+
 - PAT verification schema errors now return a fixed HTTP 422 without reflecting
   submitted values or keys, including direct runtime-router embedding.
 - The 58 source-maturity regressions are now included in the account-service
@@ -39,6 +49,12 @@ Keep a Changelog, and releases use semantic versioning.
   admitted by an RP or make separately committed policy writes one rollout.
 
 ### Added
+
+- Explicit tenant-required in-process PAT rotation lineage reads on memory and
+  SQLite, with frozen secret-free metadata and an explicit legacy predecessor
+  coverage flag. Generic correlation and one append remain unchanged. Corrupt
+  rotation rows anywhere fail the captured read; tenant scope is not membership
+  authorization. No HTTP route or KV reconstruction is added.
 
 - Hierarchical authorization plane (ADR-0010): software-unit ACL, menu
   ABAC/RBAC decisions, SSO combination scopes, and most-specific org-path

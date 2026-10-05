@@ -22,7 +22,10 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from starlette.responses import JSONResponse, Response
 
-from .audit import AuditLogger
+from .audit import (
+    AuditLogger, ApplicationTokenRotationAuditRead,
+    _rotation_storage_call, _validate_rotation_query, _validate_rotation_scope,
+)
 from .auth import operator_auth_dependency, runtime_auth_dependency
 from .errors import AuthorizationPolicyError
 from .kv_store import KvStore
@@ -222,6 +225,20 @@ class ApplicationTokenService:
                 raise
         return self._issue_response(record, plaintext)
 
+    def rotation_audit_for(
+        self, application_token_id: str, *, tenant_deployment_id: str
+    ) -> ApplicationTokenRotationAuditRead:
+        """Read tenant-scoped historical rotation metadata without consulting KV.
+
+        Tenant scope is not membership authorization. This in-process management
+        seam adds no HTTP endpoint and does not report current token validity.
+        """
+        _validate_rotation_query(application_token_id, tenant_deployment_id)
+        result = _rotation_storage_call(lambda: self._audit.application_token_rotation_events_for(
+            application_token_id, tenant_deployment_id=tenant_deployment_id
+        ))
+        return _validate_rotation_scope(result, application_token_id, tenant_deployment_id)
+
     def list_tokens(self) -> list[ApplicationTokenView]:
         """Return secret-free views of every stored token."""
         return [
@@ -328,6 +345,7 @@ class ApplicationTokenService:
                     "application_token_rotated",
                     request.actor_identity_id,
                     record,
+                    predecessor=updated,
                 )
             except Exception:
                 self._compensate_records(
@@ -556,20 +574,33 @@ class ApplicationTokenService:
         event_type: str,
         actor_identity_id: str,
         record: ApplicationTokenRecord,
+        *,
+        predecessor: ApplicationTokenRecord | None = None,
     ) -> None:
-        """Record one hashed-token lifecycle event without secret material."""
+        """Record one secret-free event, with captured retired state for rotation.
+
+        Correlation and lifecycle status describe the successor. Optional
+        predecessor metadata describes the row written at cutover, not its
+        current state after an independent lifecycle action.
+        """
+        payload = {
+            "application_token_id": record.application_token_id,
+            "tenant_deployment_id": record.tenant_deployment_id,
+            "software_unit_id": record.software_unit_id,
+            "token_prefix": record.token_prefix,
+            "purpose_code": record.purpose_code,
+            "lifecycle_status_code": record.lifecycle_status_code,
+        }
+        if predecessor is not None:
+            payload.update({
+                "replaced_token_id": predecessor.application_token_id,
+                "replaced_token_lifecycle_status_code": predecessor.lifecycle_status_code,
+            })
         self._audit.emit(
             audit_id=record.application_token_id,
             event_type=event_type,
             actor=actor_identity_id,
-            payload={
-                "application_token_id": record.application_token_id,
-                "tenant_deployment_id": record.tenant_deployment_id,
-                "software_unit_id": record.software_unit_id,
-                "token_prefix": record.token_prefix,
-                "purpose_code": record.purpose_code,
-                "lifecycle_status_code": record.lifecycle_status_code,
-            },
+            payload=payload,
         )
 
 

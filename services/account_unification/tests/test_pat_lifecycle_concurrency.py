@@ -98,7 +98,7 @@ def test_rotation_audit_failure_preserves_completed_successor_revoke(pair, monke
     failure = RuntimeError("fixture audit unavailable")
     completed = []
 
-    def audit_failure(_event, _actor, record):
+    def audit_failure(_event, _actor, record, *, predecessor=None):
         completed.append(services[1].revoke(
             record.application_token_id, actor_identity_id="independent-operator",
         ))
@@ -121,7 +121,7 @@ def test_rotation_audit_failure_preserves_completed_successor_rotation(pair, mon
     failure = RuntimeError("fixture audit unavailable")
     next_tokens = []
 
-    def audit_failure(_event, _actor, record):
+    def audit_failure(_event, _actor, record, *, predecessor=None):
         next_tokens.append(services[1].rotate(record.application_token_id, issue_request()))
         raise failure
 
@@ -141,7 +141,7 @@ def test_compensation_conflict_removes_still_owned_successor_without_restore(pai
     failure = RuntimeError("fixture audit unavailable")
     completed = []
 
-    def audit_failure(_event, _actor, successor):
+    def audit_failure(_event, _actor, successor, *, predecessor=None):
         # A separate recovery writes a new conservative revoked generation.
         from app.application_tokens import ApplicationTokenRecord
         raw = stores[1].get(APPLICATION_TOKEN_NAMESPACE, issued.application_token_id)
@@ -191,7 +191,7 @@ def test_issue_failure_does_not_delete_completed_independent_revoke(pair, monkey
     completed = []
     failure = RuntimeError("fixture audit unavailable")
 
-    def audit_failure(_event, _actor, record):
+    def audit_failure(_event, _actor, record, *, predecessor=None):
         completed.append(services[1].revoke(
             record.application_token_id, actor_identity_id="independent-operator",
         ))
@@ -236,7 +236,7 @@ def test_revoke_compensation_cannot_confuse_identical_clock_generations(pair, mo
     failure = RuntimeError("fixture audit unavailable")
     completed = []
 
-    def audit_failure(_event, _actor, record):
+    def audit_failure(_event, _actor, record, *, predecessor=None):
         # Another compensation restores the original active bytes, then an
         # independent service completes a new revoke at the identical clock.
         assert stores[1].compare_and_replace(
@@ -267,7 +267,7 @@ def test_compensation_storage_error_preserves_original_and_removes_owned_new_tok
     original = stores[0].compare_and_replace
     cleanup_calls = []
 
-    def audit_failure(*args):
+    def audit_failure(*args, **kwargs):
         raise failure
 
     def conditional(namespace, expected, entries, delete_keys=()):
@@ -328,7 +328,7 @@ def test_legacy_raw_row_and_audit_failure_restore_without_stale_compare(pair, mo
     stores[0].put(APPLICATION_TOKEN_NAMESPACE, issued.application_token_id, raw)
     failure = RuntimeError("fixture audit unavailable")
 
-    def audit_failure(*args):
+    def audit_failure(*args, **kwargs):
         raise failure
 
     monkeypatch.setattr(services[0], "_audit_event", audit_failure)
@@ -356,7 +356,7 @@ def test_revoke_failed_compensation_leaves_retirement_and_original_error(pair, m
             raise OSError("fixture cleanup storage unavailable")
         return original(namespace, expected, entries, delete_keys)
 
-    def audit_failure(*args):
+    def audit_failure(*args, **kwargs):
         raise failure
 
     monkeypatch.setattr(stores[0], "compare_and_replace", conditional)
@@ -381,7 +381,7 @@ def test_persistent_cleanup_failure_does_not_replace_audit_error(pair, monkeypat
             raise OSError("fixture persistent cleanup outage")
         return original(namespace, expected, entries, delete_keys)
 
-    def audit_failure(*args):
+    def audit_failure(*args, **kwargs):
         raise failure
 
     monkeypatch.setattr(stores[0], "compare_and_replace", conditional)
@@ -403,7 +403,7 @@ def test_audit_callback_allows_independent_threaded_lifecycle(pair, monkeypatch)
     errors, completed = [], []
     workers = []
 
-    def audit_failure(_event, _actor, record):
+    def audit_failure(_event, _actor, record, *, predecessor=None):
         def revoke():
             try:
                 completed.append(services[1].revoke(
