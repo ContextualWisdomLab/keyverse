@@ -7,6 +7,27 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      pydantic-runtime:
+        applies-to: "version-updates"
+        patterns:
+          - "pydantic"
+          - "pydantic-core"
+      httpx2-runtime:
+        applies-to: "version-updates"
+        patterns:
+          - "httpx2"
+          - "httpcore2"
+      pydantic-runtime-security:
+        applies-to: "security-updates"
+        patterns:
+          - "pydantic"
+          - "pydantic-core"
+      httpx2-runtime-security:
+        applies-to: "security-updates"
+        patterns:
+          - "httpx2"
+          - "httpcore2"
   - package-ecosystem: "docker"
     directory: "/services/account_unification"
     schedule:

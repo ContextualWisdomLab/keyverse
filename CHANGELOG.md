@@ -73,6 +73,9 @@ Keep a Changelog, and releases use semantic versioning.
 - Added the product/technical gap baseline and its APA 7th doctoring record,
   including the current exact-head PR/Issue inventory and explicit
   `gap-not-claimed` runtime and release boundaries.
+- Exact-coupled `pydantic`/`pydantic-core` and `httpx2`/`httpcore2` updates are
+  grouped into atomic Dependabot pull requests, while CI independently installs
+  and checks both `uv.lock` and the exported hash-locked requirements graph.
 - Relying-party deployment controllers now send validated, secret-free metadata
   to Keyverse desired-state PUT instead of applying client representations
   directly to Keycloak; confidential credential placement remains a separate
