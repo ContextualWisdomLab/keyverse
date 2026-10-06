@@ -4,7 +4,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 from app.keyvault import (
     KeyvaultKdfParameters,
@@ -166,10 +166,52 @@ def test_wrong_passphrase_cannot_partially_migrate_legacy_vault(tmp_path):
     old_ciphertext = Fernet(legacy_key).encrypt(b"legacy-secret")
     store.put("service", "credential", old_ciphertext, actor="legacy-fixture")
 
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidToken):
         store.migrate_legacy_kdf("wrong-passphrase", actor="migration-operator")
 
     assert store.get("service", "credential") == old_ciphertext
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM keyvault_kdf_config").fetchone() == (0,)
+    store.close()
+
+
+def test_one_unreadable_record_blocks_rewrap_of_every_legacy_record(tmp_path):
+    """A readable first record is not rewrapped when a later record fails authentication.
+
+    The migration must authenticate every legacy ciphertext before it issues any
+    ``UPDATE``. Otherwise a rollback would merely hide an interleaved write that a
+    future non-transactional store could leave durable.
+    """
+    database_path = str(tmp_path / "mixed-legacy.db")
+    store = SqliteKeyvaultStore(database_path)
+    readable_ciphertext = Fernet(
+        legacy_fernet_key_for_migration("correct-passphrase")
+    ).encrypt(b"tenant-a-client-secret")
+    foreign_ciphertext = Fernet(
+        legacy_fernet_key_for_migration("other-operator-passphrase")
+    ).encrypt(b"tenant-b-client-secret")
+    store.put("tenant-a", "oidc-client", readable_ciphertext, actor="legacy-fixture")
+    store.put("tenant-b", "oidc-client", foreign_ciphertext, actor="legacy-fixture")
+    events_before = {
+        namespace: store.events_for(namespace, "oidc-client")
+        for namespace in ("tenant-a", "tenant-b")
+    }
+    executed_statements: list[str] = []
+    store._connection.set_trace_callback(executed_statements.append)
+
+    with pytest.raises(InvalidToken):
+        store.migrate_legacy_kdf("correct-passphrase", actor="migration-operator")
+
+    store._connection.set_trace_callback(None)
+    assert not [
+        statement
+        for statement in executed_statements
+        if statement.lstrip().upper().startswith(("UPDATE", "INSERT"))
+    ]
+    assert store.get("tenant-a", "oidc-client") == readable_ciphertext
+    assert store.get("tenant-b", "oidc-client") == foreign_ciphertext
+    for namespace, events in events_before.items():
+        assert store.events_for(namespace, "oidc-client") == events
     with sqlite3.connect(database_path) as connection:
         assert connection.execute("SELECT COUNT(*) FROM keyvault_kdf_config").fetchone() == (0,)
     store.close()

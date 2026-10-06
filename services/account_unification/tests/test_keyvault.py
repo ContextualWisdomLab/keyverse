@@ -4,6 +4,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from cryptography.fernet import InvalidToken
 
 from app.keyvault import (
     InMemoryKeyvaultStore,
@@ -133,7 +134,7 @@ def test_wrong_passphrase_cannot_decrypt_another_services_secrets(tmp_path):
     reader = KeyvaultService(
         shared_store, derive_fernet_key("wrong-passphrase", parameters)
     )
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidToken):
         reader.get_secret("ns", "key1", actor="operator1")
     writer.close()
 
@@ -190,7 +191,7 @@ def test_failed_decryption_is_not_recorded_as_successful_read(tmp_path):
     reader = KeyvaultService(
         store, derive_fernet_key("wrong-passphrase", parameters)
     )
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidToken):
         reader.get_secret("ns", "key1", actor="reader")
     assert [event["action"] for event in store.events_for("ns", "key1")] == [
         "secret_set"
