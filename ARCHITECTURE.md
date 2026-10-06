@@ -186,6 +186,13 @@ and then apply bounded role/scope/group RBAC. A registered client or accepted
 mapper receipt never grants authorization by itself; see ADR-0008 for the
 non-fork application matrix and remediation gates.
 
+An RP that stores a Keyverse subject as a durable link uses the
+`keyverse.subject-assertion/v1` contract (ADR-0020,
+[`docs/contracts/`](docs/contracts/README.md)). Its verifier is pure and
+offline: the deployment pins issuer, audience, algorithms, public keys, and
+subject type. Only `public` and `pairwise` profiles return a `durable`
+correlation key; `ephemeral` profiles authenticate the session only.
+
 ## Account and provisioning invariants
 
 1. Matching precedence is exact `(identity_provider, subject)`, then verified
