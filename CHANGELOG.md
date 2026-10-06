@@ -111,15 +111,17 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Fixed
 
-- Proposed dedicated-group isolated self-hosted routing for the three local CI
-  jobs after a billing lock prevented hosted job startup. Checkout no longer
-  persists its token; all test/coverage/build gates remain unchanged. Actual
-  isolated runner eligibility and execution remain rollout prerequisites.
+- Routed the three local CI jobs to the dedicated `CWL CI isolated`
+  self-hosted runner group after a billing lock prevented hosted job startup.
+  Checkout no longer persists its token, and fork pull requests are not
+  admitted because the runners persist between jobs. All test/coverage/build
+  gates remain unchanged.
 
-- Removed the obsolete local PR-steward tests after #140 centralized PR
-  maintenance. Added an ownership regression and aligned architecture and
-  operator guidance without restoring local merge automation or changing
-  production identity behavior.
+- Removed the obsolete local PR-steward tests after #140 retired the local
+  steward in favor of the organization's central PR governance (central
+  dispatch and effectiveness are not verified by this change). Added an
+  ownership regression and aligned architecture and operator guidance without
+  restoring local merge automation or changing production identity behavior.
 
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,

@@ -1,7 +1,7 @@
 # Local CI isolated-runner routing
 
-**Date:** 2026-10-04
-**Status:** Proposed source routing; runtime eligibility and protected integration pending
+**Date:** 2026-10-04 (updated 2026-10-06)
+**Status:** Active source routing; runner ephemerality and egress allowlist pending
 
 ## Measured cause and bounded repair
 
@@ -37,10 +37,30 @@ Existing operator issue `linux-cluster-ops#326` retains disposable capacity,
 private-service denial, clean-per-job state, registration custody, minimum
 repository access, tool-image and real canary requirements. Its observed
 credential-free point probes do not establish complete kernel-enforced denial
-or a registered eligible pool. The proposal must remain Draft until those
-operational boundaries and fresh current-head checks/review are satisfied.
-No runner registration, relabeling, ACL expansion, billing purchase, credential
-change, protected-gate weakening or release is performed by this source repair.
+or a registered eligible pool.
+No billing purchase, credential change, protected-gate weakening or release is
+performed by this source repair.
+
+## Observed activation and fork boundary (2026-10-06)
+
+The group `CWL CI isolated` now holds runner VMs `keyverse-ci-01` and
+`orgmetra-ci-01` on host S1. Each VM runs QEMU as an unprivileged user under an
+egress firewall that rejects loopback, link-local and RFC 1918 destinations.
+On PR143 head `2728b04493f17eb5256533448875398fb1325056`, CI run `37441958351`
+ran all three jobs on these runners, and all three succeeded.
+
+These runners are persistent, not ephemeral, and public internet egress is
+open. Code from one job can therefore leave state that a later job observes.
+GitHub states that self-hosted runners "can be persistently compromised by
+untrusted code in a workflow" and "should almost never be used for public
+repositories" (GitHub, n.d., Secure use reference). The workflow consequently
+admits a pull request only when
+`github.event.pull_request.head.repo.full_name == github.repository`; fork pull
+request code never runs on these runners. A contract test pins this guard on
+all three jobs and rejects `pull_request_target` and `workflow_run` triggers.
+Ephemeral (`--ephemeral`) registration with per-job VM reset and a destination
+allowlist remain operator follow-ups before fork contributions can be tested
+on this capacity.
 
 The separate hourly product-development workflow is unchanged and is not part
 of this three-job routing claim; do not claim organization-wide migration.
@@ -57,6 +77,10 @@ https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflow
 
 GitHub. (n.d.). *Checkout* [Source code documentation]. Retrieved October 4,
 2026, from https://github.com/actions/checkout/blob/main/README.md
+
+GitHub. (n.d.). *Secure use reference: Hardening for self-hosted runners*.
+GitHub Docs. Retrieved October 6, 2026, from
+https://docs.github.com/en/actions/reference/security/secure-use#hardening-for-self-hosted-runners
 
 ContextualWisdomLab. (2026). *All self-hosted runner routing* (.github PR #2565,
 source snapshot `ab0c865989012c88d2c10c717f6649a76ea49e27`).

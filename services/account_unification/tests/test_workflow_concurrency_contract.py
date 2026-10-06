@@ -27,7 +27,8 @@ def test_ci_skips_draft_and_closed_pull_requests() -> None:
     )
     admission = (
         "if: ${{ github.event_name != 'pull_request' || "
-        "(github.event.action != 'closed' && github.event.pull_request.draft == false) }}"
+        "(github.event.action != 'closed' && github.event.pull_request.draft == false && "
+        "github.event.pull_request.head.repo.full_name == github.repository) }}"
     )
     assert workflow.count(admission) == 3
 

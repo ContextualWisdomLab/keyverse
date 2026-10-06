@@ -18,7 +18,8 @@ permissions:
 
 jobs:
   account-unification-tests:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false) }}
+    # Self-hosted runners persist between jobs: never run fork pull request code.
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository) }}
     # Fail closed until the isolated group has eligible disposable capacity.
     # Do not substitute persistent control runners or a hosted fallback.
     runs-on:
@@ -57,7 +58,8 @@ jobs:
         run: uv build --out-dir dist
 
   realm-config-validates:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false) }}
+    # Self-hosted runners persist between jobs: never run fork pull request code.
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository) }}
     # Fail closed until the isolated group has eligible disposable capacity.
     # Do not substitute persistent control runners or a hosted fallback.
     runs-on:
@@ -83,7 +85,8 @@ jobs:
           PY
 
   compose-config-validates:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false) }}
+    # Self-hosted runners persist between jobs: never run fork pull request code.
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository) }}
     # Fail closed until the isolated group has eligible disposable capacity.
     # Do not substitute persistent control runners or a hosted fallback.
     runs-on:

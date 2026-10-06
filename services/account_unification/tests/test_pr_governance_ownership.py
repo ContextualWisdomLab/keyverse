@@ -41,9 +41,9 @@ def test_publication_races_do_not_depend_on_retired_hourly_steward() -> None:
         (ROOT / "docs/operations/hourly-product-development.md")
         .read_text(encoding="utf-8").split()
     )
-    race_section = text.split("## Publication and race handling", 1)[1].split(
-        "## First activation", 1
-    )[0]
+    sections = text.split("## Publication and race handling", 1)
+    assert len(sections) == 2, "publication/race section heading is missing or renamed"
+    race_section = sections[1].split("## First activation", 1)[0]
     assert "hourly steward" not in race_section
     assert "protected PR path" in race_section
     assert "central PR governance" in race_section
