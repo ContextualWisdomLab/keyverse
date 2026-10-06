@@ -1,18 +1,36 @@
 # Hourly product-development loop
 
 Keyverse separates protected pull-request maintenance from autonomous product
-development. The schedules are offset so the merge loop has time to settle the
-repository before a new product slice is considered.
+development. Protected PR maintenance is owned by the organization's central
+`pr-review-merge-scheduler.yml`, not a second Keyverse-local merge loop.
+Keyverse's former hourly steward was removed in #140. Current-head review,
+required Checks, and branch protection remain mandatory; local test success
+alone does not prove central dispatch, approval, or merge readiness.
 
 | Minute (UTC) | Workflow | Responsibility |
 | --- | --- | --- |
-| `17 * * * *` | `hourly-pr-steward.yml` | Update trusted PR branches, require approval and required Checks, then arm exact-head auto-merge. |
 | `41 * * * *` | `hourly-product-development.yml` | When the PR queue is empty and exact `main` is healthy, use OpenCode with NVIDIA NIM to produce one bounded buyer-visible draft PR. |
 
 The development scheduler never approves or merges its own work and never
 publishes a release. The existing review-agent workflows and their credentials
 remain unchanged. Review, repair, revalidation, and merge stay owned by the
 normal protected PR path.
+
+## Local CI admission prerequisite
+
+The local `ci.yml` routes its three jobs through the dedicated `CWL CI isolated`
+runner group with `self-hosted`, `linux`, `x64`, and `cwlab-ci-isolated` labels.
+There is no hosted fallback or persistent control-runner substitution, and each
+checkout uses `persist-credentials: false`. The commands, Python 3.12 contract,
+coverage thresholds, action pins, and Draft/closed-PR admission remain unchanged.
+
+This is proposed source routing, not activated capacity. Before public PR jobs
+execute, the existing isolated-runner operator must prove selected-repository
+eligibility, disposable per-job state, host/private-network denial, tool-image
+acceptance, and cleanup. Central `.github#2565` and `linux-cluster-ops#326` retain
+those existing owner gates. Do not relabel privileged runners, widen access,
+change billing, or reuse a token merely to drain the queue. Required Checks and
+independent current-head approval remain mandatory for protected merge.
 
 ## Architecture
 
@@ -199,8 +217,10 @@ a fresh checkout. It creates one run-unique branch named
 
 Workflow concurrency serializes scheduled runs, but GitHub does not provide an
 atomic compare-base-and-create-PR operation. If another actor opens a PR in the
-final network interval, branch protection and the subsequent hourly steward
-remain authoritative. During a duplicate-publication incident, revoke
+final network interval, branch protection and the normal protected PR path
+under central PR governance remain authoritative. This does not establish that
+central dispatch has executed for the new head. During a duplicate-publication
+incident, revoke
 `OPENCODE_PRODUCT_DEVELOPMENT_TOKEN`, close all but one draft, preserve the
 Actions logs and artifacts, add a reproducing contract test, and only then
 restore the token.

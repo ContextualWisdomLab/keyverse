@@ -221,14 +221,23 @@ explicitly documented deployment-controller responsibility.
 
 ## Automation boundaries
 
-- The hourly PR steward advances only trusted same-repository PRs with exact-head
-  approvals and required Checks.
+- Protected PR maintenance belongs to the organization's central
+  `pr-review-merge-scheduler.yml`; Keyverse's local hourly steward was removed
+  in #140. Exact-head approvals and required Checks remain mandatory. The local
+  product-development workflow does not own review or merge authority.
 - The hourly product-development workflow runs OpenCode through
   `NVIDIA_NIM_API_KEY`, not Copilot Agent Tasks or `COPILOT_GITHUB_TOKEN`.
 - The model workspace has no Git metadata, GitHub credential, Actions OIDC,
   publication token, or upstream NIM credential.
 - Generated text patches are bounded, digest-sealed, independently verified on
   a fresh checkout, and published only as a draft PR.
+- Repository `ci.yml` routes the three read-only-token CI jobs (`contents:
+  read`, checkout credential persistence disabled) to the dedicated `CWL CI
+  isolated` group plus self-hosted/Linux/x64/isolation labels. Because those
+  runners persist between jobs, every job admits pull requests only when the
+  head branch belongs to this repository; fork pull request code never runs on
+  them. This source configuration is not proof of ephemeral capacity, complete
+  network isolation or cleanup between jobs.
 - Existing review agents and their credential system remain independent.
 - Neither automation path may self-approve, bypass protection, merge unverified
   work, tag, or publish a release.
