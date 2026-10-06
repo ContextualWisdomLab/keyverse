@@ -1,9 +1,29 @@
 # ADR-0008: Make Keyverse RP authorization explicit across non-fork applications
 
 **Status:** Accepted  
-**Date:** 2026-08-11
+**Date:** 2026-08-11  
+**Updated:** 2026-08-24
 
 ## Context
+
+OpenID Connect Core 1.0 defines a relying party as an OAuth 2.0 client that
+verifies the end user from tokens issued by an OpenID provider (Sakimura et
+al., 2023). JSON Web Token RFC 7519 requires recipients to validate the
+signed claims they consume (Jones, Bradley, & Sakimura, 2015). JWT BCP 225
+updates that guidance and requires audience checks when a JWT is intended for
+a specific recipient (Sheffer et al., 2020). The JWT profile for OAuth 2.0
+access tokens requires a resource server to reject a token whose `aud` does
+not identify that resource (Bertocci, 2021). Bearer tokens can be used by any
+party that possesses them (Jones & Hardt, 2012). NIST SP 800-63C-4 treats
+federation assertions as evidence for a separately administered relying party,
+not as an authorization decision inside that party's resources (Temoshok,
+Richer, et al., 2025).
+
+Those records specify authentication and token-acceptance rules. They do not
+grant authorization from a README listing, a shared GitHub organization, or a
+hardcoded routing claim. Identity attributes used for tenant binding are
+handled through purpose-bound access, encryption, and audit. This ADR does not
+claim NIST, IETF, or OpenID conformance.
 
 Keyverse is the ContextualWisdomLab identity hub, but an application does not
 inherit that trust merely because it is listed in the Keyverse README or lives
@@ -169,3 +189,28 @@ link its exact issuer/audience/JWKS configuration, claim mapping, ABAC/RBAC
 tests, cross-tenant denial tests, and production-mode configuration. Until
 that evidence exists, the app's status is `planned`, `gap-not-claimed`, or
 `deployment-restricted`, never `authorization-ready`.
+
+## References
+
+Bertocci, V. (2021). *JSON Web Token (JWT) profile for OAuth 2.0 access tokens*
+(RFC 9068). Internet Engineering Task Force. https://doi.org/10.17487/RFC9068
+
+Jones, M., Bradley, J., & Sakimura, N. (2015). *JSON Web Token (JWT)*
+(RFC 7519). Internet Engineering Task Force. https://doi.org/10.17487/RFC7519
+
+Jones, M., & Hardt, D. (2012). *The OAuth 2.0 authorization framework: Bearer
+token usage* (RFC 6750). Internet Engineering Task Force.
+https://doi.org/10.17487/RFC6750
+
+Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., & Mortimore, C. (2023).
+*OpenID Connect Core 1.0 incorporating errata set 2*. OpenID Foundation.
+https://openid.net/specs/openid-connect-core-1_0.html
+
+Sheffer, Y., Hardt, D., & Jones, M. (2020). *JSON Web Token best current
+practices* (BCP 225, RFC 8725). Internet Engineering Task Force.
+https://doi.org/10.17487/RFC8725
+
+Temoshok, D., Richer, J., Choong, Y.-Y., Fenton, J., Lefkovitz, N.,
+Regenscheid, A., & Galluzzo, R. (2025). *Digital identity guidelines:
+Federation and assertions* (NIST SP 800-63C-4). National Institute of Standards
+and Technology. https://doi.org/10.6028/NIST.SP.800-63C-4
