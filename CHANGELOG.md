@@ -123,6 +123,12 @@ Keep a Changelog, and releases use semantic versioning.
   ownership regression and aligned architecture and operator guidance without
   restoring local merge automation or changing production identity behavior.
 
+- Upgraded the development HTTP transport `httpx2` and its exact-coupled
+  `httpcore2` from 2.9.1 to 2.12.0 on `pyproject.toml`, `uv.lock`, and
+  `requirements-dev.txt` together, closing the HIGH advisories
+  CVE-2026-84381 (`wss` through SOCKS5 sent without TLS) and CVE-2026-84382
+  (streaming decompression memory amplification) that failed the `trivy-fs`
+  security gate, with a lock-floor regression test on every surface.
 - Prevented relying-party inventory from silently accepting a KV key/body
   identity mismatch, rejected unsafe live or `Location`-derived client UUIDs,
   and aligned exact client discovery with Keycloak's documented
