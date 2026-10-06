@@ -65,6 +65,8 @@ application relying-party registration.
 - LDAP/Active Directory component preflight and desired-state reconciliation;
 - OIDC relying-party preflight and secret-free desired-state reconciliation;
 - audit and user-operation lock boundaries.
+- namespaced encrypted secret storage whose administrator surface exposes
+  inventory and mutation outcomes, never plaintext values.
 
 The core merge and SCIM layer depends on the narrow `AdminApi` protocol.
 Product extensions are isolated behind `ProductAdminApi`; relying-party client
@@ -94,6 +96,8 @@ modules require neither protocol nor any network client.
 - merge audit: `account_merge_audit`;
 - cross-process user mutation lock sidecar:
   `user_operation_lock_state`.
+- Keyvault secrets and their append-only audit events: `keyvault_secrets` and
+  `keyvault_audit_log` in one SQLite transaction boundary.
 
 Database objects and namespaces use descriptive two-word-or-longer snake_case
 names.

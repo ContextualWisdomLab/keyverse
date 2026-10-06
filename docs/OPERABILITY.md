@@ -30,9 +30,16 @@ A lower-level green state never implies a higher-level state.
 - token issuer/audience/claim acceptance failures;
 - database/storage availability and transaction errors;
 - secret/config bootstrap failures;
+- Keyvault mutation rollback, decryption, and audit-transaction failures;
 - hourly governance run outcomes without false-green classification.
 
 Do not put raw tokens, secrets, passwords/bind credentials, protected private payloads, or unnecessary PII into metrics/logs.
+
+Keyvault administrators may list, set, rotate, and delete entries, but cannot
+retrieve plaintext through the administrator API. A consuming workload remains
+on its existing credential store until a separate integration proves signed
+workload identity, namespace-bound read authority, rotation, outage, and
+rollback behavior. See `docs/operations/keyvault.md`.
 
 ## Federation onboarding runbook
 
