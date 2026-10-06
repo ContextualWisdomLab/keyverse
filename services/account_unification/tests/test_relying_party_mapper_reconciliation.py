@@ -1,8 +1,10 @@
 """OIDC relying-party mapper observation and reconciliation regressions."""
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
@@ -15,6 +17,7 @@ from app.relying_party_state import (
 )
 
 from .test_relying_party_claim_mappers import _naruon_registration_with_mappers
+from .test_relying_party_template import _render_naruon_template
 
 
 def _registration(role_value: str = "member"):
@@ -58,6 +61,28 @@ def test_generated_mapper_ids_and_vendor_order_do_not_create_false_drift(api) ->
 
     assert status.convergence_state is RelyingPartyConvergenceState.IN_SYNC
     assert status.last_apply_receipt_matches is True
+
+
+def test_clean_realm_recovers_naruon_through_desired_state(api) -> None:
+    """Portable import plus runtime template recreates Naruon without embedded RPs."""
+    repository_root = Path(__file__).resolve().parents[3]
+    realm = json.loads(
+        (repository_root / "deploy" / "keycloak" / "realm-cwl.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert {client["clientId"] for client in realm["clients"]} == {
+        "account-unification-svc"
+    }
+    payload = _render_naruon_template()
+    registration = parse_relying_party_registration(payload)
+    service = RelyingPartyService(InMemoryKvStore(), api)
+
+    status = service.put_registration("naruon-web", registration)
+
+    assert status.convergence_state is RelyingPartyConvergenceState.IN_SYNC
+    assert status.last_apply_receipt_matches is True
+    assert len(api.relying_party_clients) == 1
 
 
 def _remove_mapper_field(client: dict) -> None:

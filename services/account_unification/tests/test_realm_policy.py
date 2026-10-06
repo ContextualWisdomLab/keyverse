@@ -70,19 +70,33 @@ def test_bound_browser_flow_rejects_password_authenticator() -> None:
     assert any("disallowed credential-form authenticator" in error for error in errors)
 
 
-def test_public_client_token_lifespan_is_bounded() -> None:
-    """A public browser client cannot issue long-lived bearer access tokens."""
+def test_portable_realm_contains_only_the_control_plane_service_client() -> None:
+    """Runtime application relying parties are absent from portable import."""
+    realm = _realm()
+
+    assert {client.get("clientId") for client in realm["clients"]} == {
+        "account-unification-svc"
+    }
+    assert realm["defaultDefaultClientScopes"] == ["basic", "profile", "email"]
+
+
+def test_validator_rejects_runtime_application_clients() -> None:
+    """A realm export cannot bypass Keyverse desired-state reconciliation."""
     validator = _validator_module()
     realm = deepcopy(_realm())
-    _client(realm, "naruon-web")["attributes"]["access.token.lifespan"] = "901"
+    realm["clients"].extend(
+        [
+            {"clientId": "ecosystem-rp-template"},
+            {"clientId": "naruon-web", "publicClient": True},
+            {"clientId": "unmanaged-web", "publicClient": True},
+        ]
+    )
 
     errors = validator.validate(realm)
 
-    assert any("access.token.lifespan" in error for error in errors)
-
-
-def test_reusable_client_template_does_not_name_naruon_host() -> None:
-    """The generic RP template stays portable across ecosystem products."""
-    template = _client(_realm(), "ecosystem-rp-template")
-    serialized = json.dumps(template, sort_keys=True)
-    assert "naruon.example" not in serialized
+    assert any("runtime application client 'ecosystem-rp-template'" in error for error in errors)
+    assert any("runtime application client 'naruon-web'" in error for error in errors)
+    assert any(
+        "portable realm may contain only the account-unification-svc" in error
+        for error in errors
+    )

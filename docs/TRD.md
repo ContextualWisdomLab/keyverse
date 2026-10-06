@@ -17,7 +17,7 @@ Keyverse separates portable Keycloak realm policy, Keyverse-owned identity contr
 
 ## 3. Trust/authority rules
 
-- Portable realm policy may contain public client/scope/authentication definitions but no tenant/customer federation private values.
+- Portable realm policy may contain the control-plane `account-unification-svc` client plus public scope/authentication definitions, but no runtime application RP clients (public or confidential) and no tenant/customer federation private values.
 - Deterministic preflight never performs network, DNS, Keycloak, bind/search, file, or store mutation.
 - Apply/reconciliation endpoints use exact remote identity lookup and fail on zero/multiple states according to operation semantics.
 - Desired-state intent is persisted before external mutation where recovery requires it; receipt is persisted only after exact re-observation and binds the desired-state hash/version acted on.
