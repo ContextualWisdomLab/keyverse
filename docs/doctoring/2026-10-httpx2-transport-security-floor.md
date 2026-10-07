@@ -38,15 +38,19 @@ with the grouped-update rationale in
 ## Verification contract
 
 `tests/test_dependency_security_floor.py` reads `pyproject.toml`, `uv.lock`,
-and `requirements-dev.txt` directly. It fails when any surface resolves
-`httpx2` or `httpcore2` below 2.12.0, and when the two lock representations
-disagree. The test was recorded failing against the unpatched main lock
-before the dependency surfaces were regenerated.
+and `requirements-dev.txt` directly. It preserves every matching package
+entry and fails when any resolved or generated pin for `httpx2` or
+`httpcore2` is below 2.12.0, or when the two lock representations disagree.
+A baseline-negative control temporarily restored the dependency surfaces from
+`main` after the test was written and produced the intended failures; the
+original implementation order was dependency update, test creation, RED
+control, then restored patched surfaces and GREEN. This was not an original
+production-code tests-first sequence.
 
-`uv sync --locked --extra dev`, Ruff, interrogate, documentation contracts,
-and the complete suite with enforced 100% production statement and branch
-coverage are the compatibility evidence. A local `trivy fs` scan with HIGH
-and CRITICAL severity and `--exit-code 1` is the advisory evidence.
+The patched graph was then verified with `uv lock --check`, a locked Python
+3.12.13 install, and the full repository gate. These checks establish graph
+compatibility and package-surface consistency; they do not claim that this
+repository executes HTTPX2 request or WebSocket traffic.
 
 ## Residual risk
 
