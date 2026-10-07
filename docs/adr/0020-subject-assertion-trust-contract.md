@@ -48,8 +48,12 @@ closed.
    present `azp` must equal this RP.
 5. Correlation eligibility is a profile property, not a token claim.
    `public` and `pairwise` return `correlation: durable` plus a SHA-256
-   `correlation_key` over `[contract_version, issuer, audience, tenant,
-   subject]`. `ephemeral` returns `correlation: session_only` and no key.
+   `correlation_key` over the compact JSON array `[contract_version, issuer,
+   audience, subject_type, tenant, subject]` (separators `,` and `:`; `tenant`
+   is `null` when absent). Non-ASCII characters use ASCII JSON escapes
+   (`ensure_ascii=True`), with no Unicode normalization. Hash the UTF-8 bytes
+   of this JSON text and return lowercase hexadecimal. `ephemeral` returns
+   `correlation: session_only` and no key.
 6. A rejected receipt carries exactly one closed reason and no identity field.
    The receipt never contains raw token bytes.
 7. Key rotation is a profile change: an RP keeps the old public key in the
