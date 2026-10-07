@@ -48,9 +48,16 @@ control, then restored patched surfaces and GREEN. This was not an original
 production-code tests-first sequence.
 
 The patched graph was then verified with `uv lock --check`, a locked Python
-3.12.13 install, and the full repository gate. These checks establish graph
-compatibility and package-surface consistency; they do not claim that this
-repository executes HTTPX2 request or WebSocket traffic.
+3.12.13 install, Ruff, 100% docstring coverage, compilation, documentation
+contracts, 765 passing tests, 100% production statement/branch coverage, and
+a local HIGH/CRITICAL Trivy scan with zero findings. An online `uv build`
+attempt failed because the PyPI connection timed out while resolving the
+already pinned build requirement `setuptools==84.0.0`; this is an environment
+network failure, not a source or lock failure. The same build completed
+successfully with `uv build --offline` from the retained local package cache.
+These checks establish graph compatibility and package-surface consistency;
+they do not claim that this repository executes HTTPX2 request or WebSocket
+traffic.
 
 ## Residual risk
 
