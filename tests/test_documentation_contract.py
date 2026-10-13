@@ -113,6 +113,28 @@ def test_mcp_authorization_contract_tracks_current_issuer_and_token_rules() -> N
     assert "MCP Authorization 2026-07-28" in " ".join(changelog.split())
 
 
+def test_subject_correlation_adr_matches_verifier_serialization() -> None:
+    """Keep the cross-language durable key recipe complete and reproducible."""
+    adr = _read("docs/adr/0020-subject-assertion-trust-contract.md")
+    decision = " ".join(adr.split("5. Correlation eligibility", 1)[1].split("6.", 1)[0].split())
+    assert "[contract_version, issuer, audience, subject_type, tenant, subject]" in decision
+    assert "separators `,` and `:`" in decision
+    assert "`tenant` is `null` when absent" in decision
+    assert "ASCII" in decision and "UTF-8" in decision
+    assert "lowercase hexadecimal" in decision
+    assert "session_only" in decision and "no key" in decision
+
+
+def test_subject_key_retirement_includes_clock_leeway() -> None:
+    """Retain old signing keys through every token's inclusive skew boundary."""
+    adr = _read("docs/adr/0020-subject-assertion-trust-contract.md")
+    decision = " ".join(adr.split("7. Key rotation", 1)[1].split("8.", 1)[0].split())
+    assert "every token" in decision
+    assert "`exp + leeway_seconds`" in decision
+    assert "passed" in decision
+    assert "new profile without" in decision
+
+
 def test_baseline_carries_mcp_reference_and_current_rp_checklist() -> None:
     """Keep product evidence and README guidance aligned with standards."""
 

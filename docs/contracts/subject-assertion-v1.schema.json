@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keyverse.contextualwisdom.dev/contracts/subject-assertion-v1",
+  "title": "Keyverse subject-assertion receipt v1",
+  "description": "Receipt returned by the Keyverse subject-assertion verifier. A relying party may persist (issuer, subject) as a durable binding only when outcome is 'verified' and correlation is 'durable'. The receipt never contains raw token bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {"const": "keyverse.subject-assertion/v1"},
+    "outcome": {"enum": ["verified", "rejected"]},
+    "reason": {
+      "enum": [
+        "malformed_token",
+        "algorithm_not_allowed",
+        "unsupported_header",
+        "token_type_mismatch",
+        "unknown_key",
+        "invalid_signature",
+        "issuer_mismatch",
+        "audience_mismatch",
+        "invalid_claim",
+        "expired",
+        "not_yet_valid",
+        "nonce_mismatch",
+        "tenant_missing"
+      ]
+    },
+    "issuer": {"type": "string", "format": "uri"},
+    "subject": {"type": "string", "minLength": 1, "maxLength": 255},
+    "audience": {"type": "string", "minLength": 1, "maxLength": 255},
+    "tenant": {"type": "string", "minLength": 1, "maxLength": 128},
+    "subject_type": {"enum": ["public", "pairwise", "ephemeral"]},
+    "correlation": {"enum": ["durable", "session_only"]},
+    "correlation_key": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+    "key_id": {"type": "string", "minLength": 1},
+    "algorithm": {"enum": ["ES256", "RS256"]},
+    "issued_at": {"type": "integer"},
+    "expires_at": {"type": "integer"}
+  },
+  "required": ["contract_version", "outcome"],
+  "oneOf": [
+    {
+      "title": "verified durable subject",
+      "properties": {
+        "outcome": {"const": "verified"},
+        "subject_type": {"enum": ["public", "pairwise"]},
+        "correlation": {"const": "durable"}
+      },
+      "required": [
+        "contract_version", "outcome", "issuer", "subject", "audience", "subject_type",
+        "correlation", "correlation_key", "key_id", "algorithm", "issued_at", "expires_at"
+      ],
+      "not": {"anyOf": [{"required": ["reason"]}]}
+    },
+    {
+      "title": "verified session-only subject",
+      "properties": {
+        "outcome": {"const": "verified"},
+        "subject_type": {"const": "ephemeral"},
+        "correlation": {"const": "session_only"}
+      },
+      "required": [
+        "contract_version", "outcome", "issuer", "subject", "audience", "subject_type",
+        "correlation", "key_id", "algorithm", "issued_at", "expires_at"
+      ],
+      "not": {"anyOf": [{"required": ["reason"]}, {"required": ["correlation_key"]}]}
+    },
+    {
+      "title": "rejected assertion",
+      "properties": {"outcome": {"const": "rejected"}},
+      "required": ["contract_version", "outcome", "reason"],
+      "not": {
+        "anyOf": [
+          {"required": ["issuer"]}, {"required": ["subject"]}, {"required": ["audience"]},
+          {"required": ["tenant"]}, {"required": ["subject_type"]},
+          {"required": ["correlation"]}, {"required": ["correlation_key"]},
+          {"required": ["key_id"]}, {"required": ["algorithm"]},
+          {"required": ["issued_at"]}, {"required": ["expires_at"]}
+        ]
+      }
+    }
+  ]
+}

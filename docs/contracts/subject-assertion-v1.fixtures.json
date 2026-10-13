@@ -1,0 +1,207 @@
+{
+  "contract_version": "keyverse.subject-assertion/v1",
+  "description": "Synthetic conformance cases. The signing key is throwaway test material; it is not a Keyverse deployment key.",
+  "now": 1790000000,
+  "profile": {
+    "issuer": "https://id.contextualwisdom.example/realms/cwl",
+    "audience": "orgmetra-web",
+    "allowed_algorithms": [
+      "ES256"
+    ],
+    "trusted_keys": {
+      "keys": [
+        {
+          "kty": "EC",
+          "crv": "P-256",
+          "kid": "fixture-es256-v1",
+          "use": "sig",
+          "alg": "ES256",
+          "x": "zKt9bEnP4_5l525CKpJOZ7rqHQI_z23oJkI762oNg7s",
+          "y": "WZdGn3m0bwRgRB5XaaAFVaJPKPvZGKJKZb12QwelU30"
+        }
+      ]
+    },
+    "subject_type": "public",
+    "required_tenant_claim": "org",
+    "leeway_seconds": 60,
+    "trusted_additional_audiences": [
+      "account"
+    ]
+  },
+  "cases": [
+    {
+      "name": "valid_public_subject",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.Et9x-pNl_S2XHGE15pbQe10C9cK0xxzfr3Y06lBsPnFcGR8z679xSlanBehhzUAgnGIGaAzMpra4lKgw6hwLWA",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "verified",
+        "issuer": "https://id.contextualwisdom.example/realms/cwl",
+        "subject": "f3b0c9a2-6d1e-4c55-9b7a-2f0e8d1c4b6a",
+        "audience": "orgmetra-web",
+        "tenant": "tenant-acme",
+        "subject_type": "public",
+        "correlation": "durable",
+        "correlation_key": "95983108b87e38d813d61691272534514b92b804ee87f1387aec682406b64730",
+        "key_id": "fixture-es256-v1",
+        "algorithm": "ES256",
+        "issued_at": 1789999990,
+        "expires_at": 1790000300
+      }
+    },
+    {
+      "name": "wrong_issuer",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsLXN0YWdpbmciLCJzdWIiOiJmM2IwYzlhMi02ZDFlLTRjNTUtOWI3YS0yZjBlOGQxYzRiNmEiLCJhdWQiOiJvcmdtZXRyYS13ZWIiLCJhenAiOiJvcmdtZXRyYS13ZWIiLCJleHAiOjE3OTAwMDAzMDAsImlhdCI6MTc4OTk5OTk5MCwib3JnIjoidGVuYW50LWFjbWUifQ.VXCbso4BeC42GUxhDrgtET4MODNIamlh8D7I9Iaw5ypW6vgHyoAP0l3aNfHP7f0sqWIn9UmuszT57imH3LxmMg",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "issuer_mismatch"
+      }
+    },
+    {
+      "name": "wrong_audience",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoibmFydW9uLXdlYiIsImF6cCI6Im5hcnVvbi13ZWIiLCJleHAiOjE3OTAwMDAzMDAsImlhdCI6MTc4OTk5OTk5MCwib3JnIjoidGVuYW50LWFjbWUifQ.YONyWwbdZiLyG9AUhDI_Mxjlo1uV6uV28VNxXWocPiKHknRdpF6OKI0P2Z2FVm_9MDj0fVWJ_cgkOdisKQ65Ow",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "audience_mismatch"
+      }
+    },
+    {
+      "name": "expired",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzg5OTk5OTM5LCJpYXQiOjE3ODk5OTk2MDAsIm9yZyI6InRlbmFudC1hY21lIn0.VCo7HPtnBrADsGJRSzF1NF_AEpTwc0bI9zGyVEffuiFPEliTVW4Q5FZqx5W2QHxDFZWc-3f_ZujMgVy5Ic4fMA",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "expired"
+      }
+    },
+    {
+      "name": "not_yet_valid",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIiwibmJmIjoxNzkwMDAwMDYxfQ.5Ji9f6dVpKQYLut33hCDvDkWT9qxsVIciJuaZCef0kvOiuU33cVhawDymLWgGMlpFzBUoPiFo_gRV2TBSukUjg",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "not_yet_valid"
+      }
+    },
+    {
+      "name": "forged_signature_same_kid",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.m-vQL1KZwGJ2_Sgkvq-Dxj5OHZ-DoTP0FQNjxu3TvXIWDQ8HgUJSaTt7kpo8V8vNLXbU5K4FnBHVa2NkR49m-A",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "invalid_signature"
+      }
+    },
+    {
+      "name": "unknown_kid",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJvdGF0ZWQtYXdheSJ9.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.QED4kNYKbo8S3pJF06qLFpgdrPDcgveyyQNFEyJjSY7kAspwb7XQr6m9XezMeLJ7zp1NOYgzRMydzHT2MNnypA",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "unknown_key"
+      }
+    },
+    {
+      "name": "access_token_type",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.QRkOCGI9X9BrpMFh3PCm-UTSjl89y3cri3BTb6LCgxSlxMRB2NEKUWjNwHy7H2Nz7f3eCwpZmBo9CKVF6iinmg",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "token_type_mismatch"
+      }
+    },
+    {
+      "name": "critical_header",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEiLCJjcml0IjpbImV4cCJdfQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.05HTthvsstif8vsdDIra6aCHHi-eJbrlLwZxZSYd6eoE3B5lkYJcAyI0r-OnrfHouiWOgobGt2PjVJZFi47NNQ",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "unsupported_header"
+      }
+    },
+    {
+      "name": "alg_none",
+      "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoiZml4dHVyZS1lczI1Ni12MSJ9.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "algorithm_not_allowed"
+      }
+    },
+    {
+      "name": "cross_tenant_missing_org",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTB9.BYzl1BY9ZlygMW5Jhj7vZyjVGfaT18qT2-uELaRMXuoNTn3NaKvB7p3jvFTMaViqkf402TyCi1iZ3FPEntr86g",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "tenant_missing"
+      }
+    },
+    {
+      "name": "empty_subject",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.RV6KQnu4o6QQdqLlVS9aAsCN4HvqAQbldBW9GGQvh8WoWqJkzvaGgvcslV7kKkj2bPnADqszRZYZLm3KMkHG8g",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "invalid_claim"
+      }
+    },
+    {
+      "name": "untrusted_extra_audience",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjpbIm9yZ21ldHJhLXdlYiIsIm5hcnVvbi13ZWIiXSwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.ofjCtEI1m63hgqUYyuNLgRtYOcDJKOzwS5deW6h4nC23IpwtzAmCy2fqabdV-EmeOE_Fr-jktyU_TSFGfZuZTQ",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "audience_mismatch"
+      }
+    },
+    {
+      "name": "trusted_extra_audience",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjpbImFjY291bnQiLCJvcmdtZXRyYS13ZWIiXSwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.UkAwEPaDRpcFUOJMH4ejLOdqHR0hVPNkgo1wjvjos8HUX-iq6lW70PiINAes7GfKhVPxyipPJlSTV0HmIpE6ew",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "verified",
+        "issuer": "https://id.contextualwisdom.example/realms/cwl",
+        "subject": "f3b0c9a2-6d1e-4c55-9b7a-2f0e8d1c4b6a",
+        "audience": "orgmetra-web",
+        "tenant": "tenant-acme",
+        "subject_type": "public",
+        "correlation": "durable",
+        "correlation_key": "95983108b87e38d813d61691272534514b92b804ee87f1387aec682406b64730",
+        "key_id": "fixture-es256-v1",
+        "algorithm": "ES256",
+        "issued_at": 1789999990,
+        "expires_at": 1790000300
+      }
+    },
+    {
+      "name": "lowercase_typ",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6Imp3dCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzkwMDAwMzAwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.Es4kprm0P_M67MyreXbM3gaFUWakbC5xhYwXnSWbdcY6fLxDL4n08FdfeZCS47dBtMmEHtTwBYDOmRQFKiGkZQ",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "verified",
+        "issuer": "https://id.contextualwisdom.example/realms/cwl",
+        "subject": "f3b0c9a2-6d1e-4c55-9b7a-2f0e8d1c4b6a",
+        "audience": "orgmetra-web",
+        "tenant": "tenant-acme",
+        "subject_type": "public",
+        "correlation": "durable",
+        "correlation_key": "95983108b87e38d813d61691272534514b92b804ee87f1387aec682406b64730",
+        "key_id": "fixture-es256-v1",
+        "algorithm": "ES256",
+        "issued_at": 1789999990,
+        "expires_at": 1790000300
+      }
+    },
+    {
+      "name": "expiry_before_issue",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZpeHR1cmUtZXMyNTYtdjEifQ.eyJpc3MiOiJodHRwczovL2lkLmNvbnRleHR1YWx3aXNkb20uZXhhbXBsZS9yZWFsbXMvY3dsIiwic3ViIjoiZjNiMGM5YTItNmQxZS00YzU1LTliN2EtMmYwZThkMWM0YjZhIiwiYXVkIjoib3JnbWV0cmEtd2ViIiwiYXpwIjoib3JnbWV0cmEtd2ViIiwiZXhwIjoxNzg5OTk5OTgwLCJpYXQiOjE3ODk5OTk5OTAsIm9yZyI6InRlbmFudC1hY21lIn0.tXLWQJ_uLCXpMIzRiwaPAPrO92BEFI9DYe-478jVYaDmKqukPUNaQ0NCKIWCSDnISTitMXoSeePY_sBAysrd8w",
+      "expected_receipt": {
+        "contract_version": "keyverse.subject-assertion/v1",
+        "outcome": "rejected",
+        "reason": "invalid_claim"
+      }
+    }
+  ]
+}

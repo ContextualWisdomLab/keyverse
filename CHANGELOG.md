@@ -7,6 +7,12 @@ Keep a Changelog, and releases use semantic versioning.
 
 ### Added
 
+- `keyverse.subject-assertion/v1` (ADR-0020, #155): an offline ES256/RS256 ID
+  token verifier with a deployment-pinned profile, closed rejection reasons,
+  and an explicit `durable` versus `session_only` correlation decision; a
+  JSON Schema 2020-12 receipt contract and a signed conformance fixture
+  catalog under `docs/contracts/`. No immutable release is claimed yet.
+
 - ADR-0008 and the non-fork RP authorization matrix, requiring explicit
   Keyverse token validation, tenant/resource ABAC, bounded RBAC, and
   cross-tenant acceptance evidence per application.
