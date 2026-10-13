@@ -57,8 +57,10 @@ closed.
 6. A rejected receipt carries exactly one closed reason and no identity field.
    The receipt never contains raw token bytes.
 7. Key rotation is a profile change: an RP keeps the old public key in the
-   profile until tokens signed by it expire, then builds a new profile without
-   it. A removed key yields `unknown_key`. The profile keeps a read-only deep
+   profile until every token signed with it has passed its `exp + leeway_seconds`
+   boundary, then builds a new profile without it. Because `exp` is accepted
+   through that inclusive skew boundary, removing the key sooner can reject a
+   still-valid ID token as `unknown_key`. The profile keeps a read-only deep
    copy of its key set, so editing the caller's dict cannot add or revoke trust.
 8. Input hygiene is strict so that every conforming verifier makes the same
    decision. Segments must be canonical base64url. JSON must be strict UTF-8
