@@ -175,7 +175,7 @@ use two-word-or-longer snake_case names (`idp_config_entries`,
 | Path | What |
 | --- | --- |
 | `docker-compose.yml` | Standalone bring-up: Keycloak + Postgres + admin service (pinned by digest) |
-| `deploy/keycloak/` | Portable Keycloak realm config-as-code and service-account bootstrap |
+| `deploy/keycloak/` | Portable Keycloak realm config-as-code and service-account bootstrap; application RPs are runtime desired state, not portable-realm content |
 | `deploy/templates/` | Private deployment templates for preflight and desired state |
 | `deploy/bootstrap/` | Bootstrap pointer to the KV/DB config store |
 | `deploy/scripts/healthz.sh` | Cross-component readiness probe |

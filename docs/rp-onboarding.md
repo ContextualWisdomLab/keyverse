@@ -147,6 +147,12 @@ validates the resulting tokens.
 
 ## Desired-state lifecycle
 
+After a clean realm import, bootstrap the account-unification service first,
+then validate and reconcile each runtime RP, place a confidential client secret
+through the separate approved channel where applicable, and finally perform
+controlled login acceptance before routing users. The portable realm does not
+pre-create an application RP.
+
 The authenticated surface is:
 
 ```text

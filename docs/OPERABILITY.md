@@ -66,6 +66,11 @@ must test the **Naruon** product login/token/authorization journey using the
 `naruon-web` RP client ID and verify the expected audience and bounded claims.
 Mapper unit tests alone do not prove Naruon product authorization readiness.
 
+After a clean realm import, bootstrap `account-unification-svc`, reconcile the
+rendered runtime RP desired state, place confidential credentials where
+applicable, and only then run controlled login acceptance or route traffic. The
+portable realm intentionally creates no application RP as a fallback.
+
 ## Account merge recovery
 
 The active PR implementation makes merge, SCIM full replacement (`PUT`),

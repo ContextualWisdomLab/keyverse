@@ -6,7 +6,7 @@ providers are converged afterwards from the KV/DB source of truth.
 
 | File | Responsibility |
 | --- | --- |
-| `realm-cwl.json` | Portable passwordless realm, shared client scopes, RP template, concrete `naruon-web` PKCE client, and account-unification service client |
+| `realm-cwl.json` | Portable passwordless realm, shared client scopes, and the account-unification control-plane service client; no application RP clients |
 | `kcadm-bootstrap.sh` | Idempotently inject the service-client secret, grant least-privilege realm-management roles, and reconcile the role mapper |
 | `../templates/` | Reference payloads for runtime federation and additional relying-party registrations |
 
@@ -36,11 +36,12 @@ See [`../../docs/passwordless-policy.md`](../../docs/passwordless-policy.md).
 
 ## Portable realm versus deployment data
 
-The committed realm contains no employer ADFS, LDAP/AD source, or other external
-federation. Those objects are customer/deployment data and are managed through
-`/federation/identity-providers`. Desired state is stored in the KV/DB backend
-and can be reapplied after a realm rebuild with
-`POST /federation/identity-providers:apply`.
+The committed realm contains no employer ADFS, LDAP/AD source, external
+federation, reusable RP template, or application RP. Those objects are
+customer/deployment data. Federation is managed through
+`/federation/identity-providers`; application clients are managed through
+`/clients/relying-parties`. Desired state is stored in the KV/DB backend and can
+be reapplied after a realm rebuild through the respective reconciliation route.
 
 This separation also avoids Keycloak 26 import failures from placeholder SAML
 URLs or invalid placeholder LDAP distinguished names.
@@ -54,21 +55,19 @@ URLs or invalid placeholder LDAP distinguished names.
 - no password authenticator in any subflow reachable from `browserFlow`;
 - `webauthn-register-passwordless` remains enabled;
 - `basic`, `profile`, and `email` scopes exist, with `basic` providing `sub`;
-- public `naruon-web` requires PKCE S256 and an access-token lifespan no greater
-  than 900 seconds;
+- runtime application clients are rejected from the portable import;
+- the `account-unification-svc` control-plane client remains present;
 - committed client secrets are placeholders only.
 
 ## RP clients
 
-`ecosystem-rp-template` is a confidential PKCE S256 blueprint. It uses the
-reserved `rp.example.invalid` host so no product-specific deployment value is
-silently inherited. Clones must replace redirect/origin values, client ID,
-secret, and audience mapper together.
-
-`naruon-web` is the first concrete public PKCE client. It carries the audience
-and `role`/`org`/`workspace` claims required by the current Naruon session
-contract. Its access tokens last 300 seconds; the longer SSO session is serviced
-through normal token refresh/reissue rather than a twelve-hour bearer token.
+`deploy/templates/oidc-rp-client.json` is the confidential PKCE S256 blueprint;
+`deploy/templates/oidc-rp-naruon.json` is the concrete public Naruon profile.
+Neither is imported with the realm. Render and preflight the chosen template,
+persist it through Keyverse desired state, reconcile it into Keycloak, place any
+confidential secret through the separate secret channel, and only then route
+login traffic. The Naruon profile carries the reviewed audience and bounded
+`role`/`org`/`workspace` claims and retains a 300-second access-token lifetime.
 
 ## Bootstrap
 
