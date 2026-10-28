@@ -319,7 +319,7 @@ jobs:
 
       - name: Set up the locked package runner
         if: steps.gate.outputs.develop == 'true'
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           prune-cache: true
 
@@ -670,7 +670,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up the independent locked package runner
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           prune-cache: true
 
