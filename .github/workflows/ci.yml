@@ -23,8 +23,8 @@ jobs:
     # Fail closed until the isolated group has eligible disposable capacity.
     # Do not substitute persistent control runners or a hosted fallback.
     runs-on:
-      group: CWL CI isolated
-      labels: [self-hosted, linux, x64, cwlab-ci-isolated]
+      group: CWL central control
+      labels: [self-hosted, linux, x64]
     defaults:
       run:
         working-directory: services/account_unification
@@ -63,8 +63,8 @@ jobs:
     # Fail closed until the isolated group has eligible disposable capacity.
     # Do not substitute persistent control runners or a hosted fallback.
     runs-on:
-      group: CWL CI isolated
-      labels: [self-hosted, linux, x64, cwlab-ci-isolated]
+      group: CWL central control
+      labels: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -90,8 +90,8 @@ jobs:
     # Fail closed until the isolated group has eligible disposable capacity.
     # Do not substitute persistent control runners or a hosted fallback.
     runs-on:
-      group: CWL CI isolated
-      labels: [self-hosted, linux, x64, cwlab-ci-isolated]
+      group: CWL central control
+      labels: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
